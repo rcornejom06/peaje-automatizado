@@ -1,10 +1,10 @@
 from decimal import Decimal
-
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
+from django.utils import timezone
+from apps.membresias.models import Membresia
 from .models import Peaje, Camara, PasoPeaje
 from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer
 
@@ -73,20 +73,53 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         estado_pago = PasoPeaje.EstadoPago.PENDIENTE
         estado_seguridad = PasoPeaje.EstadoSeguridad.NORMAL
         transaccion = None
+        tarifa_aplicada = Decimal("0.00")
+        membresia_utilizada = None
 
         if vehiculo:
+            if vehiculo.categoria:
+                tarifa_aplicada = vehiculo.categoria.tarifa
+            else:
+                tarifa_aplicada = peaje.tarifa
+
+
+            hoy = timezone.localdate()
+
+            membresia_activa = Membresia.objects.filter(
+                usuario=vehiculo.usuario,
+                estado=Membresia.Estado.ACTIVA,
+                fecha_inicio__lte=hoy,
+                fecha_fin__gte=hoy,
+                pases_restantes__gt=0
+            ).order_by("fecha_fin").first()
+
             billetera = Billetera.objects.filter(usuario=vehiculo.usuario).first()
 
-            if billetera and billetera.estado == Billetera.Estado.ACTIVA:
-                if billetera.saldo >= peaje.tarifa:
-                    billetera.saldo -= peaje.tarifa
+            if membresia_activa:
+                membresia_activa.consumir_pase()
+                membresia_utilizada = membresia_activa
+                estado_pago = PasoPeaje.EstadoPago.MEMBRESIA
+
+                transaccion = Transaccion.objects.create(
+                    billetera=billetera,
+                    membresia=membresia_activa,
+                    monto=Decimal("0.00"),
+                    tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
+                    metodo_pago="Membresía",
+                    referencia_pago=f"Uso de membresía en {peaje.nombre}",
+                    estado=Transaccion.Estado.APROBADA,
+                )
+
+            elif billetera and billetera.estado == Billetera.Estado.ACTIVA:
+                if billetera.saldo >= tarifa_aplicada:
+                    billetera.saldo -= tarifa_aplicada
                     billetera.save()
 
                     estado_pago = PasoPeaje.EstadoPago.PAGADO
 
                     transaccion = Transaccion.objects.create(
                         billetera=billetera,
-                        monto=peaje.tarifa,
+                        monto=tarifa_aplicada,
                         tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
                         metodo_pago="Billetera virtual",
                         referencia_pago=f"Pago peaje {peaje.nombre}",
@@ -101,6 +134,8 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             camara=camara,
             placa_detectada=placa_detectada,
             estado_pago=estado_pago,
+            tarifa_aplicada=tarifa_aplicada,
+            membresia_utilizada=membresia_utilizada,
             estado_seguridad=estado_seguridad,
             observacion="Paso por peaje simulado desde API.",
         )

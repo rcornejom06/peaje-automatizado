@@ -1,5 +1,5 @@
 from importlib.metadata import pass_none
-
+from .models import CategoriaVehiculo
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
@@ -17,11 +17,12 @@ class VehiculoViewSet(viewsets.ModelViewSet):
     def registrar_propio(self, request, status=None):
         placa = request.data["placa"]
         marca = request.data["marca"]
+        categoria_id = request.data.get("categoria")
         modelo = request.data["modelo"]
         color = request.data["color"]
         anio = request.data["anio"]
 
-        if not placa or not marca or not modelo:
+        if not placa or not marca or not modelo or not categoria_id:
             return Response({"error": "Faltan campos obligatorios"}, status=status.HTTP_400_BAD_REQUEST)
 
         placa = placa.upper().strip()
@@ -29,10 +30,18 @@ class VehiculoViewSet(viewsets.ModelViewSet):
         if Vehiculo.objects.filter(placa=placa).exits():
             return Response({"error": "Ya existe un vehículo con esa placa"}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            categoria = CategoriaVehiculo.objects.get(id=categoria_id, estado=true)
+        except CategoriaVehiculo.DoesNotExist:
+            return Response(
+                {"error": "La categoría indicada no existe o no está activa."},
+                status=status.HTTP_404_NOT_FOUND
+            )
         vehiculo = Vehiculo.objects.create(
             usuario = request.user,
             placa=placa,
             marca=marca,
+            categoria=categoria,
             modelo=modelo,
             color=color,
             anio=anio

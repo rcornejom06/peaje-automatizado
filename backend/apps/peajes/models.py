@@ -51,6 +51,7 @@ class PasoPeaje(models.Model):
     class EstadoPago(models.TextChoices):
         PENDIENTE = "pendiente", "Pendiente"
         PAGADO = "pagado", "Pagado"
+        MEMBRESIA = "membresia", "Membresía"
         EXONERADO = "exonerado", "Exonerado"
         FALLIDO = "fallido", "Fallido"
 
@@ -65,6 +66,8 @@ class PasoPeaje(models.Model):
     placa_detectada = models.CharField(max_length=15)
     fecha_hora = models.DateTimeField(auto_now_add=True)
     estado_pago = models.CharField(max_length=20,choices=EstadoPago.choices,default=EstadoPago.PENDIENTE)
+    tarifa_aplicada = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+    membresia_utilizada = models.ForeignKey("membresias.Membresia",on_delete=models.SET_NULL,null=True,blank=True,related_name="pasos_peaje")
     estado_seguridad = models.CharField(max_length=20,choices=EstadoSeguridad.choices,default=EstadoSeguridad.NORMAL)
     imagen_capturada = models.ImageField(upload_to="capturas_placas/",blank=True,null=True)
     observacion = models.TextField(blank=True, null=True)

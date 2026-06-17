@@ -26,6 +26,7 @@ class Transaccion(models.Model):
     class Tipo(models.TextChoices):
         RECARGA = "recarga", "Recarga"
         PAGO_PEAJE = "pago_peaje", "Pago de peaje"
+        USO_MEMBRESIA = "uso_membresia", "Uso de membresía"
         DEVOLUCION = "devolucion", "Devolución"
 
     class Estado(models.TextChoices):
@@ -37,6 +38,7 @@ class Transaccion(models.Model):
     billetera = models.ForeignKey(Billetera,on_delete=models.CASCADE,related_name="transacciones")
     paso_peaje = models.OneToOneField("peajes.PasoPeaje",on_delete=models.SET_NULL,null=True,blank=True,related_name="transaccion")
     monto = models.DecimalField(max_digits=10, decimal_places=2)
+    membresia = models.ForeignKey("membresias.Membresia",on_delete=models.SET_NULL,null=True,blank=True,related_name="transacciones")
     tipo_transaccion = models.CharField(max_length=20,choices=Tipo.choices)
     metodo_pago = models.CharField(max_length=50, default="Billetera virtual")
     referencia_pago = models.CharField(max_length=120, blank=True, null=True)
