@@ -1,13 +1,14 @@
 from rest_framework import viewsets, status
+
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from decimal import Decimal, InvalidOperation
 from rest_framework.decorators import action
 from .models import Billetera, Transaccion
 from .serializers import BilleteraSerializer, TransaccionSerializer
-from apps.auditoria.models import HistorialUsuario
-
 from ..auditoria.models import HistorialUsuario
+
+
 
 
 class BilleteraViewSet(viewsets.ModelViewSet):
@@ -19,7 +20,7 @@ class BilleteraViewSet(viewsets.ModelViewSet):
     def recargar(self, request):
         monto = request.data.get('monto')
         metodo_pago = request.data.get('metodo_pago',"PayPhone simulado")
-        referencia_pago = request.data,get('referencia_pago', "")
+        referencia_pago = request.data.get('referencia_pago', "")
 
         if not monto:
             return Response({"error": "El campo 'monto' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)

@@ -26,6 +26,7 @@ class Transaccion(models.Model):
     class Tipo(models.TextChoices):
         RECARGA = "recarga", "Recarga"
         PAGO_PEAJE = "pago_peaje", "Pago de peaje"
+        COMPRA_MEMBRESIA = "compra_membresia", "Compra de membresía"
         USO_MEMBRESIA = "uso_membresia", "Uso de membresía"
         DEVOLUCION = "devolucion", "Devolución"
 
