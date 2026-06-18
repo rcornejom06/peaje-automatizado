@@ -6,20 +6,36 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Vehiculo
 from .serializers import CategoriaVehiculoSerializer,VehiculoSerializer
-from apps.auditoria.models import HistorialUsuario
+from ..auditoria.models import HistorialUsuario
+from ..usuarios.permissions import obtener_rol_usuario
 
 
 class CategoriaVehiculoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = CategoriaVehiculo.objects.filter(estado=True).order_by("numero_ejes", "tarifa")
     serializer_class = CategoriaVehiculoSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+        if rol == 'administrador':
+            return CategoriaVehiculo.objects.all().order_by("numero_ejes","tarifa")
+        return CategoriaVehiculo.objects.filter(estado=True).order_by("numero_ejes","tarifa")
 
 
 class VehiculoViewSet(viewsets.ModelViewSet):
-    queryset = Vehiculo.objects.all().order_by("placa")
     serializer_class = VehiculoSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+        if rol in ['operador', 'administrador']:
+            return Vehiculo.objects.all().order_by("placa")
+        return Vehiculo.objects.filter(usuario=self.request.user).order_by("placa")
+    def perform_create(self, serializer):
+        rol = obtener_rol_usuario(self.request.user)
+        if rol == 'usuario':
+            serializer.save(usuario=self.request.user)
+        else:
+            serializer.save()
 
     @action(detail=False, methods=["post"], url_path="Registrar-propio")
     def registrar_propio(self, request, status=None):
