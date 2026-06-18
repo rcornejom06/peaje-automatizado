@@ -23,7 +23,7 @@ class CamaraAdmin(admin.ModelAdmin):
 
 @admin.register(PasoPeaje)
 class PasoPeajeAdmin(admin.ModelAdmin):
-    list_display = ('id','placa_detectada','peaje','camara', 'estado_pago','estado_seguridad','fecha_hora')
-    list_filter = ('estado_pago','estado_seguridad','peaje','fecha_hora',)
+    list_display = ('id','placa_detectada','peaje','camara','tarifa_aplicada','membresia_utilizada', 'estado_pago','estado_seguridad','fecha_hora')
+    list_filter = ('estado_pago','estado_seguridad','peaje','membresia_utilizada','fecha_hora',)
     search_fields = ('placa_detectada','vehiculo_placa','peaje__nombre','camara__codigo')
     readonly_fields = ('fecha_hora',)

@@ -19,7 +19,7 @@ class BilleteraAdmin(admin.ModelAdmin):
 
 @admin.register(Transaccion)
 class TransaccionAdmin(admin.ModelAdmin):
-    list_display = ('id','billetera','paso_peaje','monto','tipo_transaccion','metodo_pago','estado','fecha_hora')
+    list_display = ('id','billetera','paso_peaje','membresia','monto','tipo_transaccion','metodo_pago','estado','fecha_hora')
     list_filter = ('tipo_transaccion','estado','metodo_pago','fecha_hora',)
     search_fields = ('billetera__usuario__username','billetera__usuario__email','referencia_pago','paso_peaje__placa_detectada')
     readonly_fields = ('fecha_hora',)

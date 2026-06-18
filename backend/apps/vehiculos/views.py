@@ -1,12 +1,20 @@
 from importlib.metadata import pass_none
 from .models import CategoriaVehiculo
-from rest_framework import viewsets
+from rest_framework import status,viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Vehiculo
-from .serializers import VehiculoSerializer
+from .serializers import CategoriaVehiculoSerializer,VehiculoSerializer
 from apps.auditoria.models import HistorialUsuario
+
+
+class CategoriaVehiculoViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = CategoriaVehiculo.objects.filter(estado=True).order_by("numero_ejes", "tarifa")
+    serializer_class = CategoriaVehiculoSerializer
+    permission_classes = [IsAuthenticated]
+
+
 
 class VehiculoViewSet(viewsets.ModelViewSet):
     queryset = Vehiculo.objects.all().order_by("placa")
