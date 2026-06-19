@@ -6,8 +6,7 @@ from decimal import Decimal, InvalidOperation
 from rest_framework.decorators import action
 from .models import Billetera, Transaccion
 from .serializers import BilleteraSerializer, TransaccionSerializer
-from ..auditoria.models import HistorialUsuario
-
+from ..auditoria.utils import registrar_historial
 
 
 class BilleteraViewSet(viewsets.ModelViewSet):
@@ -56,17 +55,14 @@ class BilleteraViewSet(viewsets.ModelViewSet):
             estado=Transaccion.Estado.APROBADA,
         )
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion=f"Recarga de {monto_decimal} a la billetera",
-                descripcion = f"El usuario recargó {monto_decimal} a su billetera utilizando {metodo_pago}. Referencia de pago: {referencia_pago}",
-                modulo="Pagos",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Recarga de billetera",
+            descripcion=f"El usuario recargó su billetera con un monto de {monto_decimal}.",
+            modulo="Pagos",
+            request=request,
+        )
+
 
         return Response(
             {

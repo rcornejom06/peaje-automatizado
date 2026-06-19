@@ -1,9 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
-from apps.usuarios.models import PerfilUsuario
-from apps.pagos.models import Billetera
+from ..usuarios.models import PerfilUsuario
+from ..pagos.models import Billetera
 
 
 User = get_user_model()

@@ -8,6 +8,12 @@ from ..membresias.models import Membresia
 from .models import Peaje, Camara, PasoPeaje
 from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer
 from ..usuarios.permissions import obtener_rol_usuario
+from ..vehiculos.models import Vehiculo
+from ..pagos.models import Billetera, Transaccion
+from ..seguridad.models import (AvisoVehiculoRobado,AlertaSeguridad,UbicacionDeteccion,)
+from ..auditoria.utils import registrar_historial
+from ..notificaciones.models import Notificacion
+
 
 class PeajeViewSet(viewsets.ModelViewSet):
     serializer_class = PeajeSerializer
@@ -128,14 +134,6 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-        from apps.vehiculos.models import Vehiculo
-        from apps.pagos.models import Billetera, Transaccion
-        from apps.seguridad.models import (
-            AvisoVehiculoRobado,
-            AlertaSeguridad,
-            UbicacionDeteccion,
-        )
-
         vehiculo = Vehiculo.objects.filter(placa=placa_detectada).first()
 
         estado_pago = PasoPeaje.EstadoPago.PENDIENTE
@@ -149,7 +147,6 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 tarifa_aplicada = vehiculo.categoria.tarifa
             else:
                 tarifa_aplicada = peaje.tarifa
-
 
             hoy = timezone.localdate()
 
@@ -168,14 +165,26 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 membresia_utilizada = membresia_activa
                 estado_pago = PasoPeaje.EstadoPago.MEMBRESIA
 
-                transaccion = Transaccion.objects.create(
-                    billetera=billetera,
-                    membresia=membresia_activa,
-                    monto=Decimal("0.00"),
-                    tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
-                    metodo_pago="Membresía",
-                    referencia_pago=f"Uso de membresía en {peaje.nombre}",
-                    estado=Transaccion.Estado.APROBADA,
+                if billetera:
+                    transaccion = Transaccion.objects.create(
+                        billetera=billetera,
+                        membresia=membresia_activa,
+                        monto=Decimal("0.00"),
+                        tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
+                        metodo_pago="Membresía",
+                        referencia_pago=f"Uso de membresía en {peaje.nombre}",
+                        estado=Transaccion.Estado.APROBADA,
+                    )
+
+                registrar_historial(
+                    usuario=vehiculo.usuario,
+                    accion="Uso de membresía",
+                    descripcion=(
+                        f"El vehículo {vehiculo.placa} pasó por {peaje.nombre} "
+                        "usando un pase de membresía."
+                    ),
+                    modulo="Membresías",
+                    request=request,
                 )
 
             elif billetera and billetera.estado == Billetera.Estado.ACTIVA:
@@ -193,8 +202,45 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                         referencia_pago=f"Pago peaje {peaje.nombre}",
                         estado=Transaccion.Estado.APROBADA,
                     )
+
+                    registrar_historial(
+                        usuario=vehiculo.usuario,
+                        accion="Pago de peaje",
+                        descripcion=(
+                            f"Se cobró {tarifa_aplicada} por el paso del vehículo "
+                            f"{vehiculo.placa} en {peaje.nombre}."
+                        ),
+                        modulo="Peajes",
+                        request=request,
+                    )
+
                 else:
                     estado_pago = PasoPeaje.EstadoPago.FALLIDO
+
+                    registrar_historial(
+                        usuario=vehiculo.usuario,
+                        accion="Pago de peaje fallido",
+                        descripcion=(
+                            f"No se pudo cobrar el paso del vehículo {vehiculo.placa} "
+                            f"en {peaje.nombre} por saldo insuficiente."
+                        ),
+                        modulo="Peajes",
+                        request=request,
+                    )
+
+            else:
+                estado_pago = PasoPeaje.EstadoPago.FALLIDO
+
+                registrar_historial(
+                    usuario=vehiculo.usuario,
+                    accion="Pago de peaje fallido",
+                    descripcion=(
+                        f"No se pudo cobrar el paso del vehículo {vehiculo.placa} "
+                        f"en {peaje.nombre} porque no tiene billetera activa."
+                    ),
+                    modulo="Peajes",
+                    request=request,
+                )
 
         paso = PasoPeaje.objects.create(
             vehiculo=vehiculo,
@@ -256,8 +302,6 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 aviso_activo.save()
 
                 try:
-                    from apps.notificaciones.models import Notificacion
-
                     Notificacion.objects.create(
                         usuario=vehiculo.usuario,
                         alerta=alerta_generada,
@@ -271,19 +315,16 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
 
-        try:
-            from apps.auditoria.models import HistorialUsuario
-
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Simulación de paso por peaje",
-                descripcion=f"Se simuló el paso de la placa {placa_detectada} por {peaje.nombre}.",
-                modulo="Peajes",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+                registrar_historial(
+                    usuario=vehiculo.usuario,
+                    accion="Detección de vehículo con aviso",
+                    descripcion=(
+                        f"El vehículo {vehiculo.placa} fue detectado en {peaje.nombre} "
+                        "y tiene un aviso interno activo."
+                    ),
+                    modulo="Seguridad",
+                    request=request,
+                )
 
         return Response(
             {

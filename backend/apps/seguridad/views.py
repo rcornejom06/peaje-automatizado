@@ -7,8 +7,9 @@ from .models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion
 from .serializers import (AvisoVehiculoRobadoSerializer,AlertaSeguridadSerializer,UbicacionDeteccionSerializer,)
 from ..vehiculos.models import Vehiculo
 from ..notificaciones.models import Notificacion
-from ..auditoria.models import HistorialUsuario
 from ..peajes.models import Peaje, PasoPeaje
+from ..auditoria.utils import registrar_historial
+
 
 class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
     serializer_class = AvisoVehiculoRobadoSerializer
@@ -103,18 +104,13 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        try:
-
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Aviso interno de vehículo robado",
-                descripcion=f"El usuario registró un aviso interno para el vehículo {vehiculo.placa}.",
-                modulo="Seguridad",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Aviso interno de vehículo robado",
+            descripcion=f"El usuario registró un aviso interno para el vehículo {vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
 
         return Response(
             {
@@ -164,17 +160,13 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Cierre de aviso de vehículo",
-                descripcion=f"Se cerró el aviso interno del vehículo {aviso.vehiculo.placa}.",
-                modulo="Seguridad",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Cierre de alerta",
+            descripcion=f"Se cerró la alerta del vehículo {aviso.vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
 
         return Response(
             {
@@ -226,17 +218,13 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Cancelación de aviso de vehículo",
-                descripcion=f"Se canceló el aviso interno del vehículo {aviso.vehiculo.placa}.",
-                modulo="Seguridad",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Cancelación de aviso de vehículo",
+            descripcion=f"Se canceló el aviso interno del vehículo {aviso.vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
 
         return Response(
             {
@@ -339,6 +327,18 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         aviso.estado = AvisoVehiculoRobado.Estado.DETECTADO
         aviso.save()
 
+        registrar_historial(
+            usuario=request.user,
+            accion="Generación de alerta por placa",
+            descripcion=(
+                f"Se generó una alerta para la placa {placa} "
+                f"detectada en {peaje.nombre}."
+            ),
+            modulo="Seguridad",
+            request=request,
+        )
+
+
         return Response(
             {
                 "mensaje": "Alerta generada correctamente.",
@@ -372,17 +372,13 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         alerta.estado = AlertaSeguridad.Estado.REVISADA
         alerta.save()
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Revisión de alerta",
-                descripcion=f"Se marcó como revisada la alerta del vehículo {alerta.vehiculo.placa}.",
-                modulo="Seguridad",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Revisión de alerta",
+            descripcion=f"Se marcó como revisada la alerta del vehículo {alerta.vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
 
         return Response(
             {
@@ -428,17 +424,13 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Derivación de alerta",
-                descripcion=f"Se derivó la alerta del vehículo {alerta.vehiculo.placa}.",
-                modulo="Seguridad",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Derivación de alerta",
+            descripcion=f"Se derivó la alerta del vehículo {alerta.vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
 
         return Response(
             {
@@ -474,17 +466,13 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         alerta.estado = AlertaSeguridad.Estado.CERRADA
         alerta.save()
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Cierre de alerta",
-                descripcion=f"Se cerró la alerta del vehículo {alerta.vehiculo.placa}.",
-                modulo="Seguridad",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Cierre de alerta",
+            descripcion=f"Se cerró la alerta del vehículo {alerta.vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
 
         return Response(
             {
@@ -520,17 +508,13 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         alerta.estado = AlertaSeguridad.Estado.DESCARTADA
         alerta.save()
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Descarte de alerta",
-                descripcion=f"Se descartó la alerta del vehículo {alerta.vehiculo.placa}.",
-                modulo="Seguridad",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Descarte de alerta",
+            descripcion=f"Se descartó la alerta del vehículo {alerta.vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
 
         return Response(
             {
@@ -599,6 +583,17 @@ class UbicacionDeteccionViewSet(viewsets.ModelViewSet):
             longitud=peaje.longitud,
             direccion_referencial=peaje.ubicacion,
             url_maps=maps_url,
+        )
+
+        registrar_historial(
+            usuario=request.user,
+            accion="Registro de ubicación de detección",
+            descripcion=(
+                f"Se registró la ubicación de detección para la alerta "
+                f"del vehículo {alerta.vehiculo.placa}."
+            ),
+            modulo="Seguridad",
+            request=request,
         )
 
         return Response(

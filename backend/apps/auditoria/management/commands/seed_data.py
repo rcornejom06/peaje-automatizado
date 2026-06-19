@@ -1,14 +1,11 @@
-from datetime import date, timedelta
-
+from datetime import date
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
-from django.utils import timezone
-
-from apps.usuarios.models import PerfilUsuario
-from apps.vehiculos.models import CategoriaVehiculo, Vehiculo
-from apps.peajes.models import Peaje, Camara
-from apps.pagos.models import Billetera
-from apps.membresias.models import PlanMembresia, Membresia
+from ....usuarios.models import PerfilUsuario
+from ....vehiculos.models import CategoriaVehiculo
+from ....peajes.models import Peaje, Camara
+from ....pagos.models import Billetera
+from ....membresias.models import PlanMembresia
 
 
 class Command(BaseCommand):
@@ -65,104 +62,20 @@ class Command(BaseCommand):
         ]
 
         for data in categorias:
-            CategoriaVehiculo.objects.get_or_create(
+            categoria, creada = CategoriaVehiculo.objects.get_or_create(
                 nombre=data["nombre"],
                 defaults=data
             )
 
-        self.stdout.write(self.style.SUCCESS("Categorías vehiculares creadas."))
+            if not creada:
+                categoria.tipo = data["tipo"]
+                categoria.numero_ejes = data["numero_ejes"]
+                categoria.tarifa = data["tarifa"]
+                categoria.estado = True
+                categoria.save()
 
-    def crear_usuarios_administrativos(self):
-        admin, creado_admin = User.objects.get_or_create(
-            username="admin",
-            defaults={
-                "email": "admin@peaje.com",
-                "is_staff": True,
-                "is_superuser": True,
-            }
-        )
+        self.stdout.write(self.style.SUCCESS("Categorías vehiculares creadas o actualizadas."))
 
-        if creado_admin:
-            admin.set_password("Admin12345")
-            admin.save()
-
-        operador, creado_operador = User.objects.get_or_create(
-            username="operador",
-            defaults={
-                "email": "operador@peaje.com",
-                "is_staff": True,
-                "is_superuser": False,
-            }
-        )
-
-        if creado_operador:
-            operador.set_password("Operador12345")
-            operador.save()
-
-        cliente, creado_cliente = User.objects.get_or_create(
-            username="cliente1",
-            defaults={
-                "email": "cliente1@peaje.com",
-                "first_name": "Cliente",
-                "last_name": "Demo",
-            }
-        )
-
-        if creado_cliente:
-            cliente.set_password("Cliente12345")
-            cliente.save()
-
-        PerfilUsuario.objects.get_or_create(
-            usuario=operador,
-            defaults={
-                "rol": PerfilUsuario.Rol.OPERADOR,
-                "estado": True,
-            }
-        )
-
-        PerfilUsuario.objects.get_or_create(
-            usuario=cliente,
-            defaults={
-                "rol": PerfilUsuario.Rol.USUARIO,
-                "estado": True,
-            }
-        )
-
-        Billetera.objects.get_or_create(
-            usuario=cliente,
-            defaults={
-                "saldo": "50.00",
-                "estado": Billetera.Estado.ACTIVA,
-            }
-        )
-
-        self.stdout.write(self.style.SUCCESS("Usuarios demo creados."))
-
-    def crear_peajes_y_camaras(self):
-        peaje, _ = Peaje.objects.get_or_create(
-            nombre="Peaje Milagro",
-            defaults={
-                "ciudad": "Milagro",
-                "ubicacion": "Vía Milagro - Guayaquil",
-                "latitud": "-2.1345000",
-                "longitud": "-79.5948000",
-                "tarifa": "1.00",
-                "estado": Peaje.Estado.ACTIVO,
-            }
-        )
-
-        Camara.objects.get_or_create(
-            codigo="CAM-001",
-            defaults={
-                "peaje": peaje,
-                "ubicacion": "Carril 1",
-                "tipo_camara": "ANPR",
-                "estado": Camara.Estado.ACTIVA,
-                "fecha_instalacion": date.today(),
-            }
-        )
-
-        self.stdout.write(self.style.SUCCESS("Peajes y cámaras creados."))
 
     def crear_planes_membresia(self):
         PlanMembresia.objects.get_or_create(

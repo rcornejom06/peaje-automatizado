@@ -1,14 +1,12 @@
-from importlib.metadata import pass_none
 from .models import CategoriaVehiculo
-from rest_framework import status,viewsets
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Vehiculo
 from .serializers import CategoriaVehiculoSerializer,VehiculoSerializer
-from ..auditoria.models import HistorialUsuario
 from ..usuarios.permissions import obtener_rol_usuario
-
+from ..auditoria.utils import registrar_historial
 
 class CategoriaVehiculoViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CategoriaVehiculoSerializer
@@ -51,11 +49,11 @@ class VehiculoViewSet(viewsets.ModelViewSet):
 
         placa = placa.upper().strip()
 
-        if Vehiculo.objects.filter(placa=placa).exits():
+        if Vehiculo.objects.filter(placa=placa).exists():
             return Response({"error": "Ya existe un vehículo con esa placa"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            categoria = CategoriaVehiculo.objects.get(id=categoria_id, estado=true)
+            categoria = CategoriaVehiculo.objects.get(id=categoria_id, estado=True)
         except CategoriaVehiculo.DoesNotExist:
             return Response(
                 {"error": "La categoría indicada no existe o no está activa."},
@@ -71,17 +69,14 @@ class VehiculoViewSet(viewsets.ModelViewSet):
             anio=anio
         )
 
-        try:
-            HistorialUsuario.objects.create(
-                usuario = request.user,
-                accion = f"Registró su propio vehículo: {vehiculo.placa}",
-                descripcion = f"El usuario {request.user.username} registró su propio vehículo con placa {vehiculo.placa}.",
-                modulo="Vehículos",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO
-            )
-        except Exception as e:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Registro de vehículo",
+            descripcion=f"El usuario registró el vehículo con placa {placa}.",
+            modulo="Vehículos",
+            request=request,
+        )
+
         serializer = self.get_serializer(vehiculo)
 
         return Response(

@@ -7,6 +7,10 @@ from rest_framework.response import Response
 from .models import PlanMembresia, Membresia
 from .serializers import PlanMembresiaSerializer, MembresiaSerializer
 from ..usuarios.permissions import obtener_rol_usuario
+from ..pagos.models import (Billetera, Transaccion)
+from ..notificaciones.models import Notificacion
+from ..auditoria.utils import registrar_historial
+
 
 class PlanMembresiaViewSet(viewsets.ModelViewSet):
     serializer_class = PlanMembresiaSerializer
@@ -89,7 +93,6 @@ class MembresiaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        from apps.pagos.models import Billetera, Transaccion
 
         billetera = Billetera.objects.filter(
             usuario=request.user,
@@ -138,7 +141,6 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         )
 
         try:
-            from apps.notificaciones.models import Notificacion
 
             Notificacion.objects.create(
                 usuario=request.user,
@@ -152,22 +154,16 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        try:
-            from apps.auditoria.models import HistorialUsuario
-
-            HistorialUsuario.objects.create(
-                usuario=request.user,
-                accion="Compra de membresía",
-                descripcion=(
-                    f"El usuario compró la membresía {plan.nombre} "
-                    f"por un valor de {plan.precio}."
-                ),
-                modulo="Membresías",
-                dispositivo="API",
-                estado=HistorialUsuario.Estado.EXITOSO,
-            )
-        except Exception:
-            pass
+        registrar_historial(
+            usuario=request.user,
+            accion="Compra de membresía",
+            descripcion=(
+                f"El usuario compró la membresía {plan.nombre} "
+                f"por un valor de {plan.precio}."
+            ),
+            modulo="Membresías",
+            request=request,
+        )
 
         return Response(
             {
