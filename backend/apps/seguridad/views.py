@@ -2,25 +2,33 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
+from ..usuarios.permissions import obtener_rol_usuario
 from .models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion
-from .serializers import (
-    AvisoVehiculoRobadoSerializer,
-    AlertaSeguridadSerializer,
-    UbicacionDeteccionSerializer,
-)
-
+from .serializers import (AvisoVehiculoRobadoSerializer,AlertaSeguridadSerializer,UbicacionDeteccionSerializer,)
+from ..vehiculos.models import Vehiculo
+from ..notificaciones.models import Notificacion
+from ..auditoria.models import HistorialUsuario
+from ..peajes.models import Peaje, PasoPeaje
 
 class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
-    queryset = AvisoVehiculoRobado.objects.all().order_by("-fecha_aviso")
     serializer_class = AvisoVehiculoRobadoSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol in ["operador", "administrador"]:
+            return AvisoVehiculoRobado.objects.all().order_by("-fecha_aviso")
+
+        return AvisoVehiculoRobado.objects.filter(
+            vehiculo__usuario=self.request.user
+        ).order_by("-fecha_aviso")
 
     @action(detail=False, methods=["post"], url_path="crear-aviso")
     def crear_aviso(self, request):
         vehiculo_id = request.data.get("vehiculo")
         placa = request.data.get("placa")
-
+        rol = obtener_rol_usuario(self.request.user)
         numero_denuncia = request.data.get("numero_denuncia")
         entidad_denuncia = request.data.get("entidad_denuncia")
         fecha_denuncia = request.data.get("fecha_denuncia")
@@ -28,10 +36,13 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         descripcion = request.data.get("descripcion")
         latitud_robo = request.data.get("latitud_robo")
         longitud_robo = request.data.get("longitud_robo")
-
-        from apps.vehiculos.models import Vehiculo
-
         vehiculo = None
+
+        if rol != "usuario":
+            return Response(
+                {"error": "Solo los usuarios pueden crear avisos internos de vehiculos robados"},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         if vehiculo_id:
             vehiculo = Vehiculo.objects.filter(
@@ -82,7 +93,6 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         vehiculo.save()
 
         try:
-            from apps.notificaciones.models import Notificacion
 
             Notificacion.objects.create(
                 usuario=request.user,
@@ -94,7 +104,6 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
             pass
 
         try:
-            from apps.auditoria.models import HistorialUsuario
 
             HistorialUsuario.objects.create(
                 usuario=request.user,
@@ -117,15 +126,32 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
 
 
 class AlertaSeguridadViewSet(viewsets.ModelViewSet):
-    queryset = AlertaSeguridad.objects.all().order_by("-fecha_hora")
     serializer_class = AlertaSeguridadSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol in ["operador", "administrador"]:
+            return AlertaSeguridad.objects.all().order_by("-fecha_hora")
+
+        return AlertaSeguridad.objects.filter(
+            vehiculo__usuario=self.request.user
+        ).order_by("-fecha_hora")
+
 
     @action(detail=False, methods=["post"], url_path="generar-por-placa")
     def generar_por_placa(self, request):
         placa = request.data.get("placa")
         peaje_id = request.data.get("peaje")
         paso_peaje_id = request.data.get("paso_peaje")
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden generar alertas por placa."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         if not placa or not peaje_id:
             return Response(
@@ -134,10 +160,6 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
             )
 
         placa = placa.upper().strip()
-
-        from apps.vehiculos.models import Vehiculo
-        from apps.peajes.models import Peaje, PasoPeaje
-
         vehiculo = Vehiculo.objects.filter(placa=placa).first()
 
         if not vehiculo:
@@ -207,13 +229,29 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
 
 
 class UbicacionDeteccionViewSet(viewsets.ModelViewSet):
-    queryset = UbicacionDeteccion.objects.all().order_by("-fecha_hora")
     serializer_class = UbicacionDeteccionSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol in ["operador", "administrador"]:
+            return UbicacionDeteccion.objects.all().order_by("-fecha_hora")
+
+        return UbicacionDeteccion.objects.filter(
+            alerta__vehiculo__usuario=self.request.user
+        ).order_by("-fecha_hora")
 
     @action(detail=False, methods=["post"], url_path="registrar-maps")
     def registrar_maps(self, request):
         alerta_id = request.data.get("alerta")
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden registrar ubicaciones."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         if not alerta_id:
             return Response(

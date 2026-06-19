@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from datetime import timedelta
 from django.utils import timezone
@@ -6,22 +6,52 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import PlanMembresia, Membresia
 from .serializers import PlanMembresiaSerializer, MembresiaSerializer
-
+from ..usuarios.permissions import obtener_rol_usuario
 
 class PlanMembresiaViewSet(viewsets.ModelViewSet):
-    queryset = PlanMembresia.objects.all().order_by("nombre")
     serializer_class = PlanMembresiaSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol == 'administrador':
+            return [IsAuthenticated()]
+
+        return[IsAuthenticated()]
+
+    def ger_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol == 'administrador':
+            return PlanMembresia.objects.all().order_by("nombre")
+        return PlanMembresia.objects.filter(estado=PlanMembresia.Estado.ACTIVO).order_by("nombre")
+
 
 class MembresiaViewSet(viewsets.ModelViewSet):
-    queryset = Membresia.objects.all().order_by("-fecha_creacion")
     serializer_class = MembresiaSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_query(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol in ["administrador", "operador"]:
+            return Membresia.objects.all().order_by("-fecha_creación")
+        return Membresia.objects.filter(usuario=self.request.user).order_by("-fecha_creacion")
 
     @action(detail=False, methods=["post"], url_path="comprar")
     def comprar(self, request):
         plan_id = request.data.get("plan")
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol != "usuario":
+            return Response(
+                {"error": "Solo usuarios pueden comprar membresias."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         if not plan_id:
             return Response(

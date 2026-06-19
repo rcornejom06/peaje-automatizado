@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-
+from ..usuarios.permissions import obtener_rol_usuario
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from decimal import Decimal, InvalidOperation
@@ -10,11 +10,16 @@ from ..auditoria.models import HistorialUsuario
 
 
 
-
 class BilleteraViewSet(viewsets.ModelViewSet):
-    queryset = Billetera.objects.all().order_by("id")
     serializer_class = BilleteraSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol == 'administrador':
+            return Billetera.objects.all().order_by("id")
+        return Billetera.objects.filter(usuario=self.request.user).order_by("id")
 
     @action(detail=False, methods=['post'], url_path='recargar')
     def recargar(self, request):
@@ -73,8 +78,14 @@ class BilleteraViewSet(viewsets.ModelViewSet):
         )
 
 
-
 class TransaccionViewSet(viewsets.ModelViewSet):
-    queryset = Transaccion.objects.all().order_by("-fecha_hora")
     serializer_class = TransaccionSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol == 'administrador':
+            return Transaccion.objects.all().order_by("-fecha_hora")
+
+        return Transaccion.objects.filter(billetera__usuario=self.request.user).order_by("-fecha_hora")

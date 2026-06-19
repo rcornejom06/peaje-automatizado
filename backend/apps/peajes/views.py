@@ -4,33 +4,101 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
-from apps.membresias.models import Membresia
+from ..membresias.models import Membresia
 from .models import Peaje, Camara, PasoPeaje
 from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer
-
+from ..usuarios.permissions import obtener_rol_usuario
 
 class PeajeViewSet(viewsets.ModelViewSet):
-    queryset = Peaje.objects.all().order_by("nombre")
     serializer_class = PeajeSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        return Peaje.objects.all().order_by("nombre")
+
+    def create(self, request, *args, **kwargs):
+        if obtener_rol_usuario(self.request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede crear peajes."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede actualizar peajes."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede eliminar peajes."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
+
 
 class CamaraViewSet(viewsets.ModelViewSet):
-    queryset = Camara.objects.all().order_by("codigo")
     serializer_class = CamaraSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        return Camara.objects.all().order_by("codigo")
+
+    def create(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede crear cámaras."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede actualizar cámaras."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede eliminar cámaras."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
+
 
 class PasoPeajeViewSet(viewsets.ModelViewSet):
-    queryset = PasoPeaje.objects.all().order_by("-fecha_hora")
     serializer_class = PasoPeajeSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol in ["operador", "administrador"]:
+            return PasoPeaje.objects.all().order_by("-fecha_hora")
+
+        return PasoPeaje.objects.filter(
+            vehiculo__usuario=self.request.user
+        ).order_by("-fecha_hora")
 
     @action(detail=False, methods=["post"], url_path="simular")
     def simular(self, request):
         placa_detectada = request.data.get("placa_detectada")
         peaje_id = request.data.get("peaje")
         camara_id = request.data.get("camara")
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden simular pasos por peaje."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         if not placa_detectada or not peaje_id:
             return Response(
