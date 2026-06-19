@@ -5,7 +5,7 @@ class AvisoVehiculoRobado(models.Model):
     class Estado(models.TextChoices):
         ACTIVO = "activo", "Activo"
         DETECTADO = "detectado", "Detectado"
-        DERIVADO_AUTORIDAD = "derivado_autoridad", "Derivado a autoridad"
+        ##DERIVADO_AUTORIDAD = "derivado_autoridad", "Derivado a autoridad"
         CERRADO = "cerrado", "Cerrado"
         CANCELADO = "cancelado", "Cancelado"
 
@@ -23,7 +23,7 @@ class AvisoVehiculoRobado(models.Model):
     latitud_robo = models.DecimalField(max_digits=10,decimal_places=7,blank=True,null=True)
     longitud_robo = models.DecimalField(max_digits=10,decimal_places=7,blank=True,null=True)
     documento_respaldo = models.FileField(upload_to="documentos_denuncia/",blank=True,null=True)
-    estado = models.CharField(max_length=30,choices=Estado.choices,default=Estado.ACTIVO)
+    estado = models.CharField(max_length=20,choices=Estado.choices,default=Estado.ACTIVO)
 
     class Meta:
         verbose_name = "Aviso de vehículo robado"
@@ -36,10 +36,10 @@ class AvisoVehiculoRobado(models.Model):
 
 class AlertaSeguridad(models.Model):
     class Estado(models.TextChoices):
-        PENDIENTE = "pendiente", "Pendiente de revisión"
-        VALIDADA = "validada", "Validada por operador"
+        PENDIENTE = "pendiente", "Pendiente"
+        REVISADA = "revisada", "Revisada"
         DERIVADA = "derivada", "Derivada a autoridad"
-        ATENDIDA = "atendida", "Atendida"
+        CERRADA = "cerrada", "Cerrada"
         DESCARTADA = "descartada", "Descartada"
 
     aviso = models.ForeignKey(AvisoVehiculoRobado,on_delete=models.CASCADE,related_name="alertas")

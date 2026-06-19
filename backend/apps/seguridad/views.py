@@ -124,6 +124,128 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
+    @action(detail=True, methods=["patch"], url_path="cerrar")
+    def cerrar(self, request, pk=None):
+        aviso = self.get_object()
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden cerrar avisos."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if aviso.estado == AvisoVehiculoRobado.Estado.CERRADO:
+            return Response(
+                {"error": "El aviso ya se encuentra cerrado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if aviso.estado == AvisoVehiculoRobado.Estado.CANCELADO:
+            return Response(
+                {"error": "No se puede cerrar un aviso cancelado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        aviso.estado = AvisoVehiculoRobado.Estado.CERRADO
+        aviso.save()
+
+        vehiculo = aviso.vehiculo
+        vehiculo.estado = Vehiculo.Estado.ACTIVO
+        vehiculo.save()
+
+        try:
+            Notificacion.objects.create(
+                usuario=aviso.vehiculo.usuario,
+                titulo="Aviso de vehículo cerrado",
+                mensaje=f"El aviso interno del vehículo {aviso.vehiculo.placa} fue cerrado.",
+                tipo=Notificacion.Tipo.ALERTA,
+            )
+        except Exception:
+            pass
+
+        try:
+            HistorialUsuario.objects.create(
+                usuario=request.user,
+                accion="Cierre de aviso de vehículo",
+                descripcion=f"Se cerró el aviso interno del vehículo {aviso.vehiculo.placa}.",
+                modulo="Seguridad",
+                dispositivo="API",
+                estado=HistorialUsuario.Estado.EXITOSO,
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "mensaje": "Aviso cerrado correctamente.",
+                "aviso": AvisoVehiculoRobadoSerializer(aviso).data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["patch"], url_path="cancelar")
+    def cancelar(self, request, pk=None):
+        aviso = self.get_object()
+        rol = obtener_rol_usuario(request.user)
+
+        es_dueno = aviso.vehiculo.usuario == request.user
+
+        if not es_dueno and rol != "administrador":
+            return Response(
+                {"error": "Solo el dueño del vehículo o un administrador puede cancelar el aviso."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if aviso.estado == AvisoVehiculoRobado.Estado.CERRADO:
+            return Response(
+                {"error": "No se puede cancelar un aviso cerrado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if aviso.estado == AvisoVehiculoRobado.Estado.CANCELADO:
+            return Response(
+                {"error": "El aviso ya se encuentra cancelado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        aviso.estado = AvisoVehiculoRobado.Estado.CANCELADO
+        aviso.save()
+
+        vehiculo = aviso.vehiculo
+        vehiculo.estado = Vehiculo.Estado.ACTIVO
+        vehiculo.save()
+
+        try:
+            Notificacion.objects.create(
+                usuario=aviso.vehiculo.usuario,
+                titulo="Aviso cancelado",
+                mensaje=f"El aviso interno del vehículo {aviso.vehiculo.placa} fue cancelado.",
+                tipo=Notificacion.Tipo.ALERTA,
+            )
+        except Exception:
+            pass
+
+        try:
+            HistorialUsuario.objects.create(
+                usuario=request.user,
+                accion="Cancelación de aviso de vehículo",
+                descripcion=f"Se canceló el aviso interno del vehículo {aviso.vehiculo.placa}.",
+                modulo="Seguridad",
+                dispositivo="API",
+                estado=HistorialUsuario.Estado.EXITOSO,
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "mensaje": "Aviso cancelado correctamente.",
+                "aviso": AvisoVehiculoRobadoSerializer(aviso).data,
+            },
+            status=status.HTTP_200_OK
+        )
+
 
 class AlertaSeguridadViewSet(viewsets.ModelViewSet):
     serializer_class = AlertaSeguridadSerializer
@@ -225,6 +347,197 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
                 "url_maps": maps_url,
             },
             status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=True, methods=["patch"], url_path="marcar-revisada")
+    def marcar_revisada(self, request, pk=None):
+        alerta = self.get_object()
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden revisar alertas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if alerta.estado in [
+            AlertaSeguridad.Estado.CERRADA,
+            AlertaSeguridad.Estado.DESCARTADA,
+        ]:
+            return Response(
+                {"error": "No se puede revisar una alerta cerrada o descartada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        alerta.estado = AlertaSeguridad.Estado.REVISADA
+        alerta.save()
+
+        try:
+            HistorialUsuario.objects.create(
+                usuario=request.user,
+                accion="Revisión de alerta",
+                descripcion=f"Se marcó como revisada la alerta del vehículo {alerta.vehiculo.placa}.",
+                modulo="Seguridad",
+                dispositivo="API",
+                estado=HistorialUsuario.Estado.EXITOSO,
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "mensaje": "Alerta marcada como revisada.",
+                "alerta": AlertaSeguridadSerializer(alerta).data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["patch"], url_path="derivar-autoridad")
+    def derivar_autoridad(self, request, pk=None):
+        alerta = self.get_object()
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden derivar alertas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if alerta.estado in [
+            AlertaSeguridad.Estado.CERRADA,
+            AlertaSeguridad.Estado.DESCARTADA,
+        ]:
+            return Response(
+                {"error": "No se puede derivar una alerta cerrada o descartada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        alerta.estado = AlertaSeguridad.Estado.DERIVADA
+        alerta.save()
+
+        try:
+            Notificacion.objects.create(
+                usuario=alerta.vehiculo.usuario,
+                titulo="Alerta derivada a autoridad",
+                mensaje=(
+                    f"La alerta del vehículo {alerta.vehiculo.placa} "
+                    "fue derivada a la autoridad competente."
+                ),
+                tipo=Notificacion.Tipo.ALERTA,
+            )
+        except Exception:
+            pass
+
+        try:
+            HistorialUsuario.objects.create(
+                usuario=request.user,
+                accion="Derivación de alerta",
+                descripcion=f"Se derivó la alerta del vehículo {alerta.vehiculo.placa}.",
+                modulo="Seguridad",
+                dispositivo="API",
+                estado=HistorialUsuario.Estado.EXITOSO,
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "mensaje": "Alerta derivada correctamente.",
+                "alerta": AlertaSeguridadSerializer(alerta).data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["patch"], url_path="cerrar")
+    def cerrar(self, request, pk=None):
+        alerta = self.get_object()
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden cerrar alertas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if alerta.estado == AlertaSeguridad.Estado.CERRADA:
+            return Response(
+                {"error": "La alerta ya se encuentra cerrada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if alerta.estado == AlertaSeguridad.Estado.DESCARTADA:
+            return Response(
+                {"error": "No se puede cerrar una alerta descartada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        alerta.estado = AlertaSeguridad.Estado.CERRADA
+        alerta.save()
+
+        try:
+            HistorialUsuario.objects.create(
+                usuario=request.user,
+                accion="Cierre de alerta",
+                descripcion=f"Se cerró la alerta del vehículo {alerta.vehiculo.placa}.",
+                modulo="Seguridad",
+                dispositivo="API",
+                estado=HistorialUsuario.Estado.EXITOSO,
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "mensaje": "Alerta cerrada correctamente.",
+                "alerta": AlertaSeguridadSerializer(alerta).data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["patch"], url_path="descartar")
+    def descartar(self, request, pk=None):
+        alerta = self.get_object()
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["operador", "administrador"]:
+            return Response(
+                {"error": "Solo operadores o administradores pueden descartar alertas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if alerta.estado == AlertaSeguridad.Estado.CERRADA:
+            return Response(
+                {"error": "No se puede descartar una alerta cerrada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if alerta.estado == AlertaSeguridad.Estado.DESCARTADA:
+            return Response(
+                {"error": "La alerta ya se encuentra descartada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        alerta.estado = AlertaSeguridad.Estado.DESCARTADA
+        alerta.save()
+
+        try:
+            HistorialUsuario.objects.create(
+                usuario=request.user,
+                accion="Descarte de alerta",
+                descripcion=f"Se descartó la alerta del vehículo {alerta.vehiculo.placa}.",
+                modulo="Seguridad",
+                dispositivo="API",
+                estado=HistorialUsuario.Estado.EXITOSO,
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "mensaje": "Alerta descartada correctamente.",
+                "alerta": AlertaSeguridadSerializer(alerta).data,
+            },
+            status=status.HTTP_200_OK
         )
 
 
