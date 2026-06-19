@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.seguridad.apps.SeguridadConfig",
     "apps.notificaciones.apps.NotificacionesConfig",
     "apps.auditoria.apps.AuditoriaConfig",
+    "apps.reportes.apps.ReportesConfig",
 ]
 
 MIDDLEWARE = [
