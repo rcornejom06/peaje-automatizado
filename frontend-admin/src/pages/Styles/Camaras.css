@@ -1,0 +1,187 @@
+.camaras-page {
+  width: 100%;
+}
+
+.camaras-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.camaras-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.camaras-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.camaras-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-primary,
+.btn-secondary {
+  width: auto;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.btn-secondary:hover {
+  background: #cbd5e1;
+}
+
+.camaras-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.camaras-success {
+  background: #dcfce7;
+  color: #15803d;
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.form-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  margin-bottom: 24px;
+}
+
+.form-card h3 {
+  margin-top: 0;
+  color: #0f172a;
+}
+
+.camara-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: #334155;
+  font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.form-buttons {
+  grid-column: span 2;
+}
+
+.camaras-table-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  overflow-x: auto;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.camaras-table-card table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.camaras-table-card th,
+.camaras-table-card td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+.camaras-table-card th {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.camaras-table-card td {
+  color: #475569;
+}
+
+.estado {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.estado.activa {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.estado.inactiva {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.estado.mantenimiento {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+@media (max-width: 800px) {
+  .camaras-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .camara-form {
+    grid-template-columns: 1fr;
+  }
+
+  .form-buttons {
+    grid-column: span 1;
+  }
+}

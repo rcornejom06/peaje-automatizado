@@ -13,6 +13,7 @@ from ..auditoria.utils import registrar_historial
 
 
 class PlanMembresiaViewSet(viewsets.ModelViewSet):
+    queryset = PlanMembresia.objects.all()
     serializer_class = PlanMembresiaSerializer
     permission_classes = [IsAuthenticated]
 
@@ -27,7 +28,7 @@ class PlanMembresiaViewSet(viewsets.ModelViewSet):
 
         return[IsAuthenticated()]
 
-    def ger_queryset(self):
+    def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
 
         if rol == 'administrador':
@@ -36,14 +37,15 @@ class PlanMembresiaViewSet(viewsets.ModelViewSet):
 
 
 class MembresiaViewSet(viewsets.ModelViewSet):
+    queryset = Membresia.objects.all()
     serializer_class = MembresiaSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_query(self):
+    def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
 
         if rol in ["administrador", "operador"]:
-            return Membresia.objects.all().order_by("-fecha_creación")
+            return Membresia.objects.all().order_by("-fecha_creacion")
         return Membresia.objects.filter(usuario=self.request.user).order_by("-fecha_creacion")
 
     @action(detail=False, methods=["post"], url_path="comprar")

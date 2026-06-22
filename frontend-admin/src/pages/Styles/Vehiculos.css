@@ -1,0 +1,134 @@
+.vehiculos-page {
+  width: 100%;
+}
+
+.vehiculos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.vehiculos-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.vehiculos-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.btn-secondary {
+  width: auto;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.btn-secondary:hover {
+  background: #cbd5e1;
+}
+
+.vehiculos-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.vehiculos-toolbar {
+  background: white;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  margin-bottom: 20px;
+}
+
+.vehiculos-toolbar input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.vehiculos-toolbar input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.vehiculos-table-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  overflow-x: auto;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.vehiculos-table-card table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1100px;
+}
+
+.vehiculos-table-card th,
+.vehiculos-table-card td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+.vehiculos-table-card th {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.vehiculos-table-card td {
+  color: #475569;
+}
+
+.estado {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.estado.activo {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.estado.inactivo {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.estado.aviso_robo {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.estado.bloqueado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 800px) {
+  .vehiculos-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

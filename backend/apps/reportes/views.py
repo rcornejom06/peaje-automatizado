@@ -1,4 +1,5 @@
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, DecimalField
+from decimal import Decimal
 from django.db.models.functions import Coalesce
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -37,6 +38,17 @@ def respuesta_sin_permiso():
         status=status.HTTP_403_FORBIDDEN
     )
 
+def sumar_monto(queryset):
+    total = queryset.aggregate(
+        total=Coalesce(
+            Sum("monto"),
+            Decimal("0.00"),
+            output_field=DecimalField(max_digits=12, decimal_places=2)
+        )
+    )["total"]
+
+    return total
+
 
 class ResumenReporteView(APIView):
     permission_classes = [IsAuthenticated]
@@ -53,19 +65,19 @@ class ResumenReporteView(APIView):
         total_alertas = alertas.count()
         total_vehiculos_detectados = pasos.values("placa_detectada").distinct().count()
 
-        recaudacion_peajes = transacciones.filter(
-            estado=Transaccion.Estado.APROBADA,
-            tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE
-        ).aggregate(
-            total=Coalesce(Sum("monto"), 0)
-        )["total"]
+        recaudacion_peajes = sumar_monto(
+            transacciones.filter(
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE
+            )
+        )
 
-        recaudacion_membresias = transacciones.filter(
-            estado=Transaccion.Estado.APROBADA,
-            tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA
-        ).aggregate(
-            total=Coalesce(Sum("monto"), 0)
-        )["total"]
+        recaudacion_membresias = sumar_monto(
+            transacciones.filter(
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA
+            )
+        )
 
         pasos_con_membresia = pasos.filter(
             estado_pago=PasoPeaje.EstadoPago.MEMBRESIA
@@ -94,26 +106,26 @@ class RecaudacionReporteView(APIView):
 
         transacciones = aplicar_filtros_fecha(Transaccion.objects.all(), request)
 
-        recaudacion_peajes = transacciones.filter(
-            estado=Transaccion.Estado.APROBADA,
-            tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE
-        ).aggregate(
-            total=Coalesce(Sum("monto"), 0)
-        )["total"]
+        recaudacion_peajes = sumar_monto(
+            transacciones.filter(
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE
+            )
+        )
 
-        recaudacion_membresias = transacciones.filter(
-            estado=Transaccion.Estado.APROBADA,
-            tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA
-        ).aggregate(
-            total=Coalesce(Sum("monto"), 0)
-        )["total"]
+        recaudacion_membresias = sumar_monto(
+            transacciones.filter(
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA
+            )
+        )
 
-        recargas_billetera = transacciones.filter(
-            estado=Transaccion.Estado.APROBADA,
-            tipo_transaccion=Transaccion.Tipo.RECARGA
-        ).aggregate(
-            total=Coalesce(Sum("monto"), 0)
-        )["total"]
+        recargas_billetera = sumar_monto(
+            transacciones.filter(
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.RECARGA
+            )
+        )
 
         return Response(
             {
