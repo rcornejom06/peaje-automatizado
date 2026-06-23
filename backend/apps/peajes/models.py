@@ -26,6 +26,12 @@ class Peaje(models.Model):
 
 
 class Camara(models.Model):
+    class TipoFuente(models.TextChoices):
+        RTSP = "rtsp", "RTSP / Camara IP"
+        HTTP = "http", "HTTP / MJPEG"
+        USB = "usb", "Webcam USB"
+        VIDEO = "video", "Archivo de video"
+
     class Estado(models.TextChoices):
         ACTIVA = "activa", "Activa"
         INACTIVA = "inactiva", "Inactiva"
@@ -35,8 +41,12 @@ class Camara(models.Model):
     codigo = models.CharField(max_length=50, unique=True)
     ubicacion = models.CharField(max_length=150)
     tipo_camara = models.CharField(max_length=80, blank=True, null=True)
-    estado = models.CharField(max_length=20,choices=Estado.choices,default=Estado.ACTIVA)
+    tipo_fuente = models.CharField(max_length=20, choices=TipoFuente.choices,default=TipoFuente.RTSP)
+    stream_url = models.URLField(max_length=500,blank=True, null=True, help_text="URL RTSP, HTTP, indice de webcam o ruta de video.")
+    procesar_anpr = models.BooleanField(default=True, help_text="Indica si esta camara sera usada para detenccion automatica de placas.")
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVA)
     fecha_instalacion = models.DateField(blank=True, null=True)
+
 
     class Meta:
         verbose_name = "Cámara"

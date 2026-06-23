@@ -27,7 +27,9 @@ function AdminLayout() {
           <NavLink to="/membresias">Membresías</NavLink>
           <NavLink to="/reportes">Reportes</NavLink>
           <NavLink to="/usuarios">Usuarios</NavLink>
-        </nav>
+            <NavLink to="/reconocimiento-placas">Reconocimiento LPR</NavLink>
+
+            </nav>
 
         <button className="logout-button" onClick={handleLogout}>
           Cerrar sesión

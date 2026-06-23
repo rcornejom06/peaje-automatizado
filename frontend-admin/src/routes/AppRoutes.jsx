@@ -9,9 +9,8 @@ import Alertas from "../pages/Alertas/Alertas";
 import Membresias from "../pages/Membresias/Membresias";
 import Reportes from "../pages/Reportes/Reportes";
 import Usuarios from "../pages/Usuarios/Usuarios";
-
 import AdminLayout from "../layouts/AdminLayout.jsx"
-
+import ReconocimientoPlacas from "../pages/ReconocimientoPlacas/ReconocimientoPlacas";
 import { isAuthenticated } from "../auth/authService";
 
 function PrivateRoute({ children }) {
@@ -39,6 +38,7 @@ function AppRoutes() {
           <Route path="/peajes" element={<Peajes />} />
           <Route path="/camaras" element={<Camaras />} />
           <Route path="/vehiculos" element={<Vehiculos />} />
+            <Route path="/reconocimiento-placas" element={<ReconocimientoPlacas />} />
           <Route path="/alertas" element={<Alertas />} />
           <Route path="/membresias" element={<Membresias />} />
           <Route path="/reportes" element={<Reportes />} />

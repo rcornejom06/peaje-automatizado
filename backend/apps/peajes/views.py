@@ -1,7 +1,8 @@
 from decimal import Decimal
+from django.http import StreamingHttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
 from ..membresias.models import Membresia
@@ -13,6 +14,97 @@ from ..pagos.models import Billetera, Transaccion
 from ..seguridad.models import (AvisoVehiculoRobado,AlertaSeguridad,UbicacionDeteccion,)
 from ..auditoria.utils import registrar_historial
 from ..notificaciones.models import Notificacion
+from rest_framework_simplejwt.authentication import  JWTAuthentication
+from rest_framework_simplejwt.tokens import AccessToken
+import time
+import cv2
+
+
+def validar_token_stream(request):
+    """
+    Permite validar el acceso al stream desde React usando token por query param.
+    Ejemplo:
+    /api/peajes/camaras/1/stream/?token=ACCESS_TOKEN
+    """
+
+    if request.user and request.user.is_authenticated:
+        return True
+
+    token = request.GET.get("token")
+
+    if not token:
+        return False
+
+    try:
+        request.META["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+
+        jwt_authenticator = JWTAuthentication()
+        resultado = jwt_authenticator.authenticate(request)
+
+        if resultado is None:
+            print("JWTAuthentication no devolvió usuario")
+            return False
+
+        user, validated_token = resultado
+
+        request.user = user
+        request.auth = validated_token
+
+        return True
+
+    except Exception as e:
+        print("Error validando token stream:", repr(e))
+        return False
+
+
+def obtener_fuente_camara(camara):
+    """
+    Convierte la fuente guardada en la cámara a un valor entendible por OpenCV.
+    """
+
+    if camara.tipo_fuente == "usb":
+        try:
+            return int(camara.stream_url or 0)
+        except ValueError:
+            return 0
+
+    return camara.stream_url
+
+
+def generar_frames_camara(captura):
+    """
+    Genera frames MJPEG para enviar al navegador.
+    """
+
+    try:
+        while True:
+            exito, frame = captura.read()
+
+            if not exito:
+                break
+
+            exito_jpg, buffer = cv2.imencode(".jpg", frame)
+
+            if not exito_jpg:
+                continue
+
+            frame_bytes = buffer.tobytes()
+
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" +
+                frame_bytes +
+                b"\r\n"
+            )
+
+            time.sleep(0.03)
+
+    finally:
+        captura.release()
+
+
+
+
 
 
 class PeajeViewSet(viewsets.ModelViewSet):
@@ -53,6 +145,59 @@ class CamaraViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Camara.objects.all().order_by("codigo")
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="stream",
+        permission_classes=[AllowAny]
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="stream",
+        permission_classes=[AllowAny]
+    )
+    def stream(self, request, pk=None):
+        if not validar_token_stream(request):
+            return Response(
+                {"error": "Token no válido o no enviado."},
+                status=401
+            )
+
+        source_url = request.GET.get("source_url")
+
+        if source_url:
+            fuente = source_url
+        else:
+            camara = self.get_object()
+
+            if not camara.stream_url:
+                return Response(
+                    {"error": "La cámara no tiene una fuente de video configurada."},
+                    status=400
+                )
+
+            fuente = obtener_fuente_camara(camara)
+
+        captura = cv2.VideoCapture(fuente)
+
+        if not captura.isOpened():
+            captura.release()
+            return Response(
+                {
+                    "error": "No se pudo abrir la cámara.",
+                    "fuente": str(fuente),
+                },
+                status=400
+            )
+
+        return StreamingHttpResponse(
+            generar_frames_camara(captura),
+            content_type="multipart/x-mixed-replace; boundary=frame"
+        )
+
+
 
     def create(self, request, *args, **kwargs):
         if obtener_rol_usuario(request.user) != "administrador":
