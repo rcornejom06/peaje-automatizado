@@ -37,167 +37,35 @@ class PlanMembresiaViewSet(viewsets.ModelViewSet):
 
 
 class MembresiaViewSet(viewsets.ModelViewSet):
-    queryset = Membresia.objects.all()
     serializer_class = MembresiaSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        rol = obtener_rol_usuario(self.request.user)
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return Membresia.objects.select_related("usuario", "plan").all().order_by("-fecha_creacion")
 
-        if rol in ["administrador", "operador"]:
-            return Membresia.objects.all().order_by("-fecha_creacion")
-        return Membresia.objects.filter(usuario=self.request.user).order_by("-fecha_creacion")
-
-    @action(detail=False, methods=["post"], url_path="comprar")
-    def comprar(self, request):
-        plan_id = request.data.get("plan")
-        rol = obtener_rol_usuario(self.request.user)
-
-        if rol != "usuario":
-            return Response(
-                {"error": "Solo usuarios pueden comprar membresias."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if not plan_id:
-            return Response(
-                {"error": "El campo plan es obligatorio."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            plan = PlanMembresia.objects.get(
-                id=plan_id,
-                estado=PlanMembresia.Estado.ACTIVO
-            )
-        except PlanMembresia.DoesNotExist:
-            return Response(
-                {"error": "El plan de membresía no existe o está inactivo."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        hoy = timezone.localdate()
-
-        membresia_activa = Membresia.objects.filter(
-            usuario=request.user,
-            estado=Membresia.Estado.ACTIVA,
-            fecha_inicio__lte=hoy,
-            fecha_fin__gte=hoy,
-            pases_restantes__gt=0
-        ).first()
-
-        if membresia_activa:
-            return Response(
-                {
-                    "error": "El usuario ya tiene una membresía activa.",
-                    "membresia_activa": MembresiaSerializer(membresia_activa).data,
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-
-        billetera = Billetera.objects.filter(
-            usuario=request.user,
-            estado=Billetera.Estado.ACTIVA
-        ).first()
-
-        if not billetera:
-            return Response(
-                {"error": "El usuario no tiene una billetera activa."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if billetera.saldo < plan.precio:
-            return Response(
-                {
-                    "error": "Saldo insuficiente para comprar la membresía.",
-                    "saldo_actual": billetera.saldo,
-                    "precio_plan": plan.precio,
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        billetera.saldo -= plan.precio
-        billetera.save()
-
-        fecha_inicio = hoy
-        fecha_fin = hoy + timedelta(days=plan.duracion_dias)
-
-        membresia = Membresia.objects.create(
-            usuario=request.user,
-            plan=plan,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            pases_restantes=plan.pases_incluidos,
-            estado=Membresia.Estado.ACTIVA,
-        )
-
-        transaccion = Transaccion.objects.create(
-            billetera=billetera,
-            membresia=membresia,
-            monto=plan.precio,
-            tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA,
-            metodo_pago="Billetera virtual",
-            referencia_pago=f"Compra de membresía {plan.nombre}",
-            estado=Transaccion.Estado.APROBADA,
-        )
-
-        try:
-
-            Notificacion.objects.create(
-                usuario=request.user,
-                titulo="Membresía adquirida",
-                mensaje=(
-                    f"Has adquirido la membresía {plan.nombre} "
-                    f"con {plan.pases_incluidos} pases disponibles."
-                ),
-                tipo=Notificacion.Tipo.MEMBRESIA,
-            )
-        except Exception:
-            pass
-
-        registrar_historial(
-            usuario=request.user,
-            accion="Compra de membresía",
-            descripcion=(
-                f"El usuario compró la membresía {plan.nombre} "
-                f"por un valor de {plan.precio}."
-            ),
-            modulo="Membresías",
-            request=request,
-        )
-
-        return Response(
-            {
-                "mensaje": "Membresía comprada correctamente.",
-                "membresia": MembresiaSerializer(membresia).data,
-                "saldo_actual": billetera.saldo,
-                "transaccion_id": transaccion.id,
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return Membresia.objects.select_related("usuario", "plan").filter(
+            usuario=self.request.user
+        ).order_by("-fecha_creacion")
 
     @action(detail=False, methods=["get"], url_path="mi-membresia-activa")
     def mi_membresia_activa(self, request):
-        hoy = timezone.localdate()
-
-        membresia = Membresia.objects.filter(
+        membresia = Membresia.objects.select_related("usuario", "plan").filter(
             usuario=request.user,
             estado=Membresia.Estado.ACTIVA,
-            fecha_inicio__lte=hoy,
-            fecha_fin__gte=hoy,
-            pases_restantes__gt=0
-        ).order_by("fecha_fin").first()
+            pases_restantes__gt=0,
+            fecha_fin__gte=timezone.now().date(),
+        ).order_by("-fecha_creacion").first()
 
         if not membresia:
             return Response(
-                {"mensaje": "El usuario no tiene una membresía activa."},
-                status=status.HTTP_200_OK
+                {"mensaje": "No tiene membresía activa."},
+                status=status.HTTP_404_NOT_FOUND
             )
 
+        serializer = self.get_serializer(membresia)
+
         return Response(
-            {
-                "membresia": MembresiaSerializer(membresia).data
-            },
+            serializer.data,
             status=status.HTTP_200_OK
         )

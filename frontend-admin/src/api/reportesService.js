@@ -32,12 +32,14 @@ export const obtenerRecaudacion = async (filtros = {}) => {
   return response.data;
 };
 
-export const obtenerAlertas = async (filtros = {}) => {
+export const obtenerAlertasReporte = async (filtros = {}) => {
   const response = await api.get("/reportes/alertas/", {
     params: construirParametros(filtros),
   });
   return response.data;
 };
+
+export const obtenerAlertas = obtenerAlertasReporte;
 
 export const obtenerPasosPorPeaje = async (filtros = {}) => {
   const response = await api.get("/reportes/pasos-por-peaje/", {

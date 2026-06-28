@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status
+from decimal import Decimal
 from ..usuarios.permissions import obtener_rol_usuario
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -19,6 +20,23 @@ class BilleteraViewSet(viewsets.ModelViewSet):
         if rol == 'administrador':
             return Billetera.objects.all().order_by("id")
         return Billetera.objects.filter(usuario=self.request.user).order_by("id")
+
+    @action(detail=False, methods=["get"], url_path="mi-billetera")
+    def mi_billetera(self, request):
+        billetera, created = Billetera.objects.get_or_create(
+            usuario=request.user,
+            defaults={
+                "saldo": Decimal("0.00"),
+                "estado": Billetera.Estado.ACTIVA,
+            }
+        )
+
+        serializer = self.get_serializer(billetera)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
 
     @action(detail=False, methods=['post'], url_path='recargar')
     def recargar(self, request):
@@ -46,7 +64,7 @@ class BilleteraViewSet(viewsets.ModelViewSet):
         billetera.saldo += monto_decimal
         billetera.save()
 
-        transaccion, _= Transaccion.objects.create(
+        transaccion = Transaccion.objects.create(
             billetera=billetera,
             monto=monto_decimal,
             tipo_transaccion=Transaccion.Tipo.RECARGA,

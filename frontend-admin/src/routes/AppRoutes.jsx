@@ -12,7 +12,7 @@ import Usuarios from "../pages/Usuarios/Usuarios";
 import AdminLayout from "../layouts/AdminLayout.jsx"
 import ReconocimientoPlacas from "../pages/ReconocimientoPlacas/ReconocimientoPlacas";
 import { isAuthenticated } from "../auth/authService";
-
+import Auditoria from "../pages/Auditoria/Auditoria.jsx"
 function PrivateRoute({ children }) {
   if (!isAuthenticated()) {
     return <Navigate to="/" />;
@@ -43,6 +43,7 @@ function AppRoutes() {
           <Route path="/membresias" element={<Membresias />} />
           <Route path="/reportes" element={<Reportes />} />
           <Route path="/usuarios" element={<Usuarios />} />
+            <Route path="/auditoria" element={<Auditoria />} />
         </Route>
       </Routes>
     </BrowserRouter>

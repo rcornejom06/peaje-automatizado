@@ -28,7 +28,7 @@ function AdminLayout() {
           <NavLink to="/reportes">Reportes</NavLink>
           <NavLink to="/usuarios">Usuarios</NavLink>
             <NavLink to="/reconocimiento-placas">Reconocimiento LPR</NavLink>
-
+            <NavLink to="/auditoria"> Auditoria </NavLink>
             </nav>
 
         <button className="logout-button" onClick={handleLogout}>

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import Hls from "hls.js";
+
+import { useEffect, useState } from "react";
 import { obtenerCamaras, crearCamara } from "../../api/camarasService";
 import { obtenerPeajes } from "../../api/peajeService";
 import "../Styles/Camaras.css";
@@ -11,11 +11,6 @@ function Camaras() {
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [camaraEnVivo, setCamaraEnVivo] = useState(null);
-  const [errorStream, setErrorStream] = useState("");
-
-  const videoRef = useRef(null);
-  const hlsRef = useRef(null);
 
   const [formulario, setFormulario] = useState({
     codigo: "",
@@ -25,15 +20,6 @@ function Camaras() {
     estado: "activa",
     fecha_instalacion: "",
   });
-
-  const obtenerUrlStream = (camaraId) => {
-  const token = localStorage.getItem("access_token");
-  const sourceUrl = "http://host.docker.internal:5001/video_feed";
-
-  return `http://localhost:8000/api/peajes/camaras/${camaraId}/stream/?token=${encodeURIComponent(
-    token
-  )}&source_url=${encodeURIComponent(sourceUrl)}`;
-};
 
   const cargarDatos = async () => {
     try {
@@ -71,65 +57,6 @@ function Camaras() {
   useEffect(() => {
     cargarDatos();
   }, []);
-
-  // Maneja la conexión/desconexión del stream HLS cada vez que se abre o cierra el modal
-  useEffect(() => {
-    if (!camaraEnVivo) {
-      return;
-    }
-
-    setErrorStream("");
-    const videoElement = videoRef.current;
-    const streamUrl = obtenerUrlStream(camaraEnVivo.id);
-
-    if (!videoElement) {
-      return;
-    }
-
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hlsRef.current = hls;
-
-      hls.loadSource(streamUrl);
-      hls.attachMedia(videoElement);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        videoElement.play().catch(() => {
-          // Autoplay puede ser bloqueado por el navegador; el usuario puede darle play manualmente
-        });
-      });
-
-      hls.on(Hls.Events.ERROR, (_evento, data) => {
-        if (data.fatal) {
-          setErrorStream("No se pudo conectar con la transmisión en vivo.");
-        }
-      });
-    } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
-      // Soporte nativo de HLS (Safari)
-      videoElement.src = streamUrl;
-      videoElement.addEventListener("loadedmetadata", () => {
-        videoElement.play().catch(() => {});
-      });
-    } else {
-      setErrorStream("Tu navegador no soporta la reproducción de este stream.");
-    }
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      if (videoElement) {
-        videoElement.removeAttribute("src");
-        videoElement.load();
-      }
-    };
-  }, [camaraEnVivo]);
-
-  const cerrarModalEnVivo = () => {
-    setCamaraEnVivo(null);
-    setErrorStream("");
-  };
 
   const handleChange = (e) => {
     setFormulario({
@@ -311,7 +238,6 @@ function Camaras() {
               <th>Tipo</th>
               <th>Estado</th>
               <th>Instalación</th>
-              <th>Acciones</th>
             </tr>
           </thead>
 
@@ -324,73 +250,25 @@ function Camaras() {
                   <td>{camara.peaje_nombre || obtenerNombrePeaje(camara.peaje)}</td>
                   <td>{camara.ubicacion}</td>
                   <td>{camara.tipo_camara}</td>
-                  <td>{camara.tipo_fuente || "Sin fuente"}</td>
                   <td>
-                    <span className={`estado ${camara.estado}`}>
+                    <span className={`estado${camara.estado}`}>
                       {camara.estado}
                     </span>
                   </td>
                   <td>{camara.fecha_instalacion || "Sin fecha"}</td>
-                  <td>
-                    <button
-                      className="btn-live"
-                      onClick={() => setCamaraEnVivo(camara)}
-                    >
-                      Ver en vivo
-                    </button>
-                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="9">No existen cámaras registradas.</td>
+                <td colSpan="7">No existen cámaras registradas.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {camaraEnVivo && (
-        <div className="live-modal-overlay" onClick={cerrarModalEnVivo}>
-          <div className="live-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="live-modal-header">
-              <div>
-                <h3>{camaraEnVivo.codigo}</h3>
-                <p>
-                  {camaraEnVivo.peaje_nombre || obtenerNombrePeaje(camaraEnVivo.peaje)}
-                  {camaraEnVivo.ubicacion ? ` · ${camaraEnVivo.ubicacion}` : ""}
-                </p>
-              </div>
-
-              <button className="btn-close" onClick={cerrarModalEnVivo}>
-                Cerrar
-              </button>
-            </div>
-
-            <div className="live-video-container">
-              <div className="live-video-frame">
-                <span className="live-badge">En vivo</span>
-                <video
-                  ref={videoRef}
-                  className="live-video"
-                  controls
-                  autoPlay
-                  muted
-                  playsInline
-                />
-              </div>
-            </div>
-
-            {errorStream && (
-              <div className="camaras-error" style={{ margin: "0 22px 18px" }}>
-                {errorStream}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 export default Camaras;
+

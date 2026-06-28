@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 from django.http import StreamingHttpResponse
 from rest_framework import status, viewsets
@@ -5,28 +6,20 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
-from ..membresias.models import Membresia
 from .models import Peaje, Camara, PasoPeaje
 from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer
 from ..usuarios.permissions import obtener_rol_usuario
 from ..vehiculos.models import Vehiculo
-from ..pagos.models import Billetera, Transaccion
-from ..seguridad.models import (AvisoVehiculoRobado,AlertaSeguridad,UbicacionDeteccion,)
+from ..pagos.models import Transaccion, Billetera
+from ..membresias.models import Membresia
 from ..auditoria.utils import registrar_historial
-from ..notificaciones.models import Notificacion
-from rest_framework_simplejwt.authentication import  JWTAuthentication
-from rest_framework_simplejwt.tokens import AccessToken
+from ..seguridad.models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion
+from rest_framework_simplejwt.authentication import JWTAuthentication
 import time
 import cv2
 
 
 def validar_token_stream(request):
-    """
-    Permite validar el acceso al stream desde React usando token por query param.
-    Ejemplo:
-    /api/peajes/camaras/1/stream/?token=ACCESS_TOKEN
-    """
-
     if request.user and request.user.is_authenticated:
         return True
 
@@ -91,20 +84,16 @@ def generar_frames_camara(captura):
             frame_bytes = buffer.tobytes()
 
             yield (
-                b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n" +
-                frame_bytes +
-                b"\r\n"
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" +
+                    frame_bytes +
+                    b"\r\n"
             )
 
             time.sleep(0.03)
 
     finally:
         captura.release()
-
-
-
-
 
 
 class PeajeViewSet(viewsets.ModelViewSet):
@@ -137,6 +126,122 @@ class PeajeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().destroy(request, *args, **kwargs)
+
+    def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada):
+
+        if not vehiculo:
+            paso.estado_pago = "pendiente"
+            paso.observacion = (
+                f"{paso.observacion or ''} Vehículo no registrado en el sistema."
+            )
+            paso.save()
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "sin_vehiculo",
+                "mensaje": "Vehículo no registrado. Paso queda pendiente."
+            }
+
+        usuario = vehiculo.usuario
+
+        hoy = timezone.now().date()
+
+        estado_activa = getattr(Membresia.Estado, "ACTIVA", "activa")
+
+        membresia = Membresia.objects.filter(
+            usuario=usuario,
+            estado=estado_activa,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+            pases_restantes__gt=0
+        ).order_by("-fecha_inicio").first()
+
+        if membresia:
+            membresia.consumir_pase()
+
+            paso.estado_pago = "membresia"
+            paso.membresia_utilizada = membresia
+            paso.save()
+
+            Transaccion.objects.create(
+                billetera=getattr(usuario, "billetera", None),
+                paso_peaje=paso,
+                membresia=membresia,
+                monto=Decimal("0.00"),
+                tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
+                metodo_pago="membresia",
+                referencia_pago=f"MEMBRESIA-{membresia.id}-PASO-{paso.id}",
+                estado="aprobada"
+            )
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "membresia",
+                "mensaje": "Pago cubierto con membresía.",
+                "membresia_id": membresia.id,
+                "pases_restantes": membresia.pases_restantes
+            }
+
+        try:
+            billetera = Billetera.objects.get(usuario=usuario)
+        except Billetera.DoesNotExist:
+            paso.estado_pago = "pendiente"
+            paso.observacion = (
+                f"{paso.observacion or ''} Usuario sin billetera activa."
+            )
+            paso.save()
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "sin_billetera",
+                "mensaje": "El usuario no tiene billetera. Paso queda pendiente."
+            }
+
+        if billetera.saldo >= tarifa_aplicada:
+            billetera.saldo -= tarifa_aplicada
+            billetera.save()
+
+            paso.estado_pago = "pagado"
+            paso.save()
+
+            Transaccion.objects.create(
+                billetera=billetera,
+                paso_peaje=paso,
+                monto=tarifa_aplicada,
+                tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
+                metodo_pago="billetera",
+                referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}",
+                estado="aprobada"
+            )
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "billetera",
+                "mensaje": "Pago debitado correctamente de la billetera.",
+                "saldo_restante": str(billetera.saldo)
+            }
+
+        paso.estado_pago = "pendiente"
+        paso.observacion = (
+            f"{paso.observacion or ''} Saldo insuficiente en billetera."
+        )
+        paso.save()
+
+        Transaccion.objects.create(
+            billetera=billetera,
+            paso_peaje=paso,
+            monto=tarifa_aplicada,
+            tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
+            metodo_pago="billetera",
+            referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}-SALDO-INSUFICIENTE",
+            estado="fallida"
+        )
+
+        return {
+            "estado_pago": paso.estado_pago,
+            "metodo": "saldo_insuficiente",
+            "mensaje": "Saldo insuficiente. Paso queda pendiente.",
+            "saldo_actual": str(billetera.saldo)
+        }
 
 
 class CamaraViewSet(viewsets.ModelViewSet):
@@ -197,8 +302,6 @@ class CamaraViewSet(viewsets.ModelViewSet):
             content_type="multipart/x-mixed-replace; boundary=frame"
         )
 
-
-
     def create(self, request, *args, **kwargs):
         if obtener_rol_usuario(request.user) != "administrador":
             return Response(
@@ -238,249 +341,349 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             vehiculo__usuario=self.request.user
         ).order_by("-fecha_hora")
 
-    @action(detail=False, methods=["post"], url_path="simular")
-    def simular(self, request):
-        placa_detectada = request.data.get("placa_detectada")
-        peaje_id = request.data.get("peaje")
-        camara_id = request.data.get("camara")
-        rol = obtener_rol_usuario(request.user)
+    def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada):
 
-        if rol not in ["operador", "administrador"]:
-            return Response(
-                {"error": "Solo operadores o administradores pueden simular pasos por peaje."},
-                status=status.HTTP_403_FORBIDDEN
+        if not vehiculo:
+            paso.estado_pago = "pendiente"
+            paso.observacion = (
+                f"{paso.observacion or ''} Vehículo no registrado en el sistema."
+            )
+            paso.save()
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "sin_vehiculo",
+                "mensaje": "Vehículo no registrado. Paso queda pendiente."
+            }
+
+        usuario = vehiculo.usuario
+
+        hoy = timezone.now().date()
+
+        estado_activa = getattr(Membresia.Estado, "ACTIVA", "activa")
+
+        membresia = Membresia.objects.filter(
+            usuario=usuario,
+            estado=estado_activa,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+            pases_restantes__gt=0
+        ).order_by("-fecha_inicio").first()
+
+        if membresia:
+            membresia.consumir_pase()
+
+            paso.estado_pago = "membresia"
+            paso.membresia_utilizada = membresia
+            paso.save()
+
+            Transaccion.objects.create(
+                billetera=getattr(usuario, "billetera", None),
+                paso_peaje=paso,
+                membresia=membresia,
+                monto=Decimal("0.00"),
+                tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
+                metodo_pago="membresia",
+                referencia_pago=f"MEMBRESIA-{membresia.id}-PASO-{paso.id}",
+                estado="aprobada"
             )
 
-        if not placa_detectada or not peaje_id:
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "membresia",
+                "mensaje": "Pago cubierto con membresía.",
+                "membresia_id": membresia.id,
+                "pases_restantes": membresia.pases_restantes
+            }
+
+        try:
+            billetera = Billetera.objects.get(usuario=usuario)
+        except Billetera.DoesNotExist:
+            paso.estado_pago = "pendiente"
+            paso.observacion = (
+                f"{paso.observacion or ''} Usuario sin billetera activa."
+            )
+            paso.save()
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "sin_billetera",
+                "mensaje": "El usuario no tiene billetera. Paso queda pendiente."
+            }
+
+        if billetera.saldo >= tarifa_aplicada:
+            billetera.saldo -= tarifa_aplicada
+            billetera.save()
+
+            paso.estado_pago = "pagado"
+            paso.save()
+
+            Transaccion.objects.create(
+                billetera=billetera,
+                paso_peaje=paso,
+                monto=tarifa_aplicada,
+                tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
+                metodo_pago="billetera",
+                referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}",
+                estado="aprobada"
+            )
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "billetera",
+                "mensaje": "Pago debitado correctamente de la billetera.",
+                "saldo_restante": str(billetera.saldo)
+            }
+
+        paso.estado_pago = "pendiente"
+        paso.observacion = (
+            f"{paso.observacion or ''} Saldo insuficiente en billetera."
+        )
+        paso.save()
+
+        Transaccion.objects.create(
+            billetera=billetera,
+            paso_peaje=paso,
+            monto=tarifa_aplicada,
+            tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
+            metodo_pago="billetera",
+            referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}-SALDO-INSUFICIENTE",
+            estado="fallida"
+        )
+
+        return {
+            "estado_pago": paso.estado_pago,
+            "metodo": "saldo_insuficiente",
+            "mensaje": "Saldo insuficiente. Paso queda pendiente.",
+            "saldo_actual": str(billetera.saldo)
+        }
+
+    def procesar_seguridad_automatica(self, paso, vehiculo, peaje):
+        """
+        Revisa si el vehículo tiene un aviso activo de robo.
+        Si existe, genera una alerta de seguridad y registra ubicación.
+        """
+
+        if not vehiculo:
+            paso.estado_seguridad = "normal"
+            paso.save()
+            return {
+                "estado_seguridad": paso.estado_seguridad,
+                "alerta_generada": False,
+                "mensaje": "Vehículo no registrado. No se puede validar aviso de robo."
+            }
+
+        aviso = AvisoVehiculoRobado.objects.filter(
+            vehiculo=vehiculo,
+            estado="activo"
+        ).order_by("-fecha_aviso").first()
+
+        if not aviso:
+            paso.estado_seguridad = "normal"
+            paso.save()
+            return {
+                "estado_seguridad": paso.estado_seguridad,
+                "alerta_generada": False,
+                "mensaje": "Vehículo sin avisos activos."
+            }
+
+        paso.estado_seguridad = "alerta"
+        paso.save()
+
+        alerta = AlertaSeguridad.objects.create(
+            aviso=aviso,
+            vehiculo=vehiculo,
+            peaje=peaje,
+            paso_peaje=paso,
+            tipo_alerta="vehiculo_robado",
+            descripcion=(
+                f"Vehículo con aviso de robo activo detectado por LPR. "
+                f"Placa: {paso.placa_detectada}. "
+                f"Peaje: {peaje.nombre if peaje else 'No definido'}."
+            ),
+            latitud_deteccion=peaje.latitud if peaje else None,
+            longitud_deteccion=peaje.longitud if peaje else None,
+            estado="pendiente"
+        )
+
+        url_maps = None
+
+        if peaje and peaje.latitud and peaje.longitud:
+            url_maps = f"https://www.google.com/maps?q={peaje.latitud},{peaje.longitud}"
+
+        UbicacionDeteccion.objects.create(
+            alerta=alerta,
+            peaje=peaje,
+            latitud=peaje.latitud if peaje else None,
+            longitud=peaje.longitud if peaje else None,
+            direccion_referencial=peaje.ubicacion if peaje else "",
+            url_maps=url_maps,
+            fecha_hora=timezone.now()
+        )
+
+        aviso.estado = "detectado"
+        aviso.save()
+
+        registrar_historial(
+            usuario=vehiculo.usuario if vehiculo else None,
+            accion="Alerta automática por vehículo reportado",
+            descripcion=(
+                f"Se generó una alerta automática por vehículo con aviso activo. "
+                f"Placa: {paso.placa_detectada}. "
+                f"Peaje: {peaje.nombre if peaje else 'No definido'}. "
+                f"Alerta ID: {alerta.id}."
+            ),
+            modulo="Seguridad",
+            request=None,
+            dispositivo="LPR"
+        )
+
+
+        return {
+            "estado_seguridad": paso.estado_seguridad,
+            "alerta_generada": True,
+            "alerta_id": alerta.id,
+            "aviso_id": aviso.id,
+            "mensaje": "Vehículo con aviso activo detectado. Alerta generada.",
+            "url_maps": url_maps
+        }
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="detectar-placa"
+    )
+    def detectar_placa(self, request):
+        placa_detectada = request.data.get("placa_detectada")
+        camara_id = request.data.get("camara_id")
+        confianza = request.data.get("confianza", 0)
+
+        if not placa_detectada:
             return Response(
-                {
-                    "error": "Los campos placa_detectada y peaje son obligatorios."
-                },
+                {"error": "Debe enviar la placa_detectada."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        placa_detectada = placa_detectada.upper().strip()
+        if not camara_id:
+            return Response(
+                {"error": "Debe enviar el camara_id."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        placa_detectada = (
+            placa_detectada
+            .upper()
+            .replace("-", "")
+            .replace(" ", "")
+            .strip()
+        )
 
         try:
-            peaje = Peaje.objects.get(id=peaje_id)
-        except Peaje.DoesNotExist:
+            camara = Camara.objects.select_related("peaje").get(id=camara_id)
+        except Camara.DoesNotExist:
             return Response(
-                {"error": "El peaje indicado no existe."},
+                {"error": "La cámara no existe."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        camara = None
-        if camara_id:
-            try:
-                camara = Camara.objects.get(id=camara_id, peaje=peaje)
-            except Camara.DoesNotExist:
-                return Response(
-                    {"error": "La cámara indicada no existe o no pertenece al peaje."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+        peaje = camara.peaje
 
-        vehiculo = Vehiculo.objects.filter(placa=placa_detectada).first()
+        limite_tiempo = timezone.now() - timedelta(minutes=2)
 
-        estado_pago = PasoPeaje.EstadoPago.PENDIENTE
-        estado_seguridad = PasoPeaje.EstadoSeguridad.NORMAL
-        transaccion = None
+        paso_reciente = PasoPeaje.objects.filter(
+            placa_detectada=placa_detectada,
+            camara=camara,
+            fecha_hora__gte=limite_tiempo
+        ).order_by("-fecha_hora").first()
+
+        if paso_reciente:
+            return Response(
+                {
+                    "mensaje": "Placa detectada recientemente. No se registra duplicado.",
+                    "duplicado": True,
+                    "paso_id": paso_reciente.id,
+                    "placa_detectada": placa_detectada,
+                    "fecha_hora": paso_reciente.fecha_hora,
+                    "estado_pago": paso_reciente.estado_pago,
+                    "estado_seguridad": paso_reciente.estado_seguridad,
+                    "tarifa_aplicada": str(paso_reciente.tarifa_aplicada),
+                    "vehiculo_encontrado": paso_reciente.vehiculo is not None,
+                    "peaje": peaje.nombre if peaje else None,
+                    "camara": camara.codigo,
+                    "seguridad": {
+                        "estado_seguridad": paso_reciente.estado_seguridad,
+                        "alerta_generada": paso_reciente.estado_seguridad == "alerta",
+                        "mensaje": "Registro duplicado. Se devuelve el paso reciente."
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+
+        vehiculo = Vehiculo.objects.filter(
+            placa__iexact=placa_detectada
+        ).select_related("usuario", "categoria").first()
+
         tarifa_aplicada = Decimal("0.00")
-        membresia_utilizada = None
 
-        if vehiculo:
-            if vehiculo.categoria:
-                tarifa_aplicada = vehiculo.categoria.tarifa
-            else:
-                tarifa_aplicada = peaje.tarifa
-
-            hoy = timezone.localdate()
-
-            membresia_activa = Membresia.objects.filter(
-                usuario=vehiculo.usuario,
-                estado=Membresia.Estado.ACTIVA,
-                fecha_inicio__lte=hoy,
-                fecha_fin__gte=hoy,
-                pases_restantes__gt=0
-            ).order_by("fecha_fin").first()
-
-            billetera = Billetera.objects.filter(usuario=vehiculo.usuario).first()
-
-            if membresia_activa:
-                membresia_activa.consumir_pase()
-                membresia_utilizada = membresia_activa
-                estado_pago = PasoPeaje.EstadoPago.MEMBRESIA
-
-                if billetera:
-                    transaccion = Transaccion.objects.create(
-                        billetera=billetera,
-                        membresia=membresia_activa,
-                        monto=Decimal("0.00"),
-                        tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
-                        metodo_pago="Membresía",
-                        referencia_pago=f"Uso de membresía en {peaje.nombre}",
-                        estado=Transaccion.Estado.APROBADA,
-                    )
-
-                registrar_historial(
-                    usuario=vehiculo.usuario,
-                    accion="Uso de membresía",
-                    descripcion=(
-                        f"El vehículo {vehiculo.placa} pasó por {peaje.nombre} "
-                        "usando un pase de membresía."
-                    ),
-                    modulo="Membresías",
-                    request=request,
-                )
-
-            elif billetera and billetera.estado == Billetera.Estado.ACTIVA:
-                if billetera.saldo >= tarifa_aplicada:
-                    billetera.saldo -= tarifa_aplicada
-                    billetera.save()
-
-                    estado_pago = PasoPeaje.EstadoPago.PAGADO
-
-                    transaccion = Transaccion.objects.create(
-                        billetera=billetera,
-                        monto=tarifa_aplicada,
-                        tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
-                        metodo_pago="Billetera virtual",
-                        referencia_pago=f"Pago peaje {peaje.nombre}",
-                        estado=Transaccion.Estado.APROBADA,
-                    )
-
-                    registrar_historial(
-                        usuario=vehiculo.usuario,
-                        accion="Pago de peaje",
-                        descripcion=(
-                            f"Se cobró {tarifa_aplicada} por el paso del vehículo "
-                            f"{vehiculo.placa} en {peaje.nombre}."
-                        ),
-                        modulo="Peajes",
-                        request=request,
-                    )
-
-                else:
-                    estado_pago = PasoPeaje.EstadoPago.FALLIDO
-
-                    registrar_historial(
-                        usuario=vehiculo.usuario,
-                        accion="Pago de peaje fallido",
-                        descripcion=(
-                            f"No se pudo cobrar el paso del vehículo {vehiculo.placa} "
-                            f"en {peaje.nombre} por saldo insuficiente."
-                        ),
-                        modulo="Peajes",
-                        request=request,
-                    )
-
-            else:
-                estado_pago = PasoPeaje.EstadoPago.FALLIDO
-
-                registrar_historial(
-                    usuario=vehiculo.usuario,
-                    accion="Pago de peaje fallido",
-                    descripcion=(
-                        f"No se pudo cobrar el paso del vehículo {vehiculo.placa} "
-                        f"en {peaje.nombre} porque no tiene billetera activa."
-                    ),
-                    modulo="Peajes",
-                    request=request,
-                )
+        if vehiculo and vehiculo.categoria:
+            tarifa_aplicada = vehiculo.categoria.tarifa
+        elif peaje and peaje.tarifa:
+            tarifa_aplicada = peaje.tarifa
 
         paso = PasoPeaje.objects.create(
             vehiculo=vehiculo,
             peaje=peaje,
             camara=camara,
             placa_detectada=placa_detectada,
-            estado_pago=estado_pago,
+            estado_pago="pendiente",
+            estado_seguridad="normal",
             tarifa_aplicada=tarifa_aplicada,
-            membresia_utilizada=membresia_utilizada,
-            estado_seguridad=estado_seguridad,
-            observacion="Paso por peaje simulado desde API.",
+            observacion=f"Detección automática LPR. Confianza OCR: {confianza}%"
         )
 
-        if transaccion:
-            transaccion.paso_peaje = paso
-            transaccion.save()
+        resultado_pago = self.procesar_pago_automatico(
+            paso=paso,
+            vehiculo=vehiculo,
+            tarifa_aplicada=tarifa_aplicada
+        )
 
-        alerta_generada = None
-        ubicacion_generada = None
-        maps_url = None
+        resultado_seguridad = self.procesar_seguridad_automatica(
+            paso=paso,
+            vehiculo=vehiculo,
+            peaje=peaje
+        )
 
-        if vehiculo:
-            aviso_activo = AvisoVehiculoRobado.objects.filter(
-                vehiculo=vehiculo,
-                estado=AvisoVehiculoRobado.Estado.ACTIVO
-            ).first()
+        paso.refresh_from_db()
 
-            if aviso_activo:
-                paso.estado_seguridad = PasoPeaje.EstadoSeguridad.ALERTA
-                paso.save()
-
-                alerta_generada = AlertaSeguridad.objects.create(
-                    aviso=aviso_activo,
-                    vehiculo=vehiculo,
-                    peaje=peaje,
-                    paso_peaje=paso,
-                    tipo_alerta="Vehículo con aviso interno de robo",
-                    descripcion=(
-                        f"El vehículo con placa {placa_detectada} "
-                        f"fue detectado en el peaje {peaje.nombre}."
-                    ),
-                    estado=AlertaSeguridad.Estado.PENDIENTE,
-                    latitud_deteccion=peaje.latitud,
-                    longitud_deteccion=peaje.longitud,
-                )
-
-                maps_url = f"https://www.google.com/maps?q={peaje.latitud},{peaje.longitud}"
-
-                ubicacion_generada = UbicacionDeteccion.objects.create(
-                    alerta=alerta_generada,
-                    peaje=peaje,
-                    latitud=peaje.latitud,
-                    longitud=peaje.longitud,
-                    direccion_referencial=peaje.ubicacion,
-                    url_maps=maps_url,
-                )
-
-                aviso_activo.estado = AvisoVehiculoRobado.Estado.DETECTADO
-                aviso_activo.save()
-
-                try:
-                    Notificacion.objects.create(
-                        usuario=vehiculo.usuario,
-                        alerta=alerta_generada,
-                        titulo="Vehículo detectado en peaje",
-                        mensaje=(
-                            f"Tu vehículo con placa {placa_detectada} "
-                            f"fue detectado en {peaje.nombre}."
-                        ),
-                        tipo=Notificacion.Tipo.ALERTA,
-                    )
-                except Exception:
-                    pass
-
-                registrar_historial(
-                    usuario=vehiculo.usuario,
-                    accion="Detección de vehículo con aviso",
-                    descripcion=(
-                        f"El vehículo {vehiculo.placa} fue detectado en {peaje.nombre} "
-                        "y tiene un aviso interno activo."
-                    ),
-                    modulo="Seguridad",
-                    request=request,
-                )
+        registrar_historial(
+            usuario=request.user,
+            accion="Registro automático de paso de peaje",
+            descripcion=(
+                f"Se registró un paso de peaje desde LPR. "
+                f"Placa: {placa_detectada}. "
+                f"Peaje: {peaje.nombre if peaje else 'No definido'}. "
+                f"Estado pago: {paso.estado_pago}. "
+                f"Estado seguridad: {paso.estado_seguridad}."
+            ),
+            modulo="Peajes",
+            request=request,
+            dispositivo="LPR"
+        )
 
         return Response(
             {
-                "mensaje": "Paso por peaje simulado correctamente.",
-                "paso": PasoPeajeSerializer(paso).data,
-                "vehiculo_registrado": bool(vehiculo),
+                "mensaje": "Paso de peaje registrado desde LPR.",
+                "duplicado": False,
+                "paso_id": paso.id,
+                "placa_detectada": placa_detectada,
+                "vehiculo_encontrado": vehiculo is not None,
+                "peaje": peaje.nombre if peaje else None,
+                "camara": camara.codigo,
+                "tarifa_aplicada": str(tarifa_aplicada),
                 "estado_pago": paso.estado_pago,
-                "alerta_generada": bool(alerta_generada),
-                "id_alerta": alerta_generada.id if alerta_generada else None,
-                "id_ubicacion": ubicacion_generada.id if ubicacion_generada else None,
-                "url_maps": maps_url,
+                "estado_seguridad": paso.estado_seguridad,
+                "pago": resultado_pago,
+                "seguridad": resultado_seguridad,
             },
             status=status.HTTP_201_CREATED
         )
+

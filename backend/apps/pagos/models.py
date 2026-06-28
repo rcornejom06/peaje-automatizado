@@ -1,3 +1,5 @@
+
+
 from django.conf import settings
 from django.db import models
 
@@ -17,6 +19,7 @@ class Billetera(models.Model):
     class Meta:
         verbose_name = "Billetera"
         verbose_name_plural = "Billeteras"
+
 
     def __str__(self):
         return f"Billetera de {self.usuario.username} - Saldo: {self.saldo}"

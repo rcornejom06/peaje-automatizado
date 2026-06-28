@@ -6,23 +6,37 @@ import atexit
 from datetime import datetime
 from threading import Lock, Thread
 import re
-
+import requests
 import cv2
 import numpy as np
 import pytesseract
+from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, send_from_directory
 
 # ==========================================================
 # CONFIGURACIÓN GENERAL
 # ==========================================================
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 app = Flask(__name__)
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Users\Roger.Cornejo\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
 
+DJANGO_TOKEN_ACCESS = None
+DJANGO_TOKEN_REFRESH = None
+DJANGO_USERNAME = os.environ.get("DJANGO_USERNAME", "tu_usuario")
+DJANGO_PASSWORD = os.environ.get("DJANGO_PASSWORD", "tu_password")
+DJANGO_AUTH_URL = os.environ.get(
+    "DJANGO_AUTH_URL",
+    "http://localhost:8000/api/auth/token/"
+)
+DJANGO_API_URL = os.environ.get(
+    "DJANGO_API_URL",
+    "http://localhost:8000/api/peajes/pasos-peaje/detectar-placa/"
+)
+DJANGO_CAMARA_ID = int(os.environ.get("DJANGO_CAMARA_ID", "1"))
 CAMERA_INDEX = int(os.environ.get("CAMERA_INDEX", "1"))
 
 captura = None
@@ -51,6 +65,197 @@ lpr_lock = Lock()
 frame_a_procesar = None
 procesamiento_lock = Lock()
 
+
+def obtener_token_jwt():
+    """
+    Obtiene los tokens JWT (access y refresh) de Django.
+    """
+    global DJANGO_TOKEN_ACCESS, DJANGO_TOKEN_REFRESH
+
+    if not DJANGO_USERNAME or not DJANGO_PASSWORD:
+        logger.error("❌ DJANGO_USERNAME o DJANGO_PASSWORD no configurados")
+        return False
+
+    try:
+        logger.info(f"📡 Obteniendo tokens JWT desde: {DJANGO_AUTH_URL}")
+
+        respuesta = requests.post(
+            DJANGO_AUTH_URL,
+            json={
+                "username": DJANGO_USERNAME,
+                "password": DJANGO_PASSWORD
+            },
+            timeout=10
+        )
+
+        if respuesta.status_code == 200:
+            data = respuesta.json()
+            DJANGO_TOKEN_ACCESS = data.get('access')
+            DJANGO_TOKEN_REFRESH = data.get('refresh')
+
+            if not DJANGO_TOKEN_ACCESS:
+                logger.error("❌ No se recibió token 'access' de Django")
+                return False
+
+            logger.info(f"✅ Tokens JWT obtenidos exitosamente")
+            logger.info(f"📌 Access Token: {DJANGO_TOKEN_ACCESS[:30]}...")
+
+            return True
+
+        else:
+            data = respuesta.json()
+            error = data.get('detail', 'Error desconocido')
+            logger.error(f"❌ Error obteniendo tokens: {respuesta.status_code} - {error}")
+            return False
+
+    except requests.exceptions.ConnectionError:
+        logger.error("❌ No se pudo conectar con Django. ¿Está encendido?")
+        return False
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo tokens JWT: {e}")
+        return False
+
+
+def refrescar_token_jwt():
+    """
+    Refresca el access token usando el refresh token.
+    Se ejecuta cuando el access token expira.
+    """
+    global DJANGO_TOKEN_ACCESS, DJANGO_TOKEN_REFRESH
+
+    if not DJANGO_TOKEN_REFRESH:
+        logger.error("❌ No hay refresh token disponible")
+        return False
+
+    try:
+        logger.info("🔄 Refrescando access token...")
+
+        respuesta = requests.post(
+            DJANGO_AUTH_URL.replace("token/", "token/refresh/"),
+            json={"refresh": DJANGO_TOKEN_REFRESH},
+            timeout=10
+        )
+
+        if respuesta.status_code == 200:
+            data = respuesta.json()
+            DJANGO_TOKEN_ACCESS = data.get('access')
+
+            logger.info("✅ Access token refrescado correctamente")
+            return True
+
+        else:
+            logger.error(f"❌ Error refrescando token: {respuesta.status_code}")
+            return obtener_token_jwt()
+
+    except Exception as e:
+        logger.error(f"❌ Error refrescando token: {e}")
+        return obtener_token_jwt()
+
+
+def reintentar_obtener_token(intentos=3, espera=2):
+    """
+    Intenta obtener el token JWT múltiples veces.
+    """
+    global DJANGO_TOKEN_ACCESS
+
+    for intento in range(1, intentos + 1):
+        logger.info(f"🔄 Intento {intento}/{intentos} para obtener token JWT...")
+
+        if obtener_token_jwt():
+            return True
+
+        if intento < intentos:
+            logger.info(f"⏳ Esperando {espera} segundos antes de reintentar...")
+            time.sleep(espera)
+
+    logger.error(f"❌ No se pudo obtener token después de {intentos} intentos")
+    return False
+
+def enviar_deteccion_a_django(placa, confianza):
+    global DJANGO_TOKEN_ACCESS
+
+    try:
+        if not DJANGO_TOKEN_ACCESS:
+            logger.warning("❌ No hay token JWT disponible.")
+            return {
+                "enviado": False,
+                "error": "Token JWT no disponible"
+            }
+
+        payload = {
+            "placa_detectada": placa,
+            "camara_id": DJANGO_CAMARA_ID,
+            "confianza": confianza
+        }
+
+        headers = {
+            "Authorization": f"Bearer {DJANGO_TOKEN_ACCESS}",
+            "Content-Type": "application/json"
+        }
+
+        respuesta = requests.post(
+            DJANGO_API_URL,
+            json=payload,
+            headers=headers,
+            timeout=8
+        )
+
+        if respuesta.status_code == 401:
+            logger.warning("⚠️  Token expirado, intentando refrescar...")
+
+            if refrescar_token_jwt():
+                headers["Authorization"] = f"Bearer {DJANGO_TOKEN_ACCESS}"
+                respuesta = requests.post(
+                    DJANGO_API_URL,
+                    json=payload,
+                    headers=headers,
+                    timeout=8
+                )
+            else:
+                return {
+                    "enviado": False,
+                    "error": "No se pudo refrescar el token"
+                }
+
+        try:
+            data = respuesta.json()
+        except Exception:
+            data = {
+                "respuesta_texto": respuesta.text
+            }
+
+        if respuesta.status_code in [200, 201]:
+            logger.info(f"✅ Detección enviada a Django: {placa}")
+            return {
+                "enviado": True,
+                "status_code": respuesta.status_code,
+                "data": data
+            }
+
+        logger.warning(
+            f"⚠️  Django respondió con {respuesta.status_code}: {data}"
+        )
+
+        return {
+            "enviado": False,
+            "status_code": respuesta.status_code,
+            "data": data
+        }
+
+    except requests.exceptions.ConnectionError:
+        logger.error("❌ No se pudo conectar con Django")
+        return {
+            "enviado": False,
+            "error": "No se pudo conectar con Django"
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error enviando detección: {e}")
+        return {
+            "enviado": False,
+            "error": str(e)
+        }
 
 # ==========================================================
 # CORS SIMPLE PARA REACT
@@ -423,14 +628,31 @@ def registrar_deteccion(placa, confianza, tipo="ocr_placa"):
 
     placa = limpiar_texto_placa(placa)
 
+    resultado_django = enviar_deteccion_a_django(
+        placa=placa,
+        confianza=confianza
+    )
+
+    estado_pago = "pendiente"
+    estado_vehiculo = "sin_novedades"
+
+    if resultado_django.get("enviado"):
+        data_django = resultado_django.get("data", {})
+
+        estado_pago = data_django.get("estado_pago", "pendiente")
+        estado_vehiculo = data_django.get("estado_seguridad", "normal")
+    else:
+        data_django = resultado_django
+
     deteccion = {
         "placa": placa,
         "confianza": confianza,
         "tipo": tipo,
         "fecha_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "estado_pago": "pendiente",
-        "estado_vehiculo": "sin_novedades",
-        "imagen_placa": ultima_imagen_placa
+        "estado_pago": estado_pago,
+        "estado_vehiculo": estado_vehiculo,
+        "django": data_django,
+        "imagen_placa": ultima_imagen_placa if "ultima_imagen_placa" in globals() else None
     }
 
     ultima_deteccion = deteccion
@@ -439,7 +661,7 @@ def registrar_deteccion(placa, confianza, tipo="ocr_placa"):
     if len(historial_detecciones) > 50:
         historial_detecciones = historial_detecciones[-50:]
 
-    logger.info(f"Placa detectada: {placa} ({confianza}%)")
+    logger.info(f"Placa detectada y registrada: {placa} ({confianza}%)")
 
 
 def detectar_region_placa(frame):
@@ -902,12 +1124,32 @@ def listar_debug_placas():
 def ver_debug_placa(nombre_archivo):
     return send_from_directory(CARPETA_DEBUG_PLACAS, nombre_archivo)
 
+@app.route("/config")
+def config():
+    return jsonify({
+        "DJANGO_AUTH_URL": DJANGO_AUTH_URL,
+        "DJANGO_API_URL": DJANGO_API_URL,
+        "DJANGO_CAMARA_ID": DJANGO_CAMARA_ID,
+        "CAMERA_INDEX": CAMERA_INDEX,
+        "DJANGO_USERNAME": DJANGO_USERNAME,
+        "DJANGO_PASSWORD_CONFIGURADO": DJANGO_PASSWORD not in ["", "tu_password", None],
+        "DJANGO_TOKEN_ACCESS_CONFIGURADO": bool(DJANGO_TOKEN_ACCESS),
+        "DJANGO_TOKEN_REFRESH_CONFIGURADO": bool(DJANGO_TOKEN_REFRESH),
+    })
+
 
 # ==========================================================
 # INICIO
 # ==========================================================
 
 if __name__ == "__main__":
+    logger.info("=" * 60)
+    logger.info("🚀 Iniciando Servidor LPR")
+    logger.info("=" * 60)
+
+    if not reintentar_obtener_token(intentos=3, espera=2):
+        logger.warning("⚠️  Flask continuará sin tokens (sin comunicación con Django)")
+
     logger.info(f"Sistema operativo: {platform.system()}")
     logger.info(f"Índice de cámara configurado: {CAMERA_INDEX}")
     logger.info("Iniciando servidor Flask en puerto 5001")

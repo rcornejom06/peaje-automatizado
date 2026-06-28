@@ -5,7 +5,7 @@ import {
   derivarAlertaAutoridad,
   cerrarAlerta,
   descartarAlerta,
-} from "../../api/seguidadService.js";
+} from "../../api/seguridadService.js";
 import "../Styles/Alertas.css";
 
 function Alertas() {
@@ -71,6 +71,48 @@ function Alertas() {
     }
   };
 
+  const obtenerPlaca = (alerta) => {
+    return (
+      alerta.vehiculo_placa ||
+      alerta.placa ||
+      alerta.vehiculo?.placa ||
+      alerta.vehiculo ||
+      "Sin dato"
+    );
+  };
+
+  const obtenerVehiculo = (alerta) => {
+    return (
+      alerta.vehiculo_nombre ||
+      alerta.vehiculo_detalle ||
+      alerta.vehiculo ||
+      obtenerPlaca(alerta)
+    );
+  };
+
+  const obtenerPeaje = (alerta) => {
+    return (
+      alerta.peaje_nombre ||
+      alerta.peaje?.nombre ||
+      alerta.peaje ||
+      "Sin dato"
+    );
+  };
+
+  const obtenerUrlMaps = (alerta) => {
+    return (
+      alerta.url_maps ||
+      alerta.ubicacion?.url_maps ||
+      alerta.ubicacion_deteccion?.url_maps ||
+      alerta.ubicaciondeteccion?.url_maps ||
+      null
+    );
+  };
+
+  const alertaBloqueada = (estado) => {
+    return estado === "cerrada" || estado === "descartada";
+  };
+
   if (cargando) {
     return (
       <div className="alertas-page">
@@ -85,7 +127,7 @@ function Alertas() {
       <div className="alertas-header">
         <div>
           <h2>Alertas de Seguridad</h2>
-          <p>Monitoreo de alertas generadas por detección de placas.</p>
+          <p>Gestión de alertas generadas por detección automática de placas.</p>
         </div>
 
         <button className="btn-primary" onClick={cargarAlertas}>
@@ -96,123 +138,172 @@ function Alertas() {
       {error && <div className="alertas-error">{error}</div>}
       {mensaje && <div className="alertas-success">{mensaje}</div>}
 
+      <div className="alertas-summary">
+        <div>
+          <span>Total alertas</span>
+          <strong>{alertas.length}</strong>
+        </div>
+
+        <div>
+          <span>Pendientes</span>
+          <strong>
+            {alertas.filter((alerta) => alerta.estado === "pendiente").length}
+          </strong>
+        </div>
+
+        <div>
+          <span>Derivadas</span>
+          <strong>
+            {alertas.filter((alerta) => alerta.estado === "derivada").length}
+          </strong>
+        </div>
+
+        <div>
+          <span>Cerradas</span>
+          <strong>
+            {alertas.filter((alerta) => alerta.estado === "cerrada").length}
+          </strong>
+        </div>
+      </div>
+
       <div className="alertas-table-card">
         <table>
           <thead>
             <tr>
               <th>ID</th>
+              <th>Placa</th>
               <th>Vehículo</th>
               <th>Peaje</th>
               <th>Tipo</th>
               <th>Estado</th>
               <th>Fecha</th>
+              <th>Ubicación</th>
+              <th>Descripción</th>
               <th>Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             {alertas.length > 0 ? (
-              alertas.map((alerta) => (
-                <tr key={alerta.id}>
-                  <td>{alerta.id}</td>
-                  <td>
-                    {alerta.vehiculo_placa ||
-                      alerta.placa ||
-                      alerta.vehiculo ||
-                      "Sin dato"}
-                  </td>
-                  <td>
-                    {alerta.peaje_nombre ||
-                      alerta.peaje ||
-                      "Sin dato"}
-                  </td>
-                  <td>{alerta.tipo_alerta || "Alerta"}</td>
-                  <td>
-                    <span className={obtenerClaseEstado(alerta.estado)}>
-                      {alerta.estado}
-                    </span>
-                  </td>
-                  <td>
-                    {alerta.fecha_hora
-                      ? new Date(alerta.fecha_hora).toLocaleString()
-                      : "Sin fecha"}
-                  </td>
-                  <td>
-                    <div className="acciones">
-                      <button
-                        className="btn-action"
-                        onClick={() =>
-                          ejecutarAccion(
-                            marcarAlertaRevisada,
-                            alerta.id,
-                            "Alerta marcada como revisada."
-                          )
-                        }
-                        disabled={
-                          alerta.estado === "cerrada" ||
-                          alerta.estado === "descartada"
-                        }
-                      >
-                        Revisar
-                      </button>
+              alertas.map((alerta) => {
+                const urlMaps = obtenerUrlMaps(alerta);
 
-                      <button
-                        className="btn-action warning"
-                        onClick={() =>
-                          ejecutarAccion(
-                            derivarAlertaAutoridad,
-                            alerta.id,
-                            "Alerta derivada a autoridad."
-                          )
-                        }
-                        disabled={
-                          alerta.estado === "cerrada" ||
-                          alerta.estado === "descartada"
-                        }
-                      >
-                        Derivar
-                      </button>
+                return (
+                  <tr key={alerta.id}>
+                    <td>{alerta.id}</td>
 
-                      <button
-                        className="btn-action success"
-                        onClick={() =>
-                          ejecutarAccion(
-                            cerrarAlerta,
-                            alerta.id,
-                            "Alerta cerrada correctamente."
-                          )
-                        }
-                        disabled={
-                          alerta.estado === "cerrada" ||
-                          alerta.estado === "descartada"
-                        }
-                      >
-                        Cerrar
-                      </button>
+                    <td>
+                      <strong className="placa-alerta">
+                        {obtenerPlaca(alerta)}
+                      </strong>
+                    </td>
 
-                      <button
-                        className="btn-action danger"
-                        onClick={() =>
-                          ejecutarAccion(
-                            descartarAlerta,
-                            alerta.id,
-                            "Alerta descartada correctamente."
-                          )
-                        }
-                        disabled={
-                          alerta.estado === "cerrada" ||
-                          alerta.estado === "descartada"
-                        }
-                      >
-                        Descartar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    <td>{obtenerVehiculo(alerta)}</td>
+
+                    <td>{obtenerPeaje(alerta)}</td>
+
+                    <td>
+                      {alerta.tipo_alerta === "vehiculo_robado"
+                        ? "Vehículo robado"
+                        : alerta.tipo_alerta || "Alerta"}
+                    </td>
+
+                    <td>
+                      <span className={obtenerClaseEstado(alerta.estado)}>
+                        {alerta.estado || "pendiente"}
+                      </span>
+                    </td>
+
+                    <td>
+                      {alerta.fecha_hora
+                        ? new Date(alerta.fecha_hora).toLocaleString()
+                        : "Sin fecha"}
+                    </td>
+
+                    <td>
+                      {urlMaps ? (
+                        <a
+                          className="maps-link"
+                          href={urlMaps}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Ver mapa
+                        </a>
+                      ) : (
+                        "Sin ubicación"
+                      )}
+                    </td>
+
+                    <td className="descripcion-alerta">
+                      {alerta.descripcion || "Sin descripción"}
+                    </td>
+
+                    <td>
+                      <div className="acciones">
+                        <button
+                          className="btn-action"
+                          onClick={() =>
+                            ejecutarAccion(
+                              marcarAlertaRevisada,
+                              alerta.id,
+                              "Alerta marcada como revisada."
+                            )
+                          }
+                          disabled={alertaBloqueada(alerta.estado)}
+                        >
+                          Revisar
+                        </button>
+
+                        <button
+                          className="btn-action warning"
+                          onClick={() =>
+                            ejecutarAccion(
+                              derivarAlertaAutoridad,
+                              alerta.id,
+                              "Alerta derivada a autoridad."
+                            )
+                          }
+                          disabled={alertaBloqueada(alerta.estado)}
+                        >
+                          Derivar
+                        </button>
+
+                        <button
+                          className="btn-action success"
+                          onClick={() =>
+                            ejecutarAccion(
+                              cerrarAlerta,
+                              alerta.id,
+                              "Alerta cerrada correctamente."
+                            )
+                          }
+                          disabled={alertaBloqueada(alerta.estado)}
+                        >
+                          Cerrar
+                        </button>
+
+                        <button
+                          className="btn-action danger"
+                          onClick={() =>
+                            ejecutarAccion(
+                              descartarAlerta,
+                              alerta.id,
+                              "Alerta descartada correctamente."
+                            )
+                          }
+                          disabled={alertaBloqueada(alerta.estado)}
+                        >
+                          Descartar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
-                <td colSpan="7">No existen alertas registradas.</td>
+                <td colSpan="10">No existen alertas registradas.</td>
               </tr>
             )}
           </tbody>

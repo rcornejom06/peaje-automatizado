@@ -1,5 +1,5 @@
 from .models import CategoriaVehiculo
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -28,6 +28,7 @@ class VehiculoViewSet(viewsets.ModelViewSet):
         if rol in ['operador', 'administrador']:
             return Vehiculo.objects.all().order_by("placa")
         return Vehiculo.objects.filter(usuario=self.request.user).order_by("placa")
+
     def perform_create(self, serializer):
         rol = obtener_rol_usuario(self.request.user)
         if rol == 'usuario':
@@ -35,8 +36,8 @@ class VehiculoViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-    @action(detail=False, methods=["post"], url_path="Registrar-propio")
-    def registrar_propio(self, request, status=None):
+    @action(detail=False, methods=["post"], url_path="registrar-propio")
+    def registrar_propio(self, request):
         placa = request.data["placa"]
         marca = request.data["marca"]
         categoria_id = request.data.get("categoria")

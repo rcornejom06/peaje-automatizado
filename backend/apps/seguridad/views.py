@@ -372,12 +372,19 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         alerta.estado = AlertaSeguridad.Estado.REVISADA
         alerta.save()
 
+        placa = alerta.vehiculo.placa if alerta.vehiculo else "Sin vehículo"
+
         registrar_historial(
             usuario=request.user,
             accion="Revisión de alerta",
-            descripcion=f"Se marcó como revisada la alerta del vehículo {alerta.vehiculo.placa}.",
+            descripcion=(
+                f"Se marcó como revisada la alerta ID {alerta.id}. "
+                f"Vehículo: {placa}. "
+                f"Peaje: {alerta.peaje if alerta.peaje else 'Sin peaje'}."
+            ),
             modulo="Seguridad",
             request=request,
+            dispositivo="Panel React",
         )
 
         return Response(
@@ -412,24 +419,32 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         alerta.save()
 
         try:
-            Notificacion.objects.create(
-                usuario=alerta.vehiculo.usuario,
-                titulo="Alerta derivada a autoridad",
-                mensaje=(
-                    f"La alerta del vehículo {alerta.vehiculo.placa} "
-                    "fue derivada a la autoridad competente."
-                ),
-                tipo=Notificacion.Tipo.ALERTA,
-            )
+            if alerta.vehiculo and alerta.vehiculo.usuario:
+                Notificacion.objects.create(
+                    usuario=alerta.vehiculo.usuario,
+                    titulo="Alerta derivada a autoridad",
+                    mensaje=(
+                        f"La alerta del vehículo {alerta.vehiculo.placa} "
+                        "fue derivada a la autoridad competente."
+                    ),
+                    tipo=Notificacion.Tipo.ALERTA,
+                )
         except Exception:
             pass
+
+        placa = alerta.vehiculo.placa if alerta.vehiculo else "Sin vehículo"
 
         registrar_historial(
             usuario=request.user,
             accion="Derivación de alerta",
-            descripcion=f"Se derivó la alerta del vehículo {alerta.vehiculo.placa}.",
+            descripcion=(
+                f"Se derivó a autoridad la alerta ID {alerta.id}. "
+                f"Vehículo: {placa}. "
+                f"Peaje: {alerta.peaje if alerta.peaje else 'Sin peaje'}."
+            ),
             modulo="Seguridad",
             request=request,
+            dispositivo="Panel React",
         )
 
         return Response(
@@ -466,12 +481,19 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         alerta.estado = AlertaSeguridad.Estado.CERRADA
         alerta.save()
 
+        placa = alerta.vehiculo.placa if alerta.vehiculo else "Sin vehículo"
+
         registrar_historial(
             usuario=request.user,
             accion="Cierre de alerta",
-            descripcion=f"Se cerró la alerta del vehículo {alerta.vehiculo.placa}.",
+            descripcion=(
+                f"Se cerró la alerta ID {alerta.id}. "
+                f"Vehículo: {placa}. "
+                f"Peaje: {alerta.peaje if alerta.peaje else 'Sin peaje'}."
+            ),
             modulo="Seguridad",
             request=request,
+            dispositivo="Panel React",
         )
 
         return Response(
@@ -508,12 +530,19 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
         alerta.estado = AlertaSeguridad.Estado.DESCARTADA
         alerta.save()
 
+        placa = alerta.vehiculo.placa if alerta.vehiculo else "Sin vehículo"
+
         registrar_historial(
             usuario=request.user,
             accion="Descarte de alerta",
-            descripcion=f"Se descartó la alerta del vehículo {alerta.vehiculo.placa}.",
+            descripcion=(
+                f"Se descartó la alerta ID {alerta.id}. "
+                f"Vehículo: {placa}. "
+                f"Peaje: {alerta.peaje if alerta.peaje else 'Sin peaje'}."
+            ),
             modulo="Seguridad",
             request=request,
+            dispositivo="Panel React",
         )
 
         return Response(

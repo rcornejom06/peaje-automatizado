@@ -1,103 +1,87 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.decorators import action
 from ..usuarios.permissions import obtener_rol_usuario
 from .models import HistorialUsuario
 from .serializers import HistorialUsuarioSerializer
-from rest_framework.response import Response
-from rest_framework.decorators import action
 
-class HistorialUsuarioViewSet(viewsets.ModelViewSet):
+
+class HistorialUsuarioViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = HistorialUsuarioSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
 
-        if rol == "administrador":
-            return HistorialUsuario.objects.all().order_by("-fecha_hora_hora")
+        queryset = HistorialUsuario.objects.select_related("usuario").all()
 
-        return HistorialUsuario.objects.filter(
-            usuario=self.request.user
-        ).order_by("-fecha_hora_hora")
+        if rol in ["administrador", "operador"]:
+            return queryset.order_by("-fecha_hora")
 
-    @action(detail=False, methods=["get"], url_path="mi-historial")
-    def mi_historial(self, request):
-        historial = HistorialUsuario.objects.filter(
-            usuario=request.user
-        ).order_by("-fecha_hora")
+        return queryset.filter(usuario=self.request.user).order_by("-fecha_hora")
 
-        serializer = self.get_serializer(historial, many=True)
-
-        return Response(
-            {
-                "total": historial.count(),
-                "historial": serializer.data,
-            },
-            status=status.HTTP_200_OK
-        )
-
-    @action(detail=False, methods=["get"], url_path="por-modulo")
-    def por_modulo(self, request):
-        rol = obtener_rol_usuario(request.user)
-
-        if rol != "administrador":
-            return Response(
-                {"error": "Solo el administrador puede consultar historial por módulo."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
 
         modulo = request.query_params.get("modulo")
+        estado = request.query_params.get("estado")
+        accion = request.query_params.get("accion")
+        fecha_inicio = request.query_params.get("fecha_inicio")
+        fecha_fin = request.query_params.get("fecha_fin")
 
-        if not modulo:
-            return Response(
-                {"error": "El parámetro modulo es obligatorio."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if modulo:
+            queryset = queryset.filter(modulo__icontains=modulo)
 
-        historial = HistorialUsuario.objects.filter(
-            modulo__icontains=modulo
-        ).order_by("-fecha_hora")
+        if estado:
+            queryset = queryset.filter(estado=estado)
 
-        serializer = self.get_serializer(historial, many=True)
+        if accion:
+            queryset = queryset.filter(accion__icontains=accion)
 
-        return Response(
-            {
-                "modulo": modulo,
-                "total": historial.count(),
-                "historial": serializer.data,
-            },
-            status=status.HTTP_200_OK
+        if fecha_inicio:
+            queryset = queryset.filter(fecha_hora__date__gte=fecha_inicio)
+
+        if fecha_fin:
+            queryset = queryset.filter(fecha_hora__date__lte=fecha_fin)
+
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="resumen")
+    def resumen(self, request):
+        queryset = self.get_queryset()
+
+        total = queryset.count()
+        exitosos = queryset.filter(estado=HistorialUsuario.Estado.EXITOSO).count()
+        fallidos = queryset.filter(estado=HistorialUsuario.Estado.FALLIDO).count()
+        pendientes = queryset.filter(estado=HistorialUsuario.Estado.PENDIENTE).count()
+
+        por_modulo = (
+            queryset
+            .values("modulo")
+            .order_by("modulo")
         )
 
-    @action(detail=False, methods=["get"], url_path="por-usuario")
-    def por_usuario(self, request):
-        rol = obtener_rol_usuario(request.user)
+        resumen_modulo = {}
 
-        if rol != "administrador":
-            return Response(
-                {"error": "Solo el administrador puede consultar historial por usuario."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        usuario_id = request.query_params.get("usuario")
-
-        if not usuario_id:
-            return Response(
-                {"error": "El parámetro usuario es obligatorio."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        historial = HistorialUsuario.objects.filter(
-            usuario_id=usuario_id
-        ).order_by("-fecha_hora")
-
-        serializer = self.get_serializer(historial, many=True)
+        for item in por_modulo:
+            modulo = item["modulo"] or "Sin módulo"
+            resumen_modulo[modulo] = resumen_modulo.get(modulo, 0) + 1
 
         return Response(
             {
-                "usuario": usuario_id,
-                "total": historial.count(),
-                "historial": serializer.data,
-            },
-            status=status.HTTP_200_OK
+                "total": total,
+                "exitosos": exitosos,
+                "fallidos": fallidos,
+                "pendientes": pendientes,
+                "por_modulo": resumen_modulo,
+            }
         )

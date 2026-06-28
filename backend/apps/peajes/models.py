@@ -1,3 +1,4 @@
+
 from django.db import models
 
 
@@ -86,6 +87,9 @@ class PasoPeaje(models.Model):
         verbose_name = "Paso por peaje"
         verbose_name_plural = "Pasos por peaje"
         ordering = ["-fecha_hora"]
+
+
+
 
     def save(self, *args, **kwargs):
         self.placa_detectada = self.placa_detectada.upper().strip()
