@@ -1,7 +1,5 @@
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
-
 import '../constants/api_config.dart';
 import 'storage_service.dart';
 
@@ -31,43 +29,46 @@ class ApiService {
     return headers;
   }
 
-  Future<dynamic> get(
-    String endpoint, {
+  Future<dynamic> get(String endpoint, {
     Map<String, String>? queryParams,
     bool requiereAuth = true,
   }) async {
-    final response = await http.get(
+    final response = await http
+        .get(
       _buildUri(endpoint, queryParams),
       headers: await _headers(requiereAuth: requiereAuth),
-    );
+    )
+        .timeout(const Duration(seconds: 15));
 
     return _procesarRespuesta(response);
   }
 
-  Future<dynamic> post(
-    String endpoint, {
+  Future<dynamic> post(String endpoint, {
     Map<String, dynamic>? body,
     bool requiereAuth = true,
   }) async {
-    final response = await http.post(
+    final response = await http
+        .post(
       _buildUri(endpoint),
       headers: await _headers(requiereAuth: requiereAuth),
       body: jsonEncode(body ?? {}),
-    );
+    )
+        .timeout(const Duration(seconds: 15));
 
     return _procesarRespuesta(response);
   }
 
-  Future<dynamic> patch(
-    String endpoint, {
+  Future<dynamic> patch(String endpoint, {
     Map<String, dynamic>? body,
     bool requiereAuth = true,
   }) async {
-    final response = await http.patch(
+    final response = await http
+        .patch(
       _buildUri(endpoint),
       headers: await _headers(requiereAuth: requiereAuth),
       body: jsonEncode(body ?? {}),
-    );
+    )
+        .timeout(const Duration(seconds: 15));
 
     return _procesarRespuesta(response);
   }

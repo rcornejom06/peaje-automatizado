@@ -535,7 +535,6 @@ class _MembresiaActivaCard extends StatelessWidget {
     final nombrePlan = _obtenerNombrePlan();
     final pasesRestantes = texto(membresia['pases_restantes']);
     final fechaInicio = texto(membresia['fecha_inicio']);
-    final fechaFin = texto(membresia['fecha_fin']);
     final estado = texto(membresia['estado']).toUpperCase();
 
     return Container(
@@ -588,9 +587,15 @@ class _MembresiaActivaCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _MembresiaInfoItem(
-            icon: Icons.calendar_today,
-            label: 'Vigencia',
-            value: '$fechaInicio - $fechaFin',
+            icon: Icons.event_available,
+            label: 'Fecha de compra',
+            value: fechaInicio,
+          ),
+          const SizedBox(height: 12),
+          const _MembresiaInfoItem(
+            icon: Icons.all_inclusive,
+            label: 'Caducidad',
+            value: 'Sin fecha de vencimiento',
           ),
           const SizedBox(height: 12),
           _MembresiaInfoItem(
@@ -625,29 +630,29 @@ class _MembresiaInfoItem extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xCCFFFFFF),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xCCFFFFFF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
 
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Color(0xCCFFFFFF),
-            fontSize: 14,
-            height: 1.3,
-          ),
-        ),
-      ],
-    ),)
-    ,
-    ]
-    ,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xCCFFFFFF),
+                  fontSize: 14,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),)
+        ,
+      ]
+      ,
     );
   }
 }
@@ -677,7 +682,6 @@ class _PlanCard extends StatelessWidget {
     final descripcion = texto(plan['descripcion']);
     final precio = dinero(plan['precio']);
     final pases = texto(plan['pases_incluidos']);
-    final duracion = texto(plan['duracion_dias']);
     final descuento = texto(plan['descuento_porcentaje']);
 
     return Container(
@@ -766,9 +770,9 @@ class _PlanCard extends StatelessWidget {
                 value: pases,
               ),
               _PlanFeature(
-                icon: Icons.calendar_month,
-                label: 'Duración',
-                value: '$duracion días',
+                icon: Icons.all_inclusive,
+                label: 'Validez',
+                value: 'Hasta agotar pases',
               ),
               _PlanFeature(
                 icon: Icons.trending_up,

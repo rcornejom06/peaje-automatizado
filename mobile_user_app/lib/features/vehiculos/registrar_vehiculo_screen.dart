@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/services/vehiculo_service.dart';
@@ -27,9 +30,30 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
   List<dynamic> _categorias = [];
   int? _categoriaSeleccionada;
 
+  File? _documentoRespaldo;
+  String? _nombreDocumento;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarCategorias();
+  }
+
+  @override
+  void dispose() {
+    _placaController.dispose();
+    _marcaController.dispose();
+    _modeloController.dispose();
+    _colorController.dispose();
+    _anioController.dispose();
+    super.dispose();
+  }
+
   Future<void> _cargarCategorias() async {
     try {
       final data = await _vehiculoService.obtenerCategorias();
+
+      if (!mounted) return;
 
       setState(() {
         _categorias = data;
@@ -38,6 +62,8 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
         }
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -50,6 +76,22 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
     }
   }
 
+  Future<void> _seleccionarDocumento() async {
+    final resultado = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+
+    if (resultado == null || resultado.files.single.path == null) {
+      return;
+    }
+
+    setState(() {
+      _documentoRespaldo = File(resultado.files.single.path!);
+      _nombreDocumento = resultado.files.single.name;
+    });
+  }
+
   Future<void> _registrarVehiculo() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -58,6 +100,13 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
     if (_categoriaSeleccionada == null) {
       setState(() {
         _error = 'Debe seleccionar una categoría.';
+      });
+      return;
+    }
+
+    if (_documentoRespaldo == null) {
+      setState(() {
+        _error = 'Debe adjuntar un documento de respaldo.';
       });
       return;
     }
@@ -75,18 +124,23 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
         color: _colorController.text.trim(),
         anio: int.parse(_anioController.text.trim()),
         categoriaId: _categoriaSeleccionada!,
+        documentoRespaldo: _documentoRespaldo!,
       );
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vehículo registrado correctamente.'),
+          content: Text(
+            'Vehículo registrado correctamente. Queda en revisión hasta aprobación administrativa.',
+          ),
         ),
       );
 
       Navigator.pop(context, true);
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -97,22 +151,6 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
         });
       }
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarCategorias();
-  }
-
-  @override
-  void dispose() {
-    _placaController.dispose();
-    _marcaController.dispose();
-    _modeloController.dispose();
-    _colorController.dispose();
-    _anioController.dispose();
-    super.dispose();
   }
 
   Widget _campoTexto({
@@ -149,10 +187,94 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
     final tarifa = categoria['tarifa']?.toString();
 
     if (tarifa != null) {
-      return '$nombre - \$${tarifa}';
+      return '$nombre - \$$tarifa';
     }
 
     return nombre;
+  }
+
+  Widget _selectorDocumento() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Documento de respaldo',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Adjunta matrícula, cédula del propietario, autorización o documento que respalde el registro del vehículo.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _cargando ? null : _seleccionarDocumento,
+            icon: const Icon(Icons.attach_file),
+            label: Text(
+              _nombreDocumento == null
+                  ? 'Seleccionar documento'
+                  : _nombreDocumento!,
+            ),
+          ),
+          if (_nombreDocumento != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Archivo seleccionado: $_nombreDocumento',
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _bloqueError() {
+    if (_error.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        _error,
+        style: TextStyle(color: Colors.red.shade700),
+      ),
+    );
   }
 
   @override
@@ -241,7 +363,8 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
                               return 'Ingrese un año válido';
                             }
 
-                            if (anio < 1980 || anio > DateTime.now().year + 1) {
+                            if (anio < 1980 ||
+                                anio > DateTime.now().year + 1) {
                               return 'Año fuera de rango';
                             }
 
@@ -263,11 +386,13 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
                                 child: Text(_nombreCategoria(categoria)),
                               );
                             }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _categoriaSeleccionada = value;
-                              });
-                            },
+                            onChanged: _cargando
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _categoriaSeleccionada = value;
+                                    });
+                                  },
                             validator: (value) {
                               if (value == null) {
                                 return 'Seleccione una categoría';
@@ -278,26 +403,26 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
                           ),
                         ),
 
-                        if (_error.isNotEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              _error,
-                              style: TextStyle(color: Colors.red.shade700),
-                            ),
-                          ),
+                        _selectorDocumento(),
 
-                        ElevatedButton(
-                          onPressed: _cargando ? null : _registrarVehiculo,
-                          child: _cargando
-                              ? const CircularProgressIndicator()
-                              : const Text('Registrar vehículo'),
+                        _bloqueError(),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed:
+                                _cargando ? null : _registrarVehiculo,
+                            child: _cargando
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Registrar vehículo'),
+                          ),
                         ),
                       ],
                     ),
