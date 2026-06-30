@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/api_config.dart';
 import '../../core/services/api_service.dart';
+import 'editar_perfil_screen.dart';
 
 class PerfilScreen extends StatefulWidget {
   const PerfilScreen({super.key});
@@ -17,6 +18,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
   String _error = '';
   Map<String, dynamic>? _perfil;
 
+  @override
+  void initState() {
+    super.initState();
+    _cargarPerfil();
+  }
+
   Future<void> _cargarPerfil() async {
     try {
       setState(() {
@@ -26,10 +33,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
       final data = await _apiService.get(ApiConfig.miPerfil);
 
+      if (!mounted) return;
+
       setState(() {
         _perfil = Map<String, dynamic>.from(data);
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -42,17 +53,25 @@ class _PerfilScreenState extends State<PerfilScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _cargarPerfil();
+  Future<void> _irAEditarPerfil() async {
+    if (_perfil == null) return;
+
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditarPerfilScreen(
+          perfil: _perfil!,
+        ),
+      ),
+    );
+
+    if (resultado == true) {
+      await _cargarPerfil();
+    }
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor
-        .toString()
-        .trim()
-        .isEmpty) {
+    if (valor == null || valor.toString().trim().isEmpty) {
       return 'Sin dato';
     }
 
@@ -76,12 +95,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   String _username() {
-  return _texto(
-    _usuarioCampo('username') ??
-        _perfil?['usuario_username'] ??
-        _perfil?['username'],
-  );
-}
+    return _texto(
+      _usuarioCampo('username') ??
+          _perfil?['usuario_username'] ??
+          _perfil?['username'],
+    );
+  }
 
   String _nombre() {
     return _texto(
@@ -189,6 +208,17 @@ class _PerfilScreenState extends State<PerfilScreen> {
     );
   }
 
+  Widget _botonEditarPerfil() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _perfil == null ? null : _irAEditarPerfil,
+        icon: const Icon(Icons.edit),
+        label: const Text('Editar datos personales'),
+      ),
+    );
+  }
+
   Widget _contenidoPerfil() {
     return RefreshIndicator(
       onRefresh: _cargarPerfil,
@@ -196,6 +226,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _headerPerfil(),
+
+          const SizedBox(height: 18),
+
+          _botonEditarPerfil(),
 
           const SizedBox(height: 18),
 
@@ -272,17 +306,17 @@ class _PerfilScreenState extends State<PerfilScreen> {
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
           : _error.isNotEmpty
-          ? Padding(
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: Text(
-            _error,
-            style: const TextStyle(color: Colors.red),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : _contenidoPerfil(),
+              ? Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: Text(
+                      _error,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : _contenidoPerfil(),
     );
   }
 }

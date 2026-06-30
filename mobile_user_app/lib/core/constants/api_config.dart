@@ -1,7 +1,7 @@
 class ApiConfig {
   //static const String baseUrl = 'http://localhost:8000/api';
-  //static const String baseUrl = 'http://192.168.0.102:8000/api';
-  static const String baseUrl = 'http://192.168.1.117:8000/api';
+  static const String baseUrl = 'http://192.168.0.108:8000/api';
+  //static const String baseUrl = 'http://192.168.1.117:8000/api';
 
   static const String token = '/auth/token/';
   static const String tokenRefresh = '/auth/token/refresh/';
@@ -9,7 +9,8 @@ class ApiConfig {
   static const String registro = '/usuarios/usuarios/registro/';
   static const String miPerfil = '/usuarios/perfiles/mi-perfil/';
   static const String actualizarMiPerfil =
-s
+      '/usuarios/perfiles/actualizar-mi-perfil/';
+
   static const String categoriasVehiculo = '/vehiculos/categorias/';
   static const String vehiculos = '/vehiculos/vehiculos/';
   static const String registrarVehiculoPropio =

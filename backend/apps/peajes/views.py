@@ -364,8 +364,6 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         membresia = Membresia.objects.filter(
             usuario=usuario,
             estado=estado_activa,
-            fecha_inicio__lte=hoy,
-            fecha_fin__gte=hoy,
             pases_restantes__gt=0
         ).order_by("-fecha_inicio").first()
 
@@ -537,7 +535,6 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             dispositivo="LPR"
         )
 
-
         return {
             "estado_seguridad": paso.estado_seguridad,
             "alerta_generada": True,
@@ -609,6 +606,7 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                     "vehiculo_encontrado": paso_reciente.vehiculo is not None,
                     "peaje": peaje.nombre if peaje else None,
                     "camara": camara.codigo,
+
                     "seguridad": {
                         "estado_seguridad": paso_reciente.estado_seguridad,
                         "alerta_generada": paso_reciente.estado_seguridad == "alerta",
@@ -622,12 +620,24 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             placa__iexact=placa_detectada
         ).select_related("usuario", "categoria").first()
 
-        tarifa_aplicada = Decimal("0.00")
+        vehiculo_aprobado = (
+                vehiculo is not None and
+                vehiculo.estado_revision == Vehiculo.EstadoRevision.APROBADO
+        )
 
-        if vehiculo and vehiculo.categoria:
+        if vehiculo_aprobado and vehiculo.categoria:
             tarifa_aplicada = vehiculo.categoria.tarifa
-        elif peaje and peaje.tarifa:
+        elif vehiculo_aprobado and peaje and peaje.tarifa:
             tarifa_aplicada = peaje.tarifa
+        else:
+            tarifa_aplicada = Decimal("0.00")
+
+        observacion = f"Detección automática LPR. Confianza OCR: {confianza}%"
+
+        if vehiculo and not vehiculo_aprobado:
+            observacion += f" Vehículo no aprobado para cobro. Estado revisión: {vehiculo.estado_revision}."
+        elif not vehiculo:
+            observacion += " Vehículo no registrado en el sistema."
 
         paso = PasoPeaje.objects.create(
             vehiculo=vehiculo,
@@ -637,12 +647,12 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             estado_pago="pendiente",
             estado_seguridad="normal",
             tarifa_aplicada=tarifa_aplicada,
-            observacion=f"Detección automática LPR. Confianza OCR: {confianza}%"
+            observacion=observacion
         )
 
         resultado_pago = self.procesar_pago_automatico(
             paso=paso,
-            vehiculo=vehiculo,
+            vehiculo=vehiculo if vehiculo_aprobado else None,
             tarifa_aplicada=tarifa_aplicada
         )
 
@@ -676,6 +686,8 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 "paso_id": paso.id,
                 "placa_detectada": placa_detectada,
                 "vehiculo_encontrado": vehiculo is not None,
+                "estado_revision": vehiculo.estado_revision if vehiculo else None,
+                "vehiculo_aprobado": vehiculo_aprobado,
                 "peaje": peaje.nombre if peaje else None,
                 "camara": camara.codigo,
                 "tarifa_aplicada": str(tarifa_aplicada),
@@ -686,4 +698,3 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_201_CREATED
         )
-

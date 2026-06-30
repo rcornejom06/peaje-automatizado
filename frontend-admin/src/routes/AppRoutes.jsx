@@ -13,6 +13,9 @@ import AdminLayout from "../layouts/AdminLayout.jsx"
 import ReconocimientoPlacas from "../pages/ReconocimientoPlacas/ReconocimientoPlacas";
 import { isAuthenticated } from "../auth/authService";
 import Auditoria from "../pages/Auditoria/Auditoria.jsx"
+import RevisionVehiculos from "../pages/Vehiculos/RevisionVehiculos";
+
+
 function PrivateRoute({ children }) {
   if (!isAuthenticated()) {
     return <Navigate to="/" />;
@@ -44,6 +47,7 @@ function AppRoutes() {
           <Route path="/reportes" element={<Reportes />} />
           <Route path="/usuarios" element={<Usuarios />} />
             <Route path="/auditoria" element={<Auditoria />} />
+            <Route path="/vehiculos/revision" element={<RevisionVehiculos />} />
         </Route>
       </Routes>
     </BrowserRouter>

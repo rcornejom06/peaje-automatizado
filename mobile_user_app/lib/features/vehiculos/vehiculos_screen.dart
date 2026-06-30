@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/services/vehiculo_service.dart';
+import 'editar_vehiculo_screen.dart';
 
 class VehiculosScreen extends StatefulWidget {
   const VehiculosScreen({super.key});
@@ -15,6 +16,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   bool _cargando = true;
   String _error = '';
   List<dynamic> _vehiculos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarVehiculos();
+  }
 
   Future<void> _cargarVehiculos() async {
     try {
@@ -45,10 +52,27 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _cargarVehiculos();
+  Future<void> _irAEditarVehiculo(dynamic vehiculo) async {
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditarVehiculoScreen(
+          vehiculo: Map<String, dynamic>.from(vehiculo),
+        ),
+      ),
+    );
+
+    if (resultado == true) {
+      await _cargarVehiculos();
+    }
+  }
+
+  Future<void> _irARegistrar() async {
+    final resultado = await Navigator.pushNamed(context, '/registrar-vehiculo');
+
+    if (resultado == true) {
+      await _cargarVehiculos();
+    }
   }
 
   String _obtenerCategoria(dynamic vehiculo) {
@@ -69,7 +93,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   String _obtenerTexto(dynamic valor) {
-    if (valor == null || valor.toString().isEmpty) {
+    if (valor == null || valor.toString().trim().isEmpty) {
       return 'Sin dato';
     }
 
@@ -129,14 +153,6 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     }
 
     return null;
-  }
-
-  Future<void> _irARegistrar() async {
-    final resultado = await Navigator.pushNamed(context, '/registrar-vehiculo');
-
-    if (resultado == true) {
-      await _cargarVehiculos();
-    }
   }
 
   Widget _estadoRevisionChip(dynamic vehiculo) {
@@ -221,18 +237,24 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                       _estadoRevisionChip(vehiculo),
                     ],
                   ),
+
                   const SizedBox(height: 8),
+
                   Text(
                     '$marca $modelo',
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+
                   const SizedBox(height: 4),
+
                   Text('Color: $color'),
                   Text('Año: $anio'),
                   Text('Categoría: $categoria'),
+
                   const SizedBox(height: 8),
+
                   Row(
                     children: [
                       Icon(
@@ -249,15 +271,15 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                               ? 'Sin documento de respaldo'
                               : 'Documento de respaldo adjuntado',
                           style: TextStyle(
-                            color: documentoUrl == null
-                                ? Colors.grey
-                                : Colors.blue,
+                            color:
+                                documentoUrl == null ? Colors.grey : Colors.blue,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
                   ),
+
                   if (estadoRevision == 'en_revision') ...[
                     const SizedBox(height: 8),
                     const Text(
@@ -268,6 +290,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                       ),
                     ),
                   ],
+
                   if (estadoRevision == 'aprobado') ...[
                     const SizedBox(height: 8),
                     const Text(
@@ -278,6 +301,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                       ),
                     ),
                   ],
+
                   if (estadoRevision == 'rechazado') ...[
                     const SizedBox(height: 8),
                     Text(
@@ -291,6 +315,17 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                       ),
                     ),
                   ],
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _irAEditarVehiculo(vehiculo),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Editar vehículo'),
+                    ),
+                  ),
                 ],
               ),
             ),

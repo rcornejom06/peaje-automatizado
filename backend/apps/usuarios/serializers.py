@@ -53,3 +53,52 @@ class RegistroUsuarioSerializer(serializers.Serializer):
         perfil.save()
 
         return user
+
+class ActualizarMiPerfilSerializer(serializers.Serializer):
+    first_name = serializers.CharField(
+        max_length=150,
+        required=False,
+        allow_blank=True
+    )
+    last_name = serializers.CharField(
+        max_length=150,
+        required=False,
+        allow_blank=True
+    )
+    email = serializers.EmailField(
+        required=False
+    )
+    telefono = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True
+    )
+    cedula = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True
+    )
+
+    def validate_email(self, value):
+        user = self.context["request"].user
+
+        if User.objects.filter(email=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError(
+                "Ya existe otro usuario con ese correo."
+            )
+
+        return value
+
+    def update(self, instance, validated_data):
+        user = instance.usuario
+
+        user.first_name = validated_data.get("first_name", user.first_name)
+        user.last_name = validated_data.get("last_name", user.last_name)
+        user.email = validated_data.get("email", user.email)
+        user.save()
+
+        instance.telefono = validated_data.get("telefono", instance.telefono)
+        instance.cedula = validated_data.get("cedula", instance.cedula)
+        instance.save()
+
+        return instance

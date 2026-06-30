@@ -47,7 +47,6 @@ class VehiculoService {
     required int categoriaId,
     required File documentoRespaldo,
   }) async {
-
     final storageService = StorageService();
     final token = await storageService.obtenerAccessToken();
 
@@ -101,7 +100,7 @@ class VehiculoService {
       }
 
       return {
-        'message': 'Vehículo registrado correctamente.',
+        'mensaje': 'Vehículo registrado correctamente.',
       };
     }
 
@@ -115,5 +114,84 @@ class VehiculoService {
     }
 
     throw Exception('Error al registrar vehículo.');
+  }
+
+  Future<Map<String, dynamic>> actualizarVehiculo({
+    required int vehiculoId,
+    required String marca,
+    required String modelo,
+    required String color,
+    required int anio,
+    required int categoriaId,
+    File? documentoRespaldo,
+  }) async {
+    final storageService = StorageService();
+    final token = await storageService.obtenerAccessToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay sesión activa. Inicie sesión nuevamente.');
+    }
+
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/vehiculos/vehiculos/$vehiculoId/actualizar-propio/',
+    );
+
+    final request = http.MultipartRequest('PATCH', uri);
+
+    request.headers['Authorization'] = 'Bearer $token';
+
+    request.fields['marca'] = marca;
+    request.fields['modelo'] = modelo;
+    request.fields['color'] = color;
+    request.fields['anio'] = anio.toString();
+    request.fields['categoria'] = categoriaId.toString();
+
+    if (documentoRespaldo != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'documento_respaldo',
+          documentoRespaldo.path,
+        ),
+      );
+    }
+
+    final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 30),
+        );
+
+    final response = await http.Response.fromStream(streamedResponse);
+
+    dynamic decoded;
+
+    try {
+      decoded = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : <String, dynamic>{};
+    } catch (_) {
+      decoded = {
+        'error': response.body,
+      };
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+
+      return {
+        'mensaje': 'Vehículo actualizado correctamente.',
+      };
+    }
+
+    if (decoded is Map) {
+      throw Exception(
+        decoded['error'] ??
+            decoded['detail'] ??
+            decoded['message'] ??
+            'Error al actualizar vehículo.',
+      );
+    }
+
+    throw Exception('Error al actualizar vehículo.');
   }
 }

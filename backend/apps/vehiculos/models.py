@@ -21,6 +21,11 @@ class CategoriaVehiculo(models.Model):
         return f"{self.nombre} - {self.numero_ejes} ejes - Tarifa: ${self.tarifa}"
 
 class Vehiculo(models.Model):
+    class EstadoRevision(models.TextChoices):
+        EN_REVISION = "en_revision", "En revisión"
+        APROBADO = "aprobado", "Aprobado"
+        RECHAZADO = "rechazado", "Rechazado"
+
     class Estado(models.TextChoices):
         ACTIVO = "activo", "Activo"
         INACTIVO = "inactivo", "Inactivo"
@@ -37,6 +42,12 @@ class Vehiculo(models.Model):
     estado = models.CharField(max_length=20,choices=Estado.choices,default=Estado.ACTIVO)
     fecha_registro = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    estado_revision = models.CharField(max_length=20, choices=EstadoRevision.choices, default=EstadoRevision.EN_REVISION)
+    motivo_revision = models.TextField(blank=True, null=True)
+    fecha_revision = models.DateTimeField(blank=True, null=True)
+    documento_respaldo = models.FileField(upload_to="vehiculos/documentos/", null=True, blank=True)
+    revisado_por = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name="vehiculos_revisados")
+
 
     class Meta:
         verbose_name = "Vehículo"

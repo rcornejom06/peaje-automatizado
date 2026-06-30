@@ -16,7 +16,7 @@ SECRET_KEY = config('SECRET_KEY', default='13051684135ed11fsr1gv35fds1vfes1-dev-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*','192.168.0.102']
 
 
 # Application definition

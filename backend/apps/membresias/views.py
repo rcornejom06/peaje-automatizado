@@ -1,16 +1,13 @@
+from decimal import Decimal
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from datetime import timedelta
-from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import PlanMembresia, Membresia
 from .serializers import PlanMembresiaSerializer, MembresiaSerializer
 from ..usuarios.permissions import obtener_rol_usuario
-from ..pagos.models import (Billetera, Transaccion)
-from ..notificaciones.models import Notificacion
-from ..auditoria.utils import registrar_historial
-
+from ..pagos.models import Billetera, Transaccion
 
 class PlanMembresiaViewSet(viewsets.ModelViewSet):
     queryset = PlanMembresia.objects.all()
@@ -54,7 +51,6 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             usuario=request.user,
             estado=Membresia.Estado.ACTIVA,
             pases_restantes__gt=0,
-            fecha_fin__gte=timezone.now().date(),
         ).order_by("-fecha_creacion").first()
 
         if not membresia:
@@ -64,8 +60,76 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             )
 
         serializer = self.get_serializer(membresia)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="comprar")
+    def comprar(self, request):
+        plan_id = request.data.get("plan_id") or request.data.get("plan")
+
+        if not plan_id:
+            return Response(
+                {"error": "Debe enviar el plan_id."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            plan = PlanMembresia.objects.get(
+                id=plan_id,
+                estado=PlanMembresia.Estado.ACTIVO
+            )
+        except PlanMembresia.DoesNotExist:
+            return Response(
+                {"error": "El plan de membresía no existe o no está activo."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        billetera, created = Billetera.objects.get_or_create(
+            usuario=request.user,
+            defaults={
+                "saldo": Decimal("0.00"),
+                "estado": Billetera.Estado.ACTIVA
+            }
+        )
+
+        if billetera.saldo < plan.precio:
+            return Response(
+                {
+                    "error": "Saldo insuficiente para comprar la membresía.",
+                    "saldo_actual": billetera.saldo,
+                    "precio_plan": plan.precio,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        billetera.saldo -= plan.precio
+        billetera.save()
+
+        membresia = Membresia.objects.create(
+            usuario=request.user,
+            plan=plan,
+            fecha_inicio=timezone.now().date(),
+            fecha_fin=None,
+            pases_restantes=plan.pases_incluidos,
+            estado=Membresia.Estado.ACTIVA,
+        )
+
+        Transaccion.objects.create(
+            billetera=billetera,
+            membresia=membresia,
+            monto=plan.precio,
+            tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA,
+            metodo_pago="Billetera virtual",
+            referencia_pago=f"COMPRA-MEMBRESIA-{membresia.id}",
+            estado=Transaccion.Estado.APROBADA,
+        )
+
+        serializer = self.get_serializer(membresia)
 
         return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
+            {
+                "mensaje": "Membresía comprada correctamente.",
+                "membresia": serializer.data,
+                "saldo_actual": billetera.saldo,
+            },
+            status=status.HTTP_201_CREATED
         )
