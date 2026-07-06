@@ -235,10 +235,7 @@ function ReconocimientoPlacas() {
                                     <strong>{obtenerTarifaDeteccion(ultimaDeteccion)}</strong>
                                 </div>
 
-                                <div>
-                                    <span>ID Paso Peaje</span>
-                                    <strong>{ultimaDeteccion?.django?.paso_id || "--"}</strong>
-                                </div>
+
 
                                 <div>
                                     <span>Duplicado</span>
@@ -257,12 +254,7 @@ function ReconocimientoPlacas() {
                                     </strong>
                                 </div>
 
-                                <div>
-                                    <span>ID Alerta</span>
-                                    <strong>
-                                        {ultimaDeteccion?.django?.seguridad?.alerta_id || "--"}
-                                    </strong>
-                                </div>
+
                             </div>
 
                             <div className="plate-actions">
@@ -377,4 +369,3 @@ function ReconocimientoPlacas() {
 }
 
 export default ReconocimientoPlacas;
-

@@ -6,4 +6,4 @@ class UsuariosConfig(AppConfig):
     name = "apps.usuarios"
 
     def ready(self):
-        import apps.usuarios.signals # Importa las señales para que se registren
+        import apps.usuarios.models

@@ -1,6 +1,6 @@
 class ApiConfig {
   //static const String baseUrl = 'http://localhost:8000/api';
-  static const String baseUrl = 'http://192.168.0.108:8000/api';
+  static const String baseUrl = 'http://192.168.0.103:8000/api';
   //static const String baseUrl = 'http://192.168.1.117:8000/api';
 
   static const String token = '/auth/token/';
@@ -10,6 +10,13 @@ class ApiConfig {
   static const String miPerfil = '/usuarios/perfiles/mi-perfil/';
   static const String actualizarMiPerfil =
       '/usuarios/perfiles/actualizar-mi-perfil/';
+  static const String verificarCorreo = '/usuarios/usuarios/verificar-correo/';
+  static const String reenviarCodigo = '/usuarios/usuarios/reenviar-codigo/';
+  static const String solicitarResetPassword =
+    '/usuarios/usuarios/solicitar-reset-password/';
+  static const String confirmarResetPassword =
+    '/usuarios/usuarios/confirmar-reset-password/';
+
 
   static const String categoriasVehiculo = '/vehiculos/categorias/';
   static const String vehiculos = '/vehiculos/vehiculos/';

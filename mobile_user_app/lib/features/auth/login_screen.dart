@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'forgot_password_screen.dart';
 import '../../core/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -35,10 +35,11 @@ class _LoginScreenState extends State<LoginScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-        .animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+            .animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+        );
 
     _animationController.forward();
   }
@@ -183,20 +184,16 @@ class _LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 12),
 
                   // Link olvido contraseña
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: !_cargando ? () {} : null,
-                      child: const Text(
-                        '¿Olvidaste tu contraseña?',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: primaryBlue,
-                          letterSpacing: 0.1,
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
                         ),
-                      ),
-                    ),
+                      );
+                    },
+                    child: const Text('¿Olvidaste tu contraseña?'),
                   ),
 
                   const SizedBox(height: 24),
@@ -255,22 +252,22 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                       child: _cargando
                           ? const SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor:
-                                    AlwaysStoppedAnimation(Colors.white),
-                              ),
-                            )
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor:
+                          AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
                           : const Text(
-                              'Ingresar',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
+                        'Ingresar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
                     ),
                   ),
 
@@ -314,8 +311,8 @@ class _LoginScreenState extends State<LoginScreen>
                     child: OutlinedButton(
                       onPressed: !_cargando
                           ? () {
-                              Navigator.pushNamed(context, '/registro');
-                            }
+                        Navigator.pushNamed(context, '/registro');
+                      }
                           : null,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: primaryBlue,
@@ -420,12 +417,12 @@ class _CustomTextFieldState extends State<_CustomTextField> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: _isFocused
             ? [
-                BoxShadow(
-                  color: primaryBlue.withAlpha(20),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
+          BoxShadow(
+            color: primaryBlue.withAlpha(20),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ]
             : [],
       ),
       child: TextField(
@@ -443,13 +440,13 @@ class _CustomTextFieldState extends State<_CustomTextField> {
           ),
           suffixIcon: widget.suffixIcon != null
               ? IconButton(
-                  icon: Icon(
-                    widget.suffixIcon,
-                    color: _isFocused ? primaryBlue : const Color(0xFF94A3B8),
-                    size: 20,
-                  ),
-                  onPressed: widget.onSuffixTap,
-                )
+            icon: Icon(
+              widget.suffixIcon,
+              color: _isFocused ? primaryBlue : const Color(0xFF94A3B8),
+              size: 20,
+            ),
+            onPressed: widget.onSuffixTap,
+          )
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),

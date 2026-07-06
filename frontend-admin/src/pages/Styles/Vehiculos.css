@@ -1,77 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ============================================
+   TOKENS — alineados con el design system de la app
+   ============================================ */
 .vehiculos-page {
+  --primary: #1D4ED8;
+  --primary-dark: #1E40AF;
+  --primary-soft: #EFF4FF;
+  --ink: #0F172A;
+  --ink-soft: #334155;
+  --muted: #64748B;
+  --line: #E2E8F0;
+  --line-soft: #F1F5F9;
+  --surface: #FFFFFF;
+  --canvas: #F8FAFC;
+
+  --success: #16A34A;
+  --success-bg: #DCFCE7;
+  --success-text: #166534;
+
+  --warning: #D97706;
+  --warning-bg: #FEF3C7;
+  --warning-text: #92400E;
+
+  --danger: #DC2626;
+  --danger-dark: #B91C1C;
+  --danger-bg: #FEE2E2;
+  --danger-text: #991B1B;
+
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 9px;
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.06);
+  --shadow-modal: 0 25px 60px rgba(15, 23, 42, 0.35);
+
   width: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--ink-soft);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ============================================
+   HEADER
+   ============================================ */
 .vehiculos-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 28px;
 }
 
 .vehiculos-header h2 {
   margin: 0;
-  color: #0f172a;
-  font-size: 28px;
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .vehiculos-header p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 560px;
+  line-height: 1.5;
 }
 
 .btn-secondary {
   width: auto;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: bold;
-  background: #e2e8f0;
-  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+  white-space: nowrap;
 }
 
 .btn-secondary:hover {
-  background: #cbd5e1;
+  background: var(--line-soft);
+  border-color: #CBD5E1;
+}
+
+.btn-secondary:active {
+  transform: translateY(1px);
+}
+
+/* ============================================
+   ALERTAS
+   ============================================ */
+.vehiculos-success,
+.vehiculos-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 13px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid transparent;
+}
+
+.vehiculos-success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: #A7F3D0;
 }
 
 .vehiculos-error {
-  background: #fee2e2;
-  color: #b91c1c;
-  padding: 14px;
-  border-radius: 10px;
-  margin-bottom: 16px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: #FECACA;
 }
 
+/* ============================================
+   TOOLBAR
+   ============================================ */
 .vehiculos-toolbar {
-  background: white;
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  background: var(--surface);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
   margin-bottom: 20px;
 }
 
 .vehiculos-toolbar input {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
   box-sizing: border-box;
+  background: transparent;
+}
+
+.vehiculos-toolbar input::placeholder {
+  color: #94A3B8;
+}
+
+.vehiculos-toolbar:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
 }
 
 .vehiculos-toolbar input:focus {
   outline: none;
-  border-color: #2563eb;
 }
 
+/* ============================================
+   TABLA
+   ============================================ */
 .vehiculos-table-card {
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.vehiculos-table-card > table {
+  display: block;
   overflow-x: auto;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .vehiculos-table-card table {
@@ -80,55 +178,404 @@
   min-width: 1100px;
 }
 
+.vehiculos-table-card thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 .vehiculos-table-card th,
 .vehiculos-table-card td {
-  padding: 14px 16px;
+  padding: 14px 18px;
   text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 14px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13.5px;
 }
 
 .vehiculos-table-card th {
-  background: #f8fafc;
-  color: #334155;
+  background: var(--canvas);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--line);
 }
 
 .vehiculos-table-card td {
-  color: #475569;
+  color: var(--ink-soft);
 }
 
-.estado {
-  padding: 6px 10px;
+.vehiculos-table-card td strong {
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.vehiculos-table-card tbody tr {
+  transition: background 0.12s ease;
+}
+
+.vehiculos-table-card tbody tr:hover {
+  background: var(--canvas);
+}
+
+.vehiculos-table-card tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vehiculos-table-card td[colspan] {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 14px;
+}
+
+/* ============================================
+   BADGES DE ESTADO
+   ============================================ */
+.estado,
+.estado-revision {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: bold;
+  font-size: 11.5px;
+  font-weight: 700;
   text-transform: capitalize;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .estado.activo {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--success-bg);
+  color: var(--success-text);
 }
 
 .estado.inactivo {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .estado.aviso_robo {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warning-bg);
+  color: var(--warning-text);
 }
 
 .estado.bloqueado {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #FEE2E2;
+  color: #7F1D1D;
 }
 
+.estado-revision.en_revision {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.estado-revision.aprobado {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.estado-revision.rechazado {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+/* ============================================
+   ENLACES / DOCUMENTO
+   ============================================ */
+.link-documento,
+.link-documento-btn {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0;
+  font-family: inherit;
+}
+
+.link-documento:hover,
+.link-documento-btn:hover {
+  text-decoration: underline;
+  color: var(--primary-dark);
+}
+
+.sin-documento,
+.sin-doc-btn {
+  color: var(--danger-text);
+  font-weight: 700;
+}
+
+.motivo-cell {
+  max-width: 220px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================
+   BOTONES DE ACCIÓN
+   ============================================ */
+.acciones-vehiculo {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-aprobar,
+.btn-rechazar {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #FFFFFF;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+.btn-aprobar {
+  background: var(--success);
+}
+
+.btn-aprobar:hover:not(:disabled) {
+  background: #15803D;
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.25);
+}
+
+.btn-rechazar {
+  background: var(--danger);
+}
+
+.btn-rechazar:hover:not(:disabled) {
+  background: var(--danger-dark);
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
+}
+
+.btn-aprobar:active:not(:disabled),
+.btn-rechazar:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-aprobar:disabled,
+.btn-rechazar:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ============================================
+   MODAL
+   ============================================ */
+.vehiculo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  animation: vm-fade-in 0.15s ease;
+}
+
+@keyframes vm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vehiculo-modal {
+  background: var(--surface);
+  width: min(1050px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-modal);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.vehiculo-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.vehiculo-modal-header h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.vehiculo-modal-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.vehiculo-modal-header p strong {
+  color: var(--primary);
+}
+
+.vehiculo-modal-close {
+  border: none;
+  background: var(--line-soft);
+  color: var(--ink);
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.vehiculo-modal-close:hover {
+  background: var(--line);
+}
+
+.vehiculo-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.vehiculo-modal-section {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: 16px;
+  background: var(--canvas);
+}
+
+.vehiculo-modal-section h4 {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vehiculo-modal-section p {
+  margin: 8px 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vehiculo-modal-section p strong {
+  color: var(--muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.documento-preview {
+  width: 100%;
+  height: 430px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.documento-vacio {
+  padding: 22px;
+  border-radius: var(--radius-md);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+}
+
+.documento-abrir {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 13.5px;
+  text-decoration: none;
+}
+
+.documento-abrir:hover {
+  text-decoration: underline;
+  color: var(--primary-dark);
+}
+
+.vehiculo-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vehiculo-modal-actions .btn-aprobar,
+.vehiculo-modal-actions .btn-rechazar {
+  padding: 11px 22px;
+  font-size: 13.5px;
+}
+
+.select-estado-modal {
+  min-width: 170px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--ink);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
 @media (max-width: 800px) {
   .vehiculos-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .btn-secondary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .vehiculo-modal {
+    padding: 20px;
+  }
+
+  .vehiculo-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vehiculo-modal-section p {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .documento-preview {
+    height: 320px;
+  }
+
+  .acciones-vehiculo {
+    flex-direction: column;
   }
 }

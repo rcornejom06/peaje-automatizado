@@ -170,7 +170,6 @@ function Alertas() {
         <table>
           <thead>
             <tr>
-              <th>ID</th>
               <th>Placa</th>
               <th>Vehículo</th>
               <th>Peaje</th>
@@ -190,7 +189,6 @@ function Alertas() {
 
                 return (
                   <tr key={alerta.id}>
-                    <td>{alerta.id}</td>
 
                     <td>
                       <strong className="placa-alerta">

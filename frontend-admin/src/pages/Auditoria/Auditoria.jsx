@@ -11,6 +11,9 @@ function Auditoria() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  const [paginaActual, setPaginaActual] = useState(1);
+  const registrosPorPagina = 10;
+
   const [filtros, setFiltros] = useState({
     fecha_inicio: "",
     fecha_fin: "",
@@ -37,6 +40,7 @@ function Auditoria() {
         setHistorial([]);
       }
 
+      setPaginaActual(1);
       setResumen(resumenData);
     } catch (error) {
       setError("No se pudo cargar el historial de auditoría.");
@@ -82,6 +86,21 @@ function Auditoria() {
     }
   };
 
+  const totalPaginas = Math.ceil(historial.length / registrosPorPagina);
+
+  const indiceInicial = (paginaActual - 1) * registrosPorPagina;
+  const indiceFinal = indiceInicial + registrosPorPagina;
+
+  const historialPaginado = historial.slice(indiceInicial, indiceFinal);
+
+  const irPaginaAnterior = () => {
+    setPaginaActual((pagina) => Math.max(pagina - 1, 1));
+  };
+
+  const irPaginaSiguiente = () => {
+    setPaginaActual((pagina) => Math.min(pagina + 1, totalPaginas));
+  };
+
   if (cargando) {
     return (
       <div className="auditoria-page">
@@ -96,7 +115,10 @@ function Auditoria() {
       <div className="auditoria-header">
         <div>
           <h2>Auditoría del Sistema</h2>
-          <p>Historial de acciones realizadas por usuarios, operadores y procesos automáticos.</p>
+          <p>
+            Historial de acciones realizadas por usuarios, operadores y procesos
+            automáticos.
+          </p>
         </div>
 
         <button className="btn-primary" onClick={() => cargarAuditoria()}>
@@ -212,8 +234,8 @@ function Auditoria() {
           </thead>
 
           <tbody>
-            {historial.length > 0 ? (
-              historial.map((item) => (
+            {historialPaginado.length > 0 ? (
+              historialPaginado.map((item) => (
                 <tr key={item.id}>
                   <td>
                     {item.fecha_hora
@@ -221,7 +243,11 @@ function Auditoria() {
                       : "Sin fecha"}
                   </td>
 
-                  <td>{item.usuario_nombre || item.usuario_username || "Sistema"}</td>
+                  <td>
+                    {item.usuario_nombre ||
+                      item.usuario_username ||
+                      "Sistema"}
+                  </td>
 
                   <td>{item.accion}</td>
 
@@ -250,6 +276,41 @@ function Auditoria() {
           </tbody>
         </table>
       </div>
+
+      {historial.length > registrosPorPagina && (
+        <div className="auditoria-pagination">
+          <div>
+            Mostrando{" "}
+            <strong>
+              {indiceInicial + 1} - {Math.min(indiceFinal, historial.length)}
+            </strong>{" "}
+            de <strong>{historial.length}</strong> registros
+          </div>
+
+          <div className="auditoria-pagination-buttons">
+            <button
+              className="btn-secondary"
+              onClick={irPaginaAnterior}
+              disabled={paginaActual === 1}
+            >
+              Anterior
+            </button>
+
+            <span>
+              Página <strong>{paginaActual}</strong> de{" "}
+              <strong>{totalPaginas}</strong>
+            </span>
+
+            <button
+              className="btn-primary"
+              onClick={irPaginaSiguiente}
+              disabled={paginaActual === totalPaginas}
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

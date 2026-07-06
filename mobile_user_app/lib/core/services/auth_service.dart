@@ -56,6 +56,62 @@ class AuthService {
     );
   }
 
+  Future<void> verificarCorreo({
+    required String email,
+    required String codigo,
+  }) async {
+    await _apiService.post(
+      ApiConfig.verificarCorreo,
+      requiereAuth: false,
+      body: {
+        'email': email,
+        'codigo': codigo,
+      },
+    );
+  }
+
+  Future<void> reenviarCodigo({
+    required String email,
+  }) async {
+    await _apiService.post(
+      ApiConfig.reenviarCodigo,
+      requiereAuth: false,
+      body: {
+        'email': email,
+      },
+    );
+  }
+
+  Future<void> solicitarResetPassword({
+    required String email,
+  }) async {
+    await _apiService.post(
+      ApiConfig.solicitarResetPassword,
+      requiereAuth: false,
+      body: {
+        'email': email,
+      },
+    );
+  }
+
+  Future<void> confirmarResetPassword({
+    required String email,
+    required String codigo,
+    required String nuevaPassword,
+    required String confirmarPassword,
+  }) async {
+    await _apiService.post(
+      ApiConfig.confirmarResetPassword,
+      requiereAuth: false,
+      body: {
+        'email': email,
+        'codigo': codigo,
+        'nueva_password': nuevaPassword,
+        'confirmar_password': confirmarPassword,
+      },
+    );
+  }
+
   Future<bool> estaAutenticado() async {
     return _storageService.estaAutenticado();
   }

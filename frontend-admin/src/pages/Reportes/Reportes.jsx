@@ -136,12 +136,7 @@ function Reportes() {
       {cargando && <p>Cargando reportes...</p>}
 
       <div className="tabs">
-        <button
-          className={tab === "resumen" ? "active" : ""}
-          onClick={() => setTab("resumen")}
-        >
-          Resumen
-        </button>
+
 
         <button
           className={tab === "recaudacion" ? "active" : ""}
@@ -179,53 +174,6 @@ function Reportes() {
         </button>
       </div>
 
-      {tab === "resumen" && (
-        <div className="report-section">
-          <h3>Resumen general</h3>
-
-          <div className="stats-grid">
-            <div className="stat-card">
-              <span>Total pasos</span>
-              <strong>{resumen?.total_pasos ?? 0}</strong>
-            </div>
-
-            <div className="stat-card">
-              <span>Vehículos detectados</span>
-              <strong>{resumen?.total_vehiculos_detectados ?? 0}</strong>
-            </div>
-
-            <div className="stat-card danger">
-              <span>Alertas generadas</span>
-              <strong>{resumen?.total_alertas ?? 0}</strong>
-            </div>
-
-            <div className="stat-card money">
-              <span>Recaudación total</span>
-              <strong>{formatoDinero(resumen?.recaudacion_total)}</strong>
-            </div>
-
-            <div className="stat-card success">
-              <span>Pagados</span>
-              <strong>{resumen?.pasos_pagados ?? 0}</strong>
-            </div>
-
-            <div className="stat-card">
-              <span>Con membresía</span>
-              <strong>{resumen?.pasos_cubiertos_por_membresia ?? 0}</strong>
-            </div>
-
-            <div className="stat-card warning">
-              <span>Pendientes</span>
-              <strong>{resumen?.pasos_pendientes ?? 0}</strong>
-            </div>
-
-            <div className="stat-card danger">
-              <span>Pasos con alerta</span>
-              <strong>{resumen?.pasos_con_alerta ?? 0}</strong>
-            </div>
-          </div>
-        </div>
-      )}
 
       {tab === "recaudacion" && (
         <div className="report-section">

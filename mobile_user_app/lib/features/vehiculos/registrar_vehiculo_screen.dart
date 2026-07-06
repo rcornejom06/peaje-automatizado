@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/services/vehiculo_service.dart';
@@ -31,6 +33,7 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
   int? _categoriaSeleccionada;
 
   File? _documentoRespaldo;
+  Uint8List? _documentoBytes;
   String? _nombreDocumento;
 
   @override
@@ -80,15 +83,26 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
     final resultado = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
     );
 
-    if (resultado == null || resultado.files.single.path == null) {
+    if (resultado == null) {
       return;
     }
 
+    final archivo = resultado.files.single;
+
     setState(() {
-      _documentoRespaldo = File(resultado.files.single.path!);
-      _nombreDocumento = resultado.files.single.name;
+      _nombreDocumento = archivo.name;
+      _documentoBytes = archivo.bytes;
+
+      if (kIsWeb) {
+        _documentoRespaldo = null;
+      } else {
+        if (archivo.path != null) {
+          _documentoRespaldo = File(archivo.path!);
+        }
+      }
     });
   }
 
@@ -104,7 +118,7 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
       return;
     }
 
-    if (_documentoRespaldo == null) {
+    if (_documentoRespaldo == null && _documentoBytes == null) {
       setState(() {
         _error = 'Debe adjuntar un documento de respaldo.';
       });
@@ -124,7 +138,9 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
         color: _colorController.text.trim(),
         anio: int.parse(_anioController.text.trim()),
         categoriaId: _categoriaSeleccionada!,
-        documentoRespaldo: _documentoRespaldo!,
+        documentoRespaldo: _documentoRespaldo,
+        documentoBytes: _documentoBytes,
+        nombreDocumento: _nombreDocumento,
       );
 
       if (!mounted) return;

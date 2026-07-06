@@ -11,6 +11,7 @@ import 'features/membresias/membresias_screen.dart';
 import 'features/pasos/pasos_screen.dart';
 import 'features/seguridad/seguridad_screen.dart';
 import 'features/seguridad/crear_aviso_robo_screen.dart';
+import 'features/auth/verificar_correo_screen.dart';
 
 class PeajeUserApp extends StatelessWidget {
   const PeajeUserApp({super.key});

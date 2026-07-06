@@ -15,7 +15,6 @@ function Peajes() {
     ubicacion: "",
     latitud: "",
     longitud: "",
-    tarifa: "1.00",
     estado: "activo",
   });
 
@@ -59,7 +58,6 @@ function Peajes() {
       ubicacion: "",
       latitud: "",
       longitud: "",
-      tarifa: "1.00",
       estado: "activo",
     });
   };
@@ -71,7 +69,10 @@ function Peajes() {
       setError("");
       setMensaje("");
 
-      await crearPeaje(formulario);
+      await crearPeaje({
+        ...formulario,
+        tarifa: "0.00",
+      });
 
       setMensaje("Peaje creado correctamente.");
       limpiarFormulario();
@@ -79,7 +80,9 @@ function Peajes() {
       await cargarPeajes();
     } catch (error) {
       if (error.response?.status === 403) {
-        setError("No tiene permisos para crear peajes. Use una cuenta administradora.");
+        setError(
+          "No tiene permisos para crear peajes. Use una cuenta administradora."
+        );
       } else {
         setError("No se pudo crear el peaje. Verifique los datos ingresados.");
       }
@@ -100,7 +103,10 @@ function Peajes() {
       <div className="peajes-header">
         <div>
           <h2>Gestión de Peajes</h2>
-          <p>Listado y administración de peajes registrados en el sistema.</p>
+          <p>
+            Administración de puntos de peaje, ubicación, coordenadas y estado
+            operativo. Las tarifas se gestionan por categoría de vehículo.
+          </p>
         </div>
 
         <div className="peajes-actions">
@@ -186,18 +192,6 @@ function Peajes() {
             </div>
 
             <div className="form-group">
-              <label>Tarifa base</label>
-              <input
-                type="number"
-                step="0.01"
-                name="tarifa"
-                value={formulario.tarifa}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="form-group">
               <label>Estado</label>
               <select
                 name="estado"
@@ -219,15 +213,21 @@ function Peajes() {
         </div>
       )}
 
+      <div className="peajes-info-card">
+        <strong>Nota:</strong> El valor a pagar no se define en el peaje. El
+        cobro se calcula automáticamente según la categoría del vehículo
+        registrado.
+      </div>
+
       <div className="peajes-table-card">
         <table>
           <thead>
             <tr>
-              <th>ID</th>
+
+
               <th>Nombre</th>
               <th>Ciudad</th>
               <th>Ubicación</th>
-              <th>Tarifa base</th>
               <th>Estado</th>
               <th>Coordenadas</th>
             </tr>
@@ -237,11 +237,10 @@ function Peajes() {
             {peajes.length > 0 ? (
               peajes.map((peaje) => (
                 <tr key={peaje.id}>
-                  <td>{peaje.id}</td>
+
                   <td>{peaje.nombre}</td>
                   <td>{peaje.ciudad}</td>
                   <td>{peaje.ubicacion}</td>
-                  <td>${peaje.tarifa}</td>
                   <td>
                     <span className={`estado ${peaje.estado}`}>
                       {peaje.estado}
@@ -254,7 +253,7 @@ function Peajes() {
               ))
             ) : (
               <tr>
-                <td colSpan="7">No existen peajes registrados.</td>
+                <td colSpan="6">No existen peajes registrados.</td>
               </tr>
             )}
           </tbody>

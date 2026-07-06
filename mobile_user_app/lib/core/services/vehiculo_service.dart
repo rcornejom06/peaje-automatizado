@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-
+import 'dart:typed_data';
 import '../constants/api_config.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
@@ -45,7 +45,9 @@ class VehiculoService {
     required String color,
     required int anio,
     required int categoriaId,
-    required File documentoRespaldo,
+    File? documentoRespaldo,
+    Uint8List? documentoBytes,
+    String? nombreDocumento,
   }) async {
     final storageService = StorageService();
     final token = await storageService.obtenerAccessToken();
@@ -69,16 +71,28 @@ class VehiculoService {
     request.fields['anio'] = anio.toString();
     request.fields['categoria'] = categoriaId.toString();
 
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'documento_respaldo',
-        documentoRespaldo.path,
-      ),
-    );
+    if (documentoRespaldo != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'documento_respaldo',
+          documentoRespaldo.path,
+        ),
+      );
+    } else if (documentoBytes != null && nombreDocumento != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'documento_respaldo',
+          documentoBytes,
+          filename: nombreDocumento,
+        ),
+      );
+    } else {
+      throw Exception('Debe adjuntar un documento de respaldo.');
+    }
 
     final streamedResponse = await request.send().timeout(
-          const Duration(seconds: 30),
-        );
+      const Duration(seconds: 30),
+    );
 
     final response = await http.Response.fromStream(streamedResponse);
 
@@ -156,8 +170,8 @@ class VehiculoService {
     }
 
     final streamedResponse = await request.send().timeout(
-          const Duration(seconds: 30),
-        );
+      const Duration(seconds: 30),
+    );
 
     final response = await http.Response.fromStream(streamedResponse);
 

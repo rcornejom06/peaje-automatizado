@@ -231,7 +231,6 @@ function Camaras() {
         <table>
           <thead>
             <tr>
-              <th>ID</th>
               <th>Código</th>
               <th>Peaje</th>
               <th>Ubicación</th>
@@ -245,14 +244,14 @@ function Camaras() {
             {camaras.length > 0 ? (
               camaras.map((camara) => (
                 <tr key={camara.id}>
-                  <td>{camara.id}</td>
+
                   <td>{camara.codigo}</td>
                   <td>{camara.peaje_nombre || obtenerNombrePeaje(camara.peaje)}</td>
                   <td>{camara.ubicacion}</td>
                   <td>{camara.tipo_camara}</td>
                   <td>
-                    <span className={`estado${camara.estado}`}>
-                      {camara.estado}
+                    <span className={`estado estado-${camara.estado}`}>
+                        {camara.estado}
                     </span>
                   </td>
                   <td>{camara.fecha_instalacion || "Sin fecha"}</td>

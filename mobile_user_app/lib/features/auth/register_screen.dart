@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-
+import '../../features/auth/verificar_correo_screen.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/cedula_validator.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -47,10 +49,11 @@ class _RegisterScreenState extends State<RegisterScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-        .animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+            .animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+        );
 
     _animationController.forward();
   }
@@ -59,6 +62,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    final email = _emailController.text.trim();
 
     setState(() {
       _cargando = true;
@@ -70,21 +75,29 @@ class _RegisterScreenState extends State<RegisterScreen>
       await _authService.registrarUsuario(
         username: _usernameController.text.trim(),
         password: _passwordController.text.trim(),
-        email: _emailController.text.trim(),
+        email: email,
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         cedula: _cedulaController.text.trim(),
         telefono: _telefonoController.text.trim(),
       );
 
+      if (!mounted) return;
+
       setState(() {
-        _mensaje = 'Cuenta creada exitosamente. Redirigiendo...';
+        _mensaje = 'Cuenta creada. Revisa tu correo para verificarla.';
       });
 
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(milliseconds: 700));
 
       if (!mounted) return;
-      Navigator.pop(context);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerificarCorreoScreen(email: email),
+        ),
+      );
     } catch (e) {
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
@@ -198,7 +211,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           hint: 'tu_usuario',
                           icon: Icons.person_outline,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'El usuario es obligatorio';
                             }
                             if (value.length < 3) {
@@ -215,7 +230,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'El correo es obligatorio';
                             }
                             if (!value.contains('@')) {
@@ -239,7 +256,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           hint: 'Juan',
                           icon: Icons.badge_outlined,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'El nombre es obligatorio';
                             }
                             return null;
@@ -252,7 +271,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           hint: 'Pérez',
                           icon: Icons.badge_outlined,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'El apellido es obligatorio';
                             }
                             return null;
@@ -266,12 +287,16 @@ class _RegisterScreenState extends State<RegisterScreen>
                           icon: Icons.credit_card_outlined,
                           keyboardType: TextInputType.number,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'La cédula es obligatoria';
                             }
-                            if (value.length < 10) {
-                              return 'Ingresa una cédula válida';
+
+                            if (!validarCedulaEcuatoriana(value)) {
+                              return 'Verifica que la cédula tenga 10 dígitos y sea ecuatoriana';
                             }
+
                             return null;
                           },
                         ),
@@ -283,7 +308,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           icon: Icons.phone_outlined,
                           keyboardType: TextInputType.phone,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'El teléfono es obligatorio';
                             }
                             return null;
@@ -313,11 +340,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                             });
                           },
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'La contraseña es obligatoria';
                             }
-                            if (value.length < 6) {
-                              return 'Mínimo 6 caracteres';
+                            if (value.length < 8) {
+                              return 'Mínimo 8 caracteres';
                             }
                             return null;
                           },
@@ -334,11 +363,14 @@ class _RegisterScreenState extends State<RegisterScreen>
                               : Icons.visibility_off,
                           onSuffixTap: () {
                             setState(() {
-                              _mostrarConfirmPassword = !_mostrarConfirmPassword;
+                              _mostrarConfirmPassword =
+                              !_mostrarConfirmPassword;
                             });
                           },
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
                               return 'Confirma tu contraseña';
                             }
                             if (value != _passwordController.text) {
@@ -442,22 +474,22 @@ class _RegisterScreenState extends State<RegisterScreen>
                         ),
                         child: _cargando
                             ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor:
-                                      AlwaysStoppedAnimation(Colors.white),
-                                ),
-                              )
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor:
+                            AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
                             : const Text(
-                                'Crear cuenta',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
+                          'Crear cuenta',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
                       ),
                     ),
 
@@ -470,8 +502,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                       child: OutlinedButton(
                         onPressed: !_cargando
                             ? () {
-                                Navigator.pop(context);
-                              }
+                          Navigator.pop(context);
+                        }
                             : null,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: primaryBlue,
@@ -612,12 +644,12 @@ class _CustomTextFormFieldState extends State<_CustomTextFormField> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: _isFocused
             ? [
-                BoxShadow(
-                  color: primaryBlue.withAlpha(20),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
+          BoxShadow(
+            color: primaryBlue.withAlpha(20),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ]
             : [],
       ),
       child: TextFormField(
@@ -636,13 +668,13 @@ class _CustomTextFormFieldState extends State<_CustomTextFormField> {
           ),
           suffixIcon: widget.suffixIcon != null
               ? IconButton(
-                  icon: Icon(
-                    widget.suffixIcon,
-                    color: _isFocused ? primaryBlue : const Color(0xFF94A3B8),
-                    size: 20,
-                  ),
-                  onPressed: widget.onSuffixTap,
-                )
+            icon: Icon(
+              widget.suffixIcon,
+              color: _isFocused ? primaryBlue : const Color(0xFF94A3B8),
+              size: 20,
+            ),
+            onPressed: widget.onSuffixTap,
+          )
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
