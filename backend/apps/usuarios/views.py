@@ -20,6 +20,7 @@ from .serializers import (
     RegistroUsuarioSerializer,
     ActualizarMiPerfilSerializer,
     MiTokenObtainPairSerializer,
+    CambiarPasswordSerializer,
 )
 
 User = get_user_model()
@@ -44,6 +45,7 @@ def enviar_codigo_verificacion(user):
         fail_silently=False,
     )
 
+
 def enviar_codigo_reset_password(user):
     perfil = user.perfil
 
@@ -64,7 +66,6 @@ def enviar_codigo_reset_password(user):
         [user.email],
         fail_silently=False,
     )
-
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -417,6 +418,7 @@ class UserViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
+
 class PerfilUsuarioViewSet(viewsets.ModelViewSet):
     queryset = PerfilUsuario.objects.all().order_by("id")
     serializer_class = PerfilUsuarioSerializer
@@ -458,7 +460,33 @@ class PerfilUsuarioViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[IsAuthenticated],
+        url_path="cambiar-password"
+    )
+    def cambiar_password(self, request):
+        serializer = CambiarPasswordSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        nueva_password = serializer.validated_data["nueva_password"]
+
+        user.set_password(nueva_password)
+        user.save(update_fields=["password"])
+
+        return Response(
+            {
+                "mensaje": "Contraseña actualizada correctamente. Vuelve a iniciar sesión."
+            },
+            status=status.HTTP_200_OK
+        )
+
+
 class MiTokenObtainPairView(TokenObtainPairView):
     serializer_class = MiTokenObtainPairSerializer
-
-

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'forgot_password_screen.dart';
 import '../../core/services/auth_service.dart';
 
@@ -26,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -36,10 +38,9 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-            .animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-        );
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
     _animationController.forward();
   }
@@ -60,6 +61,8 @@ class _LoginScreenState extends State<LoginScreen>
 
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -80,278 +83,232 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  Widget _bloqueError(BuildContext context) {
+    if (_error.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: colors.onErrorContainer,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _error,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.onErrorContainer,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
-    const Color darkGray = Color(0xFF0F172A);
-    const Color lightGray = Color(0xFFF8FAFC);
-    const Color borderGray = Color(0xFFE2E8F0);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     return Scaffold(
-      backgroundColor: lightGray,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 64),
-
-                  // Logo y titulo
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [primaryBlue, Color(0xFF2563EB)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryBlue.withAlpha(30),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.local_parking,
-                      size: 44,
-                      color: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  Text(
-                    'Mi Peaje',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: darkGray,
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    'Accede a tu cuenta de peajes',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                      color: darkGray.withAlpha(180),
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-
-                  const SizedBox(height: 48),
-
-                  // Campo usuario
-                  _CustomTextField(
-                    controller: _usernameController,
-                    label: 'Usuario o email',
-                    icon: Icons.person_outline,
-                    hint: 'ejemplo@email.com',
-                    enabled: !_cargando,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Campo contraseña
-                  _CustomTextField(
-                    controller: _passwordController,
-                    label: 'Contraseña',
-                    icon: Icons.lock_outline,
-                    hint: '••••••••',
-                    obscureText: !_mostrarPassword,
-                    enabled: !_cargando,
-                    onSuffixTap: () {
-                      setState(() {
-                        _mostrarPassword = !_mostrarPassword;
-                      });
-                    },
-                    suffixIcon: _mostrarPassword
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Link olvido contraseña
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ForgotPasswordScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text('¿Olvidaste tu contraseña?'),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Mensaje de error
-                  if (_error.isNotEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.red.shade200,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
                         children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: Colors.red.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              _error,
-                              style: TextStyle(
-                                color: Colors.red.shade700,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                height: 1.4,
+                          const SizedBox(height: 24),
+
+                          Container(
+                            width: 86,
+                            height: 86,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  colors.primary,
+                                  colors.secondary,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
+                              borderRadius: BorderRadius.circular(22),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colors.primary.withAlpha(35),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.local_parking,
+                              size: 46,
+                              color: colors.onPrimary,
                             ),
                           ),
+
+                          const SizedBox(height: 28),
+
+                          Text(
+                            'Mi Peaje',
+                            textAlign: TextAlign.center,
+                            style: textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.8,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            'Accede a tu cuenta de peajes',
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodyMedium,
+                          ),
+
+                          const SizedBox(height: 38),
+
+                          _CustomTextField(
+                            controller: _usernameController,
+                            label: 'Usuario',
+                            icon: Icons.person_outline,
+                            hint: 'tu_usuario',
+                            enabled: !_cargando,
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          _CustomTextField(
+                            controller: _passwordController,
+                            label: 'Contraseña',
+                            icon: Icons.lock_outline,
+                            hint: '••••••••',
+                            obscureText: !_mostrarPassword,
+                            enabled: !_cargando,
+                            onSuffixTap: () {
+                              setState(() {
+                                _mostrarPassword = !_mostrarPassword;
+                              });
+                            },
+                            suffixIcon: _mostrarPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _cargando
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const ForgotPasswordScreen(),
+                                        ),
+                                      );
+                                    },
+                              child: const Text('¿Olvidaste tu contraseña?'),
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          _bloqueError(context),
+
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _cargando ? null : _login,
+                              child: _cargando
+                                  ? SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: colors.onPrimary,
+                                      ),
+                                    )
+                                  : const Text('Ingresar'),
+                            ),
+                          ),
+
+                          const SizedBox(height: 22),
+
+                          Row(
+                            children: [
+                              const Expanded(child: Divider()),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  'o',
+                                  style: textTheme.labelMedium,
+                                ),
+                              ),
+                              const Expanded(child: Divider()),
+                            ],
+                          ),
+
+                          const SizedBox(height: 22),
+
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: OutlinedButton(
+                              onPressed: !_cargando
+                                  ? () {
+                                      Navigator.pushNamed(context, '/registro');
+                                    }
+                                  : null,
+                              child: const Text('Crear nueva cuenta'),
+                            ),
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          Text(
+                            '© 2024 Mi Peaje. Todos los derechos reservados.',
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodySmall,
+                          ),
+
+                          const SizedBox(height: 8),
                         ],
                       ),
                     ),
-
-                  // Botón login
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _cargando ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryBlue,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        disabledBackgroundColor: primaryBlue.withAlpha(150),
-                      ),
-                      child: _cargando
-                          ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor:
-                          AlwaysStoppedAnimation(Colors.white),
-                        ),
-                      )
-                          : const Text(
-                        'Ingresar',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  // Divider
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          color: borderGray,
-                          thickness: 1,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'o',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: darkGray.withAlpha(150),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          color: borderGray,
-                          thickness: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Botón crear cuenta
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: !_cargando
-                          ? () {
-                        Navigator.pushNamed(context, '/registro');
-                      }
-                          : null,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: primaryBlue,
-                        side: const BorderSide(
-                          color: borderGray,
-                          width: 1.5,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        disabledForegroundColor: primaryBlue.withAlpha(150),
-                      ),
-                      child: const Text(
-                        'Crear nueva cuenta',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Footer
-                  Text(
-                    '© 2024 Mi Peaje. Todos los derechos reservados.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: darkGray.withAlpha(120),
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
             ),
           ),
@@ -393,6 +350,7 @@ class _CustomTextFieldState extends State<_CustomTextField> {
   @override
   void initState() {
     super.initState();
+
     _focusNode = FocusNode();
     _focusNode.addListener(() {
       setState(() {
@@ -409,20 +367,20 @@ class _CustomTextFieldState extends State<_CustomTextField> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
-    const Color borderGray = Color(0xFFE2E8F0);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: _isFocused
             ? [
-          BoxShadow(
-            color: primaryBlue.withAlpha(20),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ]
+                BoxShadow(
+                  color: colors.primary.withAlpha(22),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
             : [],
       ),
       child: TextField(
@@ -430,66 +388,26 @@ class _CustomTextFieldState extends State<_CustomTextField> {
         focusNode: _focusNode,
         obscureText: widget.obscureText,
         enabled: widget.enabled,
+        style: theme.textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
           labelText: widget.label,
           hintText: widget.hint,
           prefixIcon: Icon(
             widget.icon,
-            color: _isFocused ? primaryBlue : const Color(0xFF94A3B8),
-            size: 20,
+            color: _isFocused ? colors.primary : colors.onSurfaceVariant,
           ),
           suffixIcon: widget.suffixIcon != null
               ? IconButton(
-            icon: Icon(
-              widget.suffixIcon,
-              color: _isFocused ? primaryBlue : const Color(0xFF94A3B8),
-              size: 20,
-            ),
-            onPressed: widget.onSuffixTap,
-          )
+                  icon: Icon(
+                    widget.suffixIcon,
+                    color:
+                        _isFocused ? colors.primary : colors.onSurfaceVariant,
+                  ),
+                  onPressed: widget.onSuffixTap,
+                )
               : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: borderGray, width: 1.5),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: borderGray, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: primaryBlue, width: 2),
-          ),
-          disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: borderGray.withAlpha(100),
-              width: 1.5,
-            ),
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 16,
-          ),
-          labelStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.1,
-          ),
-          hintStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            color: const Color(0xFF94A3B8).withAlpha(150),
-          ),
-        ),
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF0F172A),
-          letterSpacing: -0.1,
         ),
       ),
     );

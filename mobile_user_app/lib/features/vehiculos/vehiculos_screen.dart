@@ -113,16 +113,16 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     }
   }
 
-  Color _colorEstadoRevision(dynamic estado) {
+  Color _colorEstadoRevision(dynamic estado, ColorScheme colors) {
     switch (estado) {
       case 'aprobado':
-        return Colors.green;
+        return colors.secondary;
       case 'rechazado':
-        return Colors.red;
+        return colors.error;
       case 'en_revision':
-        return Colors.orange;
+        return colors.tertiary;
       default:
-        return Colors.orange;
+        return colors.tertiary;
     }
   }
 
@@ -156,15 +156,20 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   Widget _estadoRevisionChip(dynamic vehiculo) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final estado = vehiculo['estado_revision'];
-    final color = _colorEstadoRevision(estado);
+    final color = _colorEstadoRevision(estado, colors);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color),
+        color: color.withAlpha(22),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: color.withAlpha(55),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -177,10 +182,102 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
           const SizedBox(width: 5),
           Text(
             _textoEstadoRevision(estado),
-            style: TextStyle(
+            style: textTheme.labelMedium?.copyWith(
               color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _documentoEstado(String? documentoUrl) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final tieneDocumento = documentoUrl != null;
+    final color = tieneDocumento ? colors.primary : colors.outline;
+
+    return Row(
+      children: [
+        Icon(
+          tieneDocumento ? Icons.attach_file : Icons.description_outlined,
+          size: 18,
+          color: color,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            tieneDocumento
+                ? 'Documento de respaldo adjuntado'
+                : 'Sin documento de respaldo',
+            style: textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mensajeRevision({
+    required dynamic estadoRevision,
+    required dynamic motivoRevision,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    Color backgroundColor;
+    Color foregroundColor;
+    IconData icon;
+    String mensaje;
+
+    if (estadoRevision == 'aprobado') {
+      backgroundColor = colors.secondaryContainer;
+      foregroundColor = colors.onSecondaryContainer;
+      icon = Icons.check_circle_outline;
+      mensaje = 'Vehículo aprobado para uso en peajes.';
+    } else if (estadoRevision == 'rechazado') {
+      backgroundColor = colors.errorContainer;
+      foregroundColor = colors.onErrorContainer;
+      icon = Icons.cancel_outlined;
+      mensaje = motivoRevision != null &&
+              motivoRevision.toString().trim().isNotEmpty
+          ? 'Motivo: $motivoRevision'
+          : 'Vehículo rechazado. Contacta con administración.';
+    } else {
+      backgroundColor = colors.tertiaryContainer;
+      foregroundColor = colors.onTertiaryContainer;
+      icon = Icons.hourglass_top;
+      mensaje = 'Tu vehículo está pendiente de validación administrativa.';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: foregroundColor,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              mensaje,
+              style: textTheme.bodySmall?.copyWith(
+                color: foregroundColor,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -189,10 +286,13 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   Widget _vehiculoCard(dynamic vehiculo) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final placa = _obtenerTexto(vehiculo['placa']);
     final marca = _obtenerTexto(vehiculo['marca']);
     final modelo = _obtenerTexto(vehiculo['modelo']);
-    final color = _obtenerTexto(vehiculo['color']);
+    final colorVehiculo = _obtenerTexto(vehiculo['color']);
     final anio = _obtenerTexto(vehiculo['anio']);
     final categoria = _obtenerCategoria(vehiculo);
     final estadoRevision = vehiculo['estado_revision'];
@@ -201,23 +301,26 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const CircleAvatar(
-              backgroundColor: Color(0xFF2563EB),
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: colors.primaryContainer,
+                shape: BoxShape.circle,
+              ),
               child: Icon(
                 Icons.directions_car,
-                color: Colors.white,
+                color: colors.onPrimaryContainer,
               ),
             ),
+
             const SizedBox(width: 12),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,10 +330,10 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                       Expanded(
                         child: Text(
                           placa,
-                          style: const TextStyle(
+                          style: textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 17,
                             letterSpacing: 1,
+                            color: colors.onSurface,
                           ),
                         ),
                       ),
@@ -242,79 +345,43 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
 
                   Text(
                     '$marca $modelo',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
+                    style: textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colors.onSurface,
                     ),
                   ),
 
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
 
-                  Text('Color: $color'),
-                  Text('Año: $anio'),
-                  Text('Categoría: $categoria'),
-
-                  const SizedBox(height: 8),
-
-                  Row(
-                    children: [
-                      Icon(
-                        documentoUrl == null
-                            ? Icons.description_outlined
-                            : Icons.attach_file,
-                        size: 18,
-                        color: documentoUrl == null ? Colors.grey : Colors.blue,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          documentoUrl == null
-                              ? 'Sin documento de respaldo'
-                              : 'Documento de respaldo adjuntado',
-                          style: TextStyle(
-                            color:
-                                documentoUrl == null ? Colors.grey : Colors.blue,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Color: $colorVehiculo',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    'Año: $anio',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    'Categoría: $categoria',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
 
-                  if (estadoRevision == 'en_revision') ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Tu vehículo está pendiente de validación administrativa.',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 10),
 
-                  if (estadoRevision == 'aprobado') ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Vehículo aprobado para uso en peajes.',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  _documentoEstado(documentoUrl),
 
-                  if (estadoRevision == 'rechazado') ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      motivoRevision != null &&
-                              motivoRevision.toString().trim().isNotEmpty
-                          ? 'Motivo: $motivoRevision'
-                          : 'Vehículo rechazado. Contacta con administración.',
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 12),
+
+                  _mensajeRevision(
+                    estadoRevision: estadoRevision,
+                    motivoRevision: motivoRevision,
+                  ),
 
                   const SizedBox(height: 12),
 
@@ -322,7 +389,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () => _irAEditarVehiculo(vehiculo),
-                      icon: const Icon(Icons.edit),
+                      icon: const Icon(Icons.edit_outlined),
                       label: const Text('Editar vehículo'),
                     ),
                   ),
@@ -335,28 +402,115 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     );
   }
 
+  Widget _errorView() {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: colors.error,
+                  size: 52,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No se pudieron cargar los vehículos',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _error,
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: _cargarVehiculos,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Intentar nuevamente'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyView() {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.directions_car_outlined,
+                  color: colors.primary,
+                  size: 56,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No tienes vehículos registrados',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Registra tu primer vehículo para usarlo en el sistema de peaje.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton.icon(
+                  onPressed: _irARegistrar,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Registrar vehículo'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _contenido() {
     if (_cargando) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
 
     if (_error.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: Text(
-            _error,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.red),
-          ),
-        ),
-      );
+      return _errorView();
     }
 
     if (_vehiculos.isEmpty) {
-      return const Center(
-        child: Text('No tienes vehículos registrados.'),
-      );
+      return _emptyView();
     }
 
     return RefreshIndicator(
@@ -365,7 +519,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
         padding: const EdgeInsets.all(16),
         itemCount: _vehiculos.length,
         itemBuilder: (context, index) {
-          return _vehiculoCard(_vehiculos[index]);
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: _vehiculoCard(_vehiculos[index]),
+            ),
+          );
         },
       ),
     );

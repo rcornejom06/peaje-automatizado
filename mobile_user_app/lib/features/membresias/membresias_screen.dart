@@ -26,10 +26,12 @@ class _MembresiasScreenState extends State<MembresiasScreen>
   @override
   void initState() {
     super.initState();
+
     _refreshController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
+
     _cargarDatos();
   }
 
@@ -48,11 +50,15 @@ class _MembresiasScreenState extends State<MembresiasScreen>
         _membresiaService.obtenerMembresiaActiva(),
       ]);
 
+      if (!mounted) return;
+
       setState(() {
         _planes = resultados[0] as List<dynamic>;
         _membresiaActiva = resultados[1] as Map<String, dynamic>?;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -61,6 +67,7 @@ class _MembresiasScreenState extends State<MembresiasScreen>
         setState(() {
           _cargando = false;
         });
+
         _refreshController.reset();
       }
     }
@@ -73,49 +80,38 @@ class _MembresiasScreenState extends State<MembresiasScreen>
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) {
-        const Color primaryBlue = Color(0xFF1D4ED8);
+        final colors = Theme.of(context).colorScheme;
+        final textTheme = Theme.of(context).textTheme;
 
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            'Confirmar compra',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-            ),
-          ),
+          title: const Text('Confirmar compra'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.all(12),
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: primaryBlue.withAlpha(15),
-                  borderRadius: BorderRadius.circular(10),
+                  color: colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      nombrePlan,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      nombrePlan.toString(),
+                      style: textTheme.titleMedium?.copyWith(
+                        color: colors.onPrimaryContainer,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       '\$$precio USD',
-                      style: const TextStyle(
-                        fontSize: 20,
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: colors.onPrimaryContainer,
                         fontWeight: FontWeight.w800,
-                        color: primaryBlue,
                       ),
                     ),
                   ],
@@ -124,10 +120,8 @@ class _MembresiasScreenState extends State<MembresiasScreen>
               const SizedBox(height: 16),
               Text(
                 '¿Deseas continuar con esta compra?',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: const Color(0xFF0F172A).withAlpha(200),
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
                   height: 1.5,
                 ),
               ),
@@ -136,26 +130,11 @@ class _MembresiasScreenState extends State<MembresiasScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
+              child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryBlue,
-              ),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text(
-                'Comprar',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
+              child: const Text('Comprar'),
             ),
           ],
         );
@@ -177,13 +156,20 @@ class _MembresiasScreenState extends State<MembresiasScreen>
         planId: int.parse(plan['id'].toString()),
       );
 
+      if (!mounted) return;
+
       setState(() {
         _mensaje = 'Membresía comprada exitosamente.';
       });
 
       await Future.delayed(const Duration(milliseconds: 1500));
+
+      if (!mounted) return;
+
       await _cargarDatos();
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -197,11 +183,10 @@ class _MembresiasScreenState extends State<MembresiasScreen>
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor
-        .toString()
-        .isEmpty) {
+    if (valor == null || valor.toString().trim().isEmpty) {
       return 'Sin dato';
     }
+
     return valor.toString();
   }
 
@@ -216,273 +201,243 @@ class _MembresiasScreenState extends State<MembresiasScreen>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
-    const Color darkGray = Color(0xFF0F172A);
-    const Color lightGray = Color(0xFFF8FAFC);
-    const Color borderGray = Color(0xFFE2E8F0);
+  Widget _mensajeEstado({
+    required BuildContext context,
+    required String mensaje,
+    required bool esError,
+  }) {
+    if (mensaje.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-    return Scaffold(
-      backgroundColor: lightGray,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Membresías',
-          style: TextStyle(
-            color: darkGray,
-            fontSize: 22,
+    final colors = Theme.of(context).colorScheme;
+
+    final backgroundColor =
+        esError ? colors.errorContainer : colors.secondaryContainer;
+    final foregroundColor =
+        esError ? colors.onErrorContainer : colors.onSecondaryContainer;
+    final icon = esError ? Icons.error_outline : Icons.check_circle_outline;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: foregroundColor,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              mensaje,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: foregroundColor,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tituloSeccion(String titulo) {
+    return Text(
+      titulo,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
+            letterSpacing: -0.3,
+          ),
+    );
+  }
+
+  Widget _emptyPlanes(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 36,
+              color: colors.primary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No hay planes disponibles',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Intenta más tarde',
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _contenido(BuildContext context) {
+    final tieneMembresia = _membresiaActiva != null &&
+        (_membresiaActiva?.isNotEmpty ?? false);
+
+    return RefreshIndicator(
+      onRefresh: _cargarDatos,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (tieneMembresia)
+                    _MembresiaActivaCard(
+                      membresia: _membresiaActiva!,
+                      texto: _texto,
+                    )
+                  else
+                    const _MembresiaInactiveCard(),
+
+                  const SizedBox(height: 16),
+
+                  _mensajeEstado(
+                    context: context,
+                    mensaje: _error,
+                    esError: true,
+                  ),
+
+                  _mensajeEstado(
+                    context: context,
+                    mensaje: _mensaje,
+                    esError: false,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _tituloSeccion('Planes disponibles'),
+
+                  const SizedBox(height: 16),
+
+                  if (_planes.isEmpty)
+                    _emptyPlanes(context)
+                  else
+                    Column(
+                      children: _planes.map((plan) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _PlanCard(
+                            plan: plan,
+                            onComprar: () => _comprarPlan(plan),
+                            comprando: _comprando,
+                            dinero: _dinero,
+                            texto: _texto,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Membresías'),
         actions: [
           IconButton(
             onPressed: _cargando ? null : _cargarDatos,
             icon: RotationTransition(
               turns: _refreshController,
-              child: const Icon(Icons.refresh, color: primaryBlue),
+              child: const Icon(Icons.refresh),
             ),
           ),
         ],
       ),
       body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-        onRefresh: _cargarDatos,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Membresía activa
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
-                child: _membresiaActiva == null ||
-                    (_membresiaActiva?.isEmpty ?? true)
-                    ? _MembresiaInactiveCard()
-                    : _MembresiaActivaCard(
-                  membresia: _membresiaActiva!,
-                  texto: _texto,
-                ),
-              ),
-
-              // Mensajes de estado
-              if (_error.isNotEmpty || _mensaje.isNotEmpty)
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16)
-                      .copyWith(top: 16),
-                  child: Column(
-                    children: [
-                      if (_error.isNotEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.red.shade200,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: Colors.red.shade700,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _error,
-                                  style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (_mensaje.isNotEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.green.shade200,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle_outline,
-                                color: Colors.green.shade700,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _mensaje,
-                                  style: TextStyle(
-                                    color: Colors.green.shade700,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-
-              // Planes disponibles
-              Container(
-                color: lightGray,
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Planes disponibles',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: darkGray,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_planes.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: borderGray,
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 32,
-                              color: primaryBlue.withAlpha(150),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No hay planes disponibles',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: darkGray,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Intenta más tarde',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: darkGray.withAlpha(150),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Column(
-                        children: _planes.map((plan) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _PlanCard(
-                              plan: plan,
-                              onComprar: () => _comprarPlan(plan),
-                              comprando: _comprando,
-                              dinero: _dinero,
-                              texto: _texto,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : _contenido(context),
     );
   }
 }
 
-// Widget: Membresía Inactiva
 class _MembresiaInactiveCard extends StatelessWidget {
   const _MembresiaInactiveCard();
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: primaryBlue.withAlpha(10),
-        border: Border.all(
-          color: primaryBlue.withAlpha(50),
-          width: 2,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                color: colors.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.card_membership_outlined,
+                size: 42,
+                color: colors.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sin membresía activa',
+              textAlign: TextAlign.center,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Compra un plan para disfrutar de beneficios exclusivos',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Icon(
-            Icons.card_membership_outlined,
-            size: 48,
-            color: primaryBlue.withAlpha(200),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Sin membresía activa',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Compra un plan para disfrutar de beneficios exclusivos',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: const Color(0xFF0F172A).withAlpha(180),
-              height: 1.4,
-            ),
-          ),
-        ],
       ),
     );
   }
 }
 
-// Widget: Membresía Activa
 class _MembresiaActivaCard extends StatelessWidget {
   final Map<String, dynamic> membresia;
   final String Function(dynamic) texto;
@@ -530,7 +485,8 @@ class _MembresiaActivaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     final nombrePlan = _obtenerNombrePlan();
     final pasesRestantes = texto(membresia['pases_restantes']);
@@ -538,17 +494,21 @@ class _MembresiaActivaCard extends StatelessWidget {
     final estado = texto(membresia['estado']).toUpperCase();
 
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [primaryBlue, Color(0xFF2563EB)],
+          colors: [
+            colors.primary,
+            colors.secondary,
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: primaryBlue.withAlpha(30),
-            blurRadius: 16,
+            color: colors.primary.withAlpha(35),
+            blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
@@ -558,23 +518,22 @@ class _MembresiaActivaCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(25),
-              borderRadius: BorderRadius.circular(10),
+              color: colors.onPrimary.withAlpha(28),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.card_membership,
-              color: Colors.white,
-              size: 28,
+              color: colors.onPrimary,
+              size: 30,
             ),
           ),
           const SizedBox(height: 16),
           Text(
             nombrePlan,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
+            style: textTheme.headlineSmall?.copyWith(
+              color: colors.onPrimary,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.5,
             ),
@@ -608,7 +567,7 @@ class _MembresiaActivaCard extends StatelessWidget {
     );
   }
 }
-// Widget: Item de información de membresía
+
 class _MembresiaInfoItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -622,9 +581,16 @@ class _MembresiaInfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Row(
       children: [
-        Icon(icon, color: Colors.white, size: 20),
+        Icon(
+          icon,
+          color: colors.onPrimary,
+          size: 20,
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -632,32 +598,28 @@ class _MembresiaInfoItem extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xCCFFFFFF),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-
+                style: textTheme.bodySmall?.copyWith(
+                  color: colors.onPrimary.withAlpha(220),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
-                  color: Color(0xCCFFFFFF),
-                  fontSize: 14,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colors.onPrimary,
                   height: 1.3,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
-          ),)
-        ,
-      ]
-      ,
+          ),
+        ),
+      ],
     );
   }
 }
 
-// Widget: Tarjeta de plan
 class _PlanCard extends StatelessWidget {
   final dynamic plan;
   final VoidCallback onComprar;
@@ -675,8 +637,8 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
-    const Color borderGray = Color(0xFFE2E8F0);
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     final nombre = texto(plan['nombre']);
     final descripcion = texto(plan['descripcion']);
@@ -684,144 +646,116 @@ class _PlanCard extends StatelessWidget {
     final pases = texto(plan['pases_incluidos']);
     final descuento = texto(plan['descuento_porcentaje']);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderGray, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(5),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nombre,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                        letterSpacing: -0.3,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nombre,
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: colors.onSurface,
+                          letterSpacing: -0.3,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      descripcion,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF64748B),
+                      const SizedBox(height: 4),
+                      Text(
+                        descripcion,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          height: 1.4,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: primaryBlue.withAlpha(15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$descuento% OFF',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: primaryBlue,
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Grid de características
-          GridView.count(
-            crossAxisCount: 2,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _PlanFeature(
-                icon: Icons.attach_money,
-                label: 'Precio',
-                value: precio,
-              ),
-              _PlanFeature(
-                icon: Icons.confirmation_number_outlined,
-                label: 'Pases',
-                value: pases,
-              ),
-              _PlanFeature(
-                icon: Icons.all_inclusive,
-                label: 'Validez',
-                value: 'Hasta agotar pases',
-              ),
-              _PlanFeature(
-                icon: Icons.trending_up,
-                label: 'Descuento',
-                value: '$descuento%',
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: comprando ? null : onComprar,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryBlue,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$descuento% OFF',
+                    style: textTheme.labelMedium?.copyWith(
+                      color: colors.onPrimaryContainer,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-                disabledBackgroundColor: primaryBlue.withAlpha(150),
-              ),
-              child: comprando
-                  ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
+              ],
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _PlanFeature(
+                  icon: Icons.attach_money,
+                  label: 'Precio',
+                  value: precio,
                 ),
-              )
-                  : const Text(
-                'Comprar plan',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
+                _PlanFeature(
+                  icon: Icons.confirmation_number_outlined,
+                  label: 'Pases',
+                  value: pases,
+                ),
+                const _PlanFeature(
+                  icon: Icons.all_inclusive,
+                  label: 'Validez',
+                  value: 'Hasta agotar pases',
+                ),
+                _PlanFeature(
+                  icon: Icons.trending_up,
+                  label: 'Descuento',
+                  value: '$descuento%',
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: comprando ? null : onComprar,
+                icon: comprando
+                    ? SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.onPrimary,
+                        ),
+                      )
+                    : const Icon(Icons.shopping_cart_outlined),
+                label: Text(
+                  comprando ? 'Comprando...' : 'Comprar plan',
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// Widget: Feature de plan
 class _PlanFeature extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -835,12 +769,13 @@ class _PlanFeature extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: primaryBlue.withAlpha(8),
-        borderRadius: BorderRadius.circular(10),
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
       ),
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -849,26 +784,24 @@ class _PlanFeature extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: primaryBlue,
+            color: colors.onPrimaryContainer,
             size: 18,
           ),
           const SizedBox(height: 6),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
+            style: textTheme.bodySmall?.copyWith(
+              color: colors.onPrimaryContainer.withAlpha(210),
               fontWeight: FontWeight.w500,
-              color: Color(0xFF64748B),
               letterSpacing: -0.1,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF0F172A),
+            style: textTheme.bodyMedium?.copyWith(
+              color: colors.onPrimaryContainer,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],

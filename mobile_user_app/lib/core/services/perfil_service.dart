@@ -42,19 +42,19 @@ class PerfilService {
 
     final response = await http
         .patch(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
-            'first_name': firstName,
-            'last_name': lastName,
-            'email': email,
-            'telefono': telefono,
-            'cedula': cedula,
-          }),
-        )
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'first_name': firstName,
+        'last_name': lastName,
+        'email': email,
+        'telefono': telefono,
+        'cedula': cedula,
+      }),
+    )
         .timeout(const Duration(seconds: 15));
 
     dynamic decoded;
@@ -87,5 +87,21 @@ class PerfilService {
     }
 
     throw Exception('Error al actualizar perfil.');
+  }
+
+  Future<void> cambiarPassword({
+    required String passwordActual,
+    required String nuevaPassword,
+    required String confirmarPassword,
+  }) async {
+    await _apiService.post(
+      ApiConfig.cambiarPassword,
+      requiereAuth: true,
+      body: {
+        'password_actual': passwordActual,
+        'nueva_password': nuevaPassword,
+        'confirmar_password': confirmarPassword,
+      },
+    );
   }
 }

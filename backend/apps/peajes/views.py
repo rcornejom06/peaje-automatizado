@@ -12,6 +12,7 @@ from ..usuarios.permissions import obtener_rol_usuario
 from ..vehiculos.models import Vehiculo
 from ..pagos.models import Transaccion, Billetera
 from ..membresias.models import Membresia
+from django.db import transaction
 from ..auditoria.utils import registrar_historial
 from ..seguridad.models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -127,68 +128,93 @@ class PeajeViewSet(viewsets.ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
+    @transaction.atomic
     def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada):
 
         if not vehiculo:
             paso.estado_pago = "pendiente"
             paso.observacion = (
-                f"{paso.observacion or ''} Vehículo no registrado en el sistema."
+                f"{paso.observacion or ''} Vehículo no registrado o no aprobado en el sistema."
             )
-            paso.save()
+            paso.save(update_fields=["estado_pago", "observacion"])
+
             return {
                 "estado_pago": paso.estado_pago,
                 "metodo": "sin_vehiculo",
-                "mensaje": "Vehículo no registrado. Paso queda pendiente."
+                "mensaje": "Vehículo no registrado o no aprobado. Paso queda pendiente."
             }
 
         usuario = vehiculo.usuario
+        categoria = vehiculo.categoria
 
-        hoy = timezone.now().date()
-
-        estado_activa = getattr(Membresia.Estado, "ACTIVA", "activa")
-
-        membresia = Membresia.objects.filter(
-            usuario=usuario,
-            estado=estado_activa,
-            fecha_inicio__lte=hoy,
-            fecha_fin__gte=hoy,
-            pases_restantes__gt=0
-        ).order_by("-fecha_inicio").first()
-
-        if membresia:
-            membresia.consumir_pase()
-
-            paso.estado_pago = "membresia"
-            paso.membresia_utilizada = membresia
-            paso.save()
-
-            Transaccion.objects.create(
-                billetera=getattr(usuario, "billetera", None),
-                paso_peaje=paso,
-                membresia=membresia,
-                monto=Decimal("0.00"),
-                tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
-                metodo_pago="membresia",
-                referencia_pago=f"MEMBRESIA-{membresia.id}-PASO-{paso.id}",
-                estado="aprobada"
+        if not categoria:
+            paso.estado_pago = "pendiente"
+            paso.observacion = (
+                f"{paso.observacion or ''} Vehículo sin categoría asignada."
             )
+            paso.save(update_fields=["estado_pago", "observacion"])
 
             return {
                 "estado_pago": paso.estado_pago,
-                "metodo": "membresia",
-                "mensaje": "Pago cubierto con membresía.",
-                "membresia_id": membresia.id,
-                "pases_restantes": membresia.pases_restantes
+                "metodo": "sin_categoria",
+                "mensaje": "El vehículo no tiene categoría. Paso queda pendiente."
             }
 
+        aplica_membresia = categoria.aplica_membresia
+
+        if aplica_membresia:
+            membresia = Membresia.objects.select_for_update().filter(
+                usuario=usuario,
+                estado=Membresia.Estado.ACTIVA,
+                pases_restantes__gt=0,
+            ).order_by("-fecha_inicio").first()
+
+            if membresia:
+                membresia.consumir_pase()
+
+                paso.estado_pago = "membresia"
+                paso.membresia_utilizada = membresia
+                paso.observacion = (
+                    f"{paso.observacion or ''} Pago cubierto con membresía."
+                )
+                paso.save(
+                    update_fields=[
+                        "estado_pago",
+                        "membresia_utilizada",
+                        "observacion",
+                    ]
+                )
+
+                Transaccion.objects.create(
+                    billetera=getattr(usuario, "billetera", None),
+                    paso_peaje=paso,
+                    membresia=membresia,
+                    monto=Decimal("0.00"),
+                    tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
+                    metodo_pago="membresia",
+                    referencia_pago=f"MEMBRESIA-{membresia.id}-PASO-{paso.id}",
+                    estado="aprobada",
+                )
+
+                return {
+                    "estado_pago": paso.estado_pago,
+                    "metodo": "membresia",
+                    "mensaje": "Pago cubierto con membresía.",
+                    "membresia_id": membresia.id,
+                    "pases_restantes": membresia.pases_restantes,
+                    "categoria": categoria.nombre,
+                    "numero_ejes": categoria.numero_ejes,
+                    "aplica_membresia": True,
+                }
+
         try:
-            billetera = Billetera.objects.get(usuario=usuario)
+            billetera = Billetera.objects.select_for_update().get(usuario=usuario)
         except Billetera.DoesNotExist:
             paso.estado_pago = "pendiente"
             paso.observacion = (
                 f"{paso.observacion or ''} Usuario sin billetera activa."
             )
-            paso.save()
+            paso.save(update_fields=["estado_pago", "observacion"])
 
             return {
                 "estado_pago": paso.estado_pago,
@@ -196,12 +222,36 @@ class PeajeViewSet(viewsets.ModelViewSet):
                 "mensaje": "El usuario no tiene billetera. Paso queda pendiente."
             }
 
+        if billetera.estado != Billetera.Estado.ACTIVA:
+            paso.estado_pago = "pendiente"
+            paso.observacion = (
+                f"{paso.observacion or ''} La billetera no está activa."
+            )
+            paso.save(update_fields=["estado_pago", "observacion"])
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "billetera_inactiva",
+                "mensaje": "La billetera no está activa. Paso queda pendiente.",
+                "saldo_actual": str(billetera.saldo),
+            }
+
         if billetera.saldo >= tarifa_aplicada:
             billetera.saldo -= tarifa_aplicada
-            billetera.save()
+            billetera.save(update_fields=["saldo"])
 
             paso.estado_pago = "pagado"
-            paso.save()
+
+            if not aplica_membresia:
+                paso.observacion = (
+                    f"{paso.observacion or ''} Categoría no aplica membresía. Pago debitado de billetera."
+                )
+            else:
+                paso.observacion = (
+                    f"{paso.observacion or ''} Sin membresía activa. Pago debitado de billetera."
+                )
+
+            paso.save(update_fields=["estado_pago", "observacion"])
 
             Transaccion.objects.create(
                 billetera=billetera,
@@ -210,21 +260,24 @@ class PeajeViewSet(viewsets.ModelViewSet):
                 tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
                 metodo_pago="billetera",
                 referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}",
-                estado="aprobada"
+                estado="aprobada",
             )
 
             return {
                 "estado_pago": paso.estado_pago,
                 "metodo": "billetera",
                 "mensaje": "Pago debitado correctamente de la billetera.",
-                "saldo_restante": str(billetera.saldo)
+                "saldo_restante": str(billetera.saldo),
+                "categoria": categoria.nombre,
+                "numero_ejes": categoria.numero_ejes,
+                "aplica_membresia": aplica_membresia,
             }
 
         paso.estado_pago = "pendiente"
         paso.observacion = (
             f"{paso.observacion or ''} Saldo insuficiente en billetera."
         )
-        paso.save()
+        paso.save(update_fields=["estado_pago", "observacion"])
 
         Transaccion.objects.create(
             billetera=billetera,
@@ -233,14 +286,17 @@ class PeajeViewSet(viewsets.ModelViewSet):
             tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
             metodo_pago="billetera",
             referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}-SALDO-INSUFICIENTE",
-            estado="fallida"
+            estado="fallida",
         )
 
         return {
             "estado_pago": paso.estado_pago,
             "metodo": "saldo_insuficiente",
             "mensaje": "Saldo insuficiente. Paso queda pendiente.",
-            "saldo_actual": str(billetera.saldo)
+            "saldo_actual": str(billetera.saldo),
+            "categoria": categoria.nombre,
+            "numero_ejes": categoria.numero_ejes,
+            "aplica_membresia": aplica_membresia,
         }
 
 
@@ -340,120 +396,6 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         return PasoPeaje.objects.filter(
             vehiculo__usuario=self.request.user
         ).order_by("-fecha_hora")
-
-    def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada):
-
-        if not vehiculo:
-            paso.estado_pago = "pendiente"
-            paso.observacion = (
-                f"{paso.observacion or ''} Vehículo no registrado en el sistema."
-            )
-            paso.save()
-            return {
-                "estado_pago": paso.estado_pago,
-                "metodo": "sin_vehiculo",
-                "mensaje": "Vehículo no registrado. Paso queda pendiente."
-            }
-
-        usuario = vehiculo.usuario
-
-        hoy = timezone.now().date()
-
-        estado_activa = getattr(Membresia.Estado, "ACTIVA", "activa")
-
-        membresia = Membresia.objects.filter(
-            usuario=usuario,
-            estado=estado_activa,
-            pases_restantes__gt=0
-        ).order_by("-fecha_inicio").first()
-
-        if membresia:
-            membresia.consumir_pase()
-
-            paso.estado_pago = "membresia"
-            paso.membresia_utilizada = membresia
-            paso.save()
-
-            Transaccion.objects.create(
-                billetera=getattr(usuario, "billetera", None),
-                paso_peaje=paso,
-                membresia=membresia,
-                monto=Decimal("0.00"),
-                tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
-                metodo_pago="membresia",
-                referencia_pago=f"MEMBRESIA-{membresia.id}-PASO-{paso.id}",
-                estado="aprobada"
-            )
-
-            return {
-                "estado_pago": paso.estado_pago,
-                "metodo": "membresia",
-                "mensaje": "Pago cubierto con membresía.",
-                "membresia_id": membresia.id,
-                "pases_restantes": membresia.pases_restantes
-            }
-
-        try:
-            billetera = Billetera.objects.get(usuario=usuario)
-        except Billetera.DoesNotExist:
-            paso.estado_pago = "pendiente"
-            paso.observacion = (
-                f"{paso.observacion or ''} Usuario sin billetera activa."
-            )
-            paso.save()
-
-            return {
-                "estado_pago": paso.estado_pago,
-                "metodo": "sin_billetera",
-                "mensaje": "El usuario no tiene billetera. Paso queda pendiente."
-            }
-
-        if billetera.saldo >= tarifa_aplicada:
-            billetera.saldo -= tarifa_aplicada
-            billetera.save()
-
-            paso.estado_pago = "pagado"
-            paso.save()
-
-            Transaccion.objects.create(
-                billetera=billetera,
-                paso_peaje=paso,
-                monto=tarifa_aplicada,
-                tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
-                metodo_pago="billetera",
-                referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}",
-                estado="aprobada"
-            )
-
-            return {
-                "estado_pago": paso.estado_pago,
-                "metodo": "billetera",
-                "mensaje": "Pago debitado correctamente de la billetera.",
-                "saldo_restante": str(billetera.saldo)
-            }
-
-        paso.estado_pago = "pendiente"
-        paso.observacion = (
-            f"{paso.observacion or ''} Saldo insuficiente en billetera."
-        )
-        paso.save()
-
-        Transaccion.objects.create(
-            billetera=billetera,
-            paso_peaje=paso,
-            monto=tarifa_aplicada,
-            tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
-            metodo_pago="billetera",
-            referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}-SALDO-INSUFICIENTE",
-            estado="fallida"
-        )
-
-        return {
-            "estado_pago": paso.estado_pago,
-            "metodo": "saldo_insuficiente",
-            "mensaje": "Saldo insuficiente. Paso queda pendiente.",
-            "saldo_actual": str(billetera.saldo)
-        }
 
     def procesar_seguridad_automatica(self, paso, vehiculo, peaje):
         """

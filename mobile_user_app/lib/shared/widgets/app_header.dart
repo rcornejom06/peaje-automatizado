@@ -4,93 +4,103 @@ class AppHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+  final Widget? trailing;
 
   const AppHeader({
     super.key,
     required this.title,
     required this.subtitle,
     required this.icon,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [
-            Color(0xFF1D4ED8),
-            Color(0xFF2563EB),
-            Color(0xFF3B82F6),
+            colors.primary,
+            colors.secondary,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          stops: [0.0, 0.5, 1.0],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1D4ED8).withAlpha(30),
-            blurRadius: 16,
+            color: colors.primary.withAlpha(35),
+            blurRadius: 18,
             offset: const Offset(0, 8),
-            spreadRadius: 0,
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Icono con fondo semitransparente
           Container(
-            padding: const EdgeInsets.all(14),
+            width: 68,
+            height: 68,
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(35),
-              borderRadius: BorderRadius.circular(14),
+              color: colors.onPrimary.withAlpha(28),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: Colors.white.withAlpha(50),
-                width: 1,
+                color: colors.onPrimary.withAlpha(45),
               ),
             ),
             child: Icon(
               icon,
-              color: Colors.white,
+              color: colors.onPrimary,
               size: 36,
             ),
           ),
+
           const SizedBox(width: 18),
-          // Contenido
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: Color(0xCCFFFFFF),
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              height: 1.4,
-              letterSpacing: 0.2,
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.headlineSmall?.copyWith(
+                    color: colors.onPrimary,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    height: 1.15,
+                  ),
+                ),
 
+                const SizedBox(height: 8),
+
+                Text(
+                  subtitle,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onPrimary.withAlpha(220),
+                    fontWeight: FontWeight.w400,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
+
+          if (trailing != null) ...[
+            const SizedBox(width: 12),
+            trailing!,
+          ],
         ],
       ),
-    ),]
-    ,
-    )
-    ,
     );
   }
 }

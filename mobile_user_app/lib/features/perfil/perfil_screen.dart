@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'cambiar_password_screen.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/services/api_service.dart';
 import 'editar_perfil_screen.dart';
@@ -70,6 +71,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
     }
   }
 
+  Future<void> _irACambiarPassword() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CambiarPasswordScreen(),
+      ),
+    );
+  }
+
   String _texto(dynamic valor) {
     if (valor == null || valor.toString().trim().isEmpty) {
       return 'Sin dato';
@@ -126,33 +136,41 @@ class _PerfilScreenState extends State<PerfilScreen> {
     );
   }
 
-  String _rol() {
-    return _texto(_perfil?['rol']);
-  }
-
   Widget _dato({
     required String titulo,
     required String valor,
     required IconData icono,
   }) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Icon(
-          icono,
-          color: const Color(0xFF1D4ED8),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icono,
+            color: colors.onPrimaryContainer,
+            size: 22,
+          ),
         ),
         title: Text(
           titulo,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0F172A),
+          style: textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.onSurface,
           ),
         ),
         subtitle: Text(
           valor,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
+          style: textTheme.bodyMedium?.copyWith(
+            color: colors.onSurfaceVariant,
           ),
         ),
       ),
@@ -160,47 +178,56 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Widget _headerPerfil() {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [
-            Color(0xFF1D4ED8),
-            Color(0xFF2563EB),
-            Color(0xFF3B82F6),
+            colors.primary,
+            colors.secondary,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withAlpha(35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          const CircleAvatar(
-            radius: 42,
-            backgroundColor: Colors.white,
+          CircleAvatar(
+            radius: 44,
+            backgroundColor: colors.onPrimary,
             child: Icon(
               Icons.person,
-              size: 48,
-              color: Color(0xFF1D4ED8),
+              size: 50,
+              color: colors.primary,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Text(
             _username(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
+            textAlign: TextAlign.center,
+            style: textTheme.headlineSmall?.copyWith(
+              color: colors.onPrimary,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             _correo(),
-            style: const TextStyle(
-              color: Color(0xCCFFFFFF),
-              fontSize: 14,
+            textAlign: TextAlign.center,
+            style: textTheme.bodyMedium?.copyWith(
+              color: colors.onPrimary.withAlpha(220),
             ),
           ),
         ],
@@ -211,11 +238,33 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget _botonEditarPerfil() {
     return SizedBox(
       width: double.infinity,
+      height: 52,
       child: ElevatedButton.icon(
         onPressed: _perfil == null ? null : _irAEditarPerfil,
-        icon: const Icon(Icons.edit),
+        icon: const Icon(Icons.edit_outlined),
         label: const Text('Editar datos personales'),
       ),
+    );
+  }
+
+  Widget _botonCambiarPassword() {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: _irACambiarPassword,
+        icon: const Icon(Icons.lock_outline),
+        label: const Text('Cambiar contraseña'),
+      ),
+    );
+  }
+
+  Widget _tituloSeccion(String titulo) {
+    return Text(
+      titulo,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
     );
   }
 
@@ -225,67 +274,111 @@ class _PerfilScreenState extends State<PerfilScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _headerPerfil(),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _headerPerfil(),
 
-          const SizedBox(height: 18),
+                  const SizedBox(height: 18),
 
-          _botonEditarPerfil(),
+                  _botonEditarPerfil(),
 
-          const SizedBox(height: 18),
+                  const SizedBox(height: 10),
 
-          const Text(
-            'Información personal',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+                  _botonCambiarPassword(),
+
+                  const SizedBox(height: 24),
+
+                  _tituloSeccion('Información personal'),
+
+                  const SizedBox(height: 12),
+
+                  _dato(
+                    titulo: 'Nombre',
+                    valor: _nombre(),
+                    icono: Icons.badge,
+                  ),
+
+                  _dato(
+                    titulo: 'Apellido',
+                    valor: _apellido(),
+                    icono: Icons.badge_outlined,
+                  ),
+
+                  _dato(
+                    titulo: 'Correo',
+                    valor: _correo(),
+                    icono: Icons.email_outlined,
+                  ),
+
+                  _dato(
+                    titulo: 'Cédula',
+                    valor: _texto(_perfil?['cedula']),
+                    icono: Icons.credit_card,
+                  ),
+
+                  _dato(
+                    titulo: 'Teléfono',
+                    valor: _texto(_perfil?['telefono']),
+                    icono: Icons.phone_outlined,
+                  ),
+                ],
+              ),
             ),
           ),
-
-          const SizedBox(height: 12),
-
-          _dato(
-            titulo: 'Nombre',
-            valor: _nombre(),
-            icono: Icons.badge,
-          ),
-
-          _dato(
-            titulo: 'Apellido',
-            valor: _apellido(),
-            icono: Icons.badge_outlined,
-          ),
-
-          _dato(
-            titulo: 'Correo',
-            valor: _correo(),
-            icono: Icons.email,
-          ),
-
-          _dato(
-            titulo: 'Cédula',
-            valor: _texto(_perfil?['cedula']),
-            icono: Icons.credit_card,
-          ),
-
-          _dato(
-            titulo: 'Teléfono',
-            valor: _texto(_perfil?['telefono']),
-            icono: Icons.phone,
-          ),
-
-          _dato(
-            titulo: 'Rol',
-            valor: _rol(),
-            icono: Icons.security,
-          ),
-
-          _dato(
-            titulo: 'Estado',
-            valor: _texto(_perfil?['estado']),
-            icono: Icons.verified,
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _errorView(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 52,
+                  color: colors.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No se pudo cargar el perfil',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _error,
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: _cargarPerfil,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Intentar nuevamente'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -293,7 +386,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Mi perfil'),
         actions: [
@@ -304,18 +396,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ],
       ),
       body: _cargando
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : _error.isNotEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: Text(
-                      _error,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
+              ? _errorView(context)
               : _contenidoPerfil(),
     );
   }

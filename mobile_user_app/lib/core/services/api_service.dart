@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../constants/api_config.dart';
 import 'storage_service.dart';
 
@@ -29,53 +32,73 @@ class ApiService {
     return headers;
   }
 
-  Future<dynamic> get(String endpoint, {
+  Future<dynamic> get(
+    String endpoint, {
     Map<String, String>? queryParams,
     bool requiereAuth = true,
   }) async {
-    final response = await http
-        .get(
-      _buildUri(endpoint, queryParams),
-      headers: await _headers(requiereAuth: requiereAuth),
-    )
-        .timeout(const Duration(seconds: 15));
+    try {
+      final response = await http
+          .get(
+            _buildUri(endpoint, queryParams),
+            headers: await _headers(requiereAuth: requiereAuth),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    return _procesarRespuesta(response);
+      return _procesarRespuesta(response);
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado. Intente nuevamente.');
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
-  Future<dynamic> post(String endpoint, {
+  Future<dynamic> post(
+    String endpoint, {
     Map<String, dynamic>? body,
     bool requiereAuth = true,
   }) async {
-    final response = await http
-        .post(
-      _buildUri(endpoint),
-      headers: await _headers(requiereAuth: requiereAuth),
-      body: jsonEncode(body ?? {}),
-    )
-        .timeout(const Duration(seconds: 15));
+    try {
+      final response = await http
+          .post(
+            _buildUri(endpoint),
+            headers: await _headers(requiereAuth: requiereAuth),
+            body: jsonEncode(body ?? {}),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    return _procesarRespuesta(response);
+      return _procesarRespuesta(response);
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado. Intente nuevamente.');
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
-  Future<dynamic> patch(String endpoint, {
+  Future<dynamic> patch(
+    String endpoint, {
     Map<String, dynamic>? body,
     bool requiereAuth = true,
   }) async {
-    final response = await http
-        .patch(
-      _buildUri(endpoint),
-      headers: await _headers(requiereAuth: requiereAuth),
-      body: jsonEncode(body ?? {}),
-    )
-        .timeout(const Duration(seconds: 15));
+    try {
+      final response = await http
+          .patch(
+            _buildUri(endpoint),
+            headers: await _headers(requiereAuth: requiereAuth),
+            body: jsonEncode(body ?? {}),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    return _procesarRespuesta(response);
+      return _procesarRespuesta(response);
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado. Intente nuevamente.');
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   dynamic _procesarRespuesta(http.Response response) {
     final statusCode = response.statusCode;
-
     dynamic data;
 
     if (response.body.isNotEmpty) {
@@ -87,19 +110,87 @@ class ApiService {
     }
 
     if (statusCode >= 200 && statusCode < 300) {
+      return data ?? {};
+    }
+
+    final mensaje = _extraerMensajeError(data, statusCode);
+
+    throw Exception(mensaje);
+  }
+
+  String _extraerMensajeError(dynamic data, int statusCode) {
+    if (data == null) {
+      return 'Error en la solicitud. Código: $statusCode';
+    }
+
+    if (data is String) {
       return data;
     }
 
-    String mensaje = 'Error en la solicitud. Código: $statusCode';
-
-    if (data is Map && data.containsKey('detail')) {
-      mensaje = data['detail'].toString();
-    } else if (data is Map && data.containsKey('error')) {
-      mensaje = data['error'].toString();
-    } else if (data is Map) {
-      mensaje = data.toString();
+    if (data is List && data.isNotEmpty) {
+      return data.first.toString();
     }
 
-    throw Exception(mensaje);
+    if (data is Map) {
+      if (data.containsKey('detail')) {
+        return _valorComoTexto(data['detail']);
+      }
+
+      if (data.containsKey('error')) {
+        return _valorComoTexto(data['error']);
+      }
+
+      if (data.containsKey('mensaje')) {
+        return _valorComoTexto(data['mensaje']);
+      }
+
+      if (data.containsKey('message')) {
+        return _valorComoTexto(data['message']);
+      }
+
+      for (final entry in data.entries) {
+        final value = entry.value;
+
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+
+        if (value is String && value.trim().isNotEmpty) {
+          return value;
+        }
+
+        if (value is Map) {
+          return _extraerMensajeError(value, statusCode);
+        }
+      }
+    }
+
+    return 'Error en la solicitud. Código: $statusCode';
+  }
+
+  String _valorComoTexto(dynamic value) {
+    if (value == null) {
+      return 'Ocurrió un error. Intente nuevamente.';
+    }
+
+    if (value is List && value.isNotEmpty) {
+      return value.first.toString();
+    }
+
+    if (value is Map) {
+      for (final entry in value.entries) {
+        final item = entry.value;
+
+        if (item is List && item.isNotEmpty) {
+          return item.first.toString();
+        }
+
+        if (item is String && item.trim().isNotEmpty) {
+          return item;
+        }
+      }
+    }
+
+    return value.toString();
   }
 }

@@ -31,11 +31,15 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
         _seguridadService.obtenerAlertas(),
       ]);
 
+      if (!mounted) return;
+
       setState(() {
         _avisos = resultados[0];
         _alertas = resultados[1];
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -63,7 +67,7 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor.toString().isEmpty) {
+    if (valor == null || valor.toString().trim().isEmpty) {
       return 'Sin dato';
     }
 
@@ -103,83 +107,142 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     return _texto(item['vehiculo']);
   }
 
-  Color _colorEstado(String estado) {
-    switch (estado) {
+  Color _colorEstado(String estado, ColorScheme colors) {
+    switch (estado.toLowerCase().trim()) {
       case 'activo':
       case 'pendiente':
-        return Colors.orange;
+        return colors.tertiary;
       case 'detectado':
       case 'derivada':
-        return Colors.red;
+        return colors.error;
       case 'cerrado':
       case 'cerrada':
-        return Colors.green;
+        return colors.secondary;
       case 'cancelado':
       case 'descartada':
-        return Colors.grey;
+        return colors.outline;
       default:
-        return Colors.blueGrey;
+        return colors.primary;
     }
   }
 
-  Widget _resumen() {
-    return Card(
-      color: const Color(0xFF2563EB),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _resumenItem('Avisos', _avisos.length.toString()),
-            _resumenItem('Alertas', _alertas.length.toString()),
-            _resumenItem(
-              'Activos',
-              _avisos.where((a) => a['estado'] == 'activo').length.toString(),
-            ),
+  Widget _resumen(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colors.primary,
+            colors.secondary,
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withAlpha(35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _resumenItem(
+            context: context,
+            titulo: 'Avisos',
+            valor: _avisos.length.toString(),
+          ),
+          _resumenItem(
+            context: context,
+            titulo: 'Alertas',
+            valor: _alertas.length.toString(),
+          ),
+          _resumenItem(
+            context: context,
+            titulo: 'Activos',
+            valor: _avisos
+                .where((a) => a['estado']?.toString().toLowerCase() == 'activo')
+                .length
+                .toString(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _resumenItem(String titulo, String valor) {
+  Widget _resumenItem({
+    required BuildContext context,
+    required String titulo,
+    required String valor,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       children: [
         Text(
           valor,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
+          style: textTheme.headlineSmall?.copyWith(
+            color: colors.onPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           titulo,
-          style: const TextStyle(color: Colors.white70),
+          style: textTheme.bodySmall?.copyWith(
+            color: colors.onPrimary.withAlpha(220),
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
   }
 
   Widget _avisoCard(dynamic aviso) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final estado = _texto(aviso['estado']);
+    final estadoColor = _colorEstado(estado, colors);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _colorEstado(estado),
-          child: const Icon(Icons.directions_car, color: Colors.white),
+        leading: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: estadoColor.withAlpha(24),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.directions_car,
+            color: estadoColor,
+          ),
         ),
         title: Text(
           _obtenerPlaca(aviso),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        subtitle: Text(
-          'Denuncia: ${_texto(aviso['numero_denuncia'])}\n'
-          'Entidad: ${_texto(aviso['entidad_denuncia'])}\n'
-          'Lugar: ${_texto(aviso['lugar_robo'])}\n'
-          'Estado: $estado',
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Denuncia: ${_texto(aviso['numero_denuncia'])}\n'
+            'Entidad: ${_texto(aviso['entidad_denuncia'])}\n'
+            'Lugar: ${_texto(aviso['lugar_robo'])}\n'
+            'Estado: $estado',
+            style: textTheme.bodyMedium?.copyWith(
+              color: colors.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
         ),
         isThreeLine: true,
       ),
@@ -187,7 +250,11 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   Widget _alertaCard(dynamic alerta) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final estado = _texto(alerta['estado']);
+    final estadoColor = _colorEstado(estado, colors);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -198,37 +265,114 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: _colorEstado(estado),
-                  child: const Icon(Icons.warning, color: Colors.white),
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: estadoColor.withAlpha(24),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: estadoColor,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     _obtenerPlaca(alerta),
-                    style: const TextStyle(
-                      fontSize: 20,
+                    style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                Chip(
-                  label: Text(
-                    estado,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor: _colorEstado(estado),
+                _estadoChip(
+                  context: context,
+                  estado: estado,
+                  color: estadoColor,
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _infoLinea(
+              context: context,
+              label: 'Tipo',
+              value: _texto(alerta['tipo_alerta']),
+            ),
+            _infoLinea(
+              context: context,
+              label: 'Peaje',
+              value: _texto(alerta['peaje_nombre'] ?? alerta['peaje']),
+            ),
+            _infoLinea(
+              context: context,
+              label: 'Fecha',
+              value: _fecha(alerta['fecha_hora']),
+            ),
             const SizedBox(height: 10),
-            Text('Tipo: ${_texto(alerta['tipo_alerta'])}'),
-            Text('Peaje: ${_texto(alerta['peaje_nombre'] ?? alerta['peaje'])}'),
-            Text('Fecha: ${_fecha(alerta['fecha_hora'])}'),
-            const SizedBox(height: 8),
             Text(
               _texto(alerta['descripcion']),
-              style: const TextStyle(color: Colors.grey),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _estadoChip({
+    required BuildContext context,
+    required String estado,
+    required Color color,
+  }) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withAlpha(22),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: color.withAlpha(55),
+        ),
+      ),
+      child: Text(
+        estado,
+        style: textTheme.labelMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _infoLinea({
+    required BuildContext context,
+    required String label,
+    required String value,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text.rich(
+        TextSpan(
+          text: '$label: ',
+          style: textTheme.bodyMedium?.copyWith(
+            color: colors.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+          children: [
+            TextSpan(
+              text: value,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ],
         ),
@@ -240,17 +384,12 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Mis avisos de robo',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
+        _tituloSeccion('Mis avisos de robo'),
         const SizedBox(height: 10),
         if (_avisos.isEmpty)
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('No tienes avisos de robo registrados.'),
-            ),
+          _emptyCard(
+            icon: Icons.info_outline,
+            text: 'No tienes avisos de robo registrados.',
           )
         else
           ..._avisos.map(_avisoCard),
@@ -262,21 +401,96 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Alertas relacionadas',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
+        _tituloSeccion('Alertas relacionadas'),
         const SizedBox(height: 10),
         if (_alertas.isEmpty)
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('No tienes alertas registradas.'),
-            ),
+          _emptyCard(
+            icon: Icons.info_outline,
+            text: 'No tienes alertas registradas.',
           )
         else
           ..._alertas.map(_alertaCard),
       ],
+    );
+  }
+
+  Widget _tituloSeccion(String titulo) {
+    return Text(
+      titulo,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+    );
+  }
+
+  Widget _emptyCard({
+    required IconData icon,
+    required String text,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: colors.primary,
+        ),
+        title: Text(
+          text,
+          style: textTheme.bodyMedium?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _errorView(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 52,
+                  color: colors.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No se pudo cargar la información',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _error,
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: _cargarDatos,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Intentar nuevamente'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -298,30 +512,35 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
         label: const Text('Aviso'),
       ),
       body: _cargando
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : _error.isNotEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: Text(
-                      _error,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                )
+              ? _errorView(context)
               : RefreshIndicator(
                   onRefresh: _cargarDatos,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _resumen(),
-                      const SizedBox(height: 18),
-                      _seccionAvisos(),
-                      const SizedBox(height: 18),
-                      _seccionAlertas(),
-                      const SizedBox(height: 70),
-                    ],
+                  child: SafeArea(
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 620),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _resumen(context),
+                                const SizedBox(height: 22),
+                                _seccionAvisos(),
+                                const SizedBox(height: 22),
+                                _seccionAlertas(),
+                                const SizedBox(height: 80),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
     );

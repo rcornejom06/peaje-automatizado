@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/services/auth_service.dart';
 
@@ -49,9 +50,10 @@ class _VerificarCorreoScreenState extends State<VerificarCorreoScreen> {
 
       if (!mounted) return;
 
-      Navigator.pop(context); // vuelve al login
-
+      Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -74,10 +76,14 @@ class _VerificarCorreoScreenState extends State<VerificarCorreoScreen> {
     try {
       await _authService.reenviarCodigo(email: widget.email);
 
+      if (!mounted) return;
+
       setState(() {
         _mensaje = 'Código reenviado correctamente. Revisa tu correo.';
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -96,176 +102,209 @@ class _VerificarCorreoScreenState extends State<VerificarCorreoScreen> {
     super.dispose();
   }
 
+  Widget _mensajeEstado({
+    required BuildContext context,
+    required String mensaje,
+    required bool esError,
+  }) {
+    if (mensaje.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final colors = Theme.of(context).colorScheme;
+
+    final backgroundColor =
+        esError ? colors.errorContainer : colors.secondaryContainer;
+    final foregroundColor =
+        esError ? colors.onErrorContainer : colors.onSecondaryContainer;
+
+    final icon = esError ? Icons.error_outline : Icons.check_circle_outline;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: foregroundColor,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              mensaje,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: foregroundColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
-    const Color darkGray = Color(0xFF0F172A);
-    const Color lightGray = Color(0xFFF8FAFC);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     return Scaffold(
-      backgroundColor: lightGray,
       appBar: AppBar(
         title: const Text('Verificar correo'),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
 
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: primaryBlue,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.mark_email_read_outlined,
-                  color: Colors.white,
-                  size: 38,
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              const Text(
-                'Revisa tu correo',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: darkGray,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              Text(
-                'Enviamos un código de verificación a:\n${widget.email}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: darkGray.withAlpha(170),
-                  height: 1.4,
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              TextFormField(
-                controller: _codigoController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  labelText: 'Código de verificación',
-                  hintText: '123456',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  filled: true,
-                  fillColor: Colors.white,
-                  counterText: '',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Ingresa el código';
-                  }
-
-                  if (value.trim().length != 6) {
-                    return 'El código debe tener 6 dígitos';
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              if (_error.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Text(
-                    _error,
-                    style: TextStyle(
-                      color: Colors.red.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-
-              if (_mensaje.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Text(
-                    _mensaje,
-                    style: TextStyle(
-                      color: Colors.green.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _cargando ? null : _verificarCodigo,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _cargando
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2.5,
-                        )
-                      : const Text(
-                          'Verificar código',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                        Container(
+                          width: 82,
+                          height: 82,
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer,
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          child: Icon(
+                            Icons.mark_email_read_outlined,
+                            color: colors.onPrimaryContainer,
+                            size: 42,
                           ),
                         ),
-                ),
-              ),
 
-              const SizedBox(height: 12),
+                        const SizedBox(height: 24),
 
-              TextButton(
-                onPressed: _reenviando ? null : _reenviarCodigo,
-                child: Text(
-                  _reenviando
-                      ? 'Reenviando...'
-                      : 'Reenviar código',
-                  style: const TextStyle(
-                    color: primaryBlue,
-                    fontWeight: FontWeight.w700,
+                        Text(
+                          'Revisa tu correo',
+                          textAlign: TextAlign.center,
+                          style: textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        Text(
+                          'Enviamos un código de verificación a:',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium,
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          widget.email,
+                          textAlign: TextAlign.center,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: colors.primary,
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        TextFormField(
+                          controller: _codigoController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          maxLength: 6,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Código de verificación',
+                            hintText: '123456',
+                            prefixIcon: Icon(Icons.lock_outline),
+                            counterText: '',
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Ingresa el código';
+                            }
+
+                            if (value.trim().length != 6) {
+                              return 'El código debe tener 6 dígitos';
+                            }
+
+                            return null;
+                          },
+                          onFieldSubmitted: (_) => _verificarCodigo(),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        _mensajeEstado(
+                          context: context,
+                          mensaje: _error,
+                          esError: true,
+                        ),
+
+                        _mensajeEstado(
+                          context: context,
+                          mensaje: _mensaje,
+                          esError: false,
+                        ),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _cargando ? null : _verificarCodigo,
+                            icon: _cargando
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: colors.onPrimary,
+                                    ),
+                                  )
+                                : const Icon(Icons.verified_outlined),
+                            label: Text(
+                              _cargando
+                                  ? 'Verificando...'
+                                  : 'Verificar código',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        TextButton.icon(
+                          onPressed: _reenviando ? null : _reenviarCodigo,
+                          icon: const Icon(Icons.refresh),
+                          label: Text(
+                            _reenviando
+                                ? 'Reenviando...'
+                                : 'Reenviar código',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/services/vehiculo_service.dart';
 
@@ -193,6 +194,8 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
+    TextInputAction textInputAction = TextInputAction.next,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -200,6 +203,9 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
         controller: controller,
         keyboardType: keyboardType,
         textCapitalization: TextCapitalization.words,
+        textInputAction: textInputAction,
+        inputFormatters: inputFormatters,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: validator ??
             (value) {
               if (value == null || value.trim().isEmpty) {
@@ -216,59 +222,72 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
     );
   }
 
-  Widget _documentoActual() {
+  Widget _documentoActual(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final documentoUrl = widget.vehiculo['documento_respaldo_url'] ??
         widget.vehiculo['documento_respaldo'];
 
-    if (documentoUrl == null || documentoUrl.toString().trim().isEmpty) {
-      return const Text(
-        'Documento actual: No registrado',
-        style: TextStyle(
-          color: Colors.red,
-          fontWeight: FontWeight.w600,
-        ),
-      );
-    }
+    final tieneDocumento =
+        documentoUrl != null && documentoUrl.toString().trim().isNotEmpty;
 
-    return const Text(
-      'Documento actual: Registrado',
-      style: TextStyle(
-        color: Colors.green,
-        fontWeight: FontWeight.w600,
-      ),
+    return Row(
+      children: [
+        Icon(
+          tieneDocumento ? Icons.check_circle_outline : Icons.error_outline,
+          color: tieneDocumento ? colors.secondary : colors.error,
+          size: 18,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            tieneDocumento
+                ? 'Documento actual: Registrado'
+                : 'Documento actual: No registrado',
+            style: textTheme.bodyMedium?.copyWith(
+              color: tieneDocumento ? colors.secondary : colors.error,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _selectorDocumento() {
+  Widget _selectorDocumento(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade100),
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Documento de respaldo',
-            style: TextStyle(
+            style: textTheme.titleSmall?.copyWith(
+              color: colors.onPrimaryContainer,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 6),
-          _documentoActual(),
           const SizedBox(height: 8),
-          const Text(
+          _documentoActual(context),
+          const SizedBox(height: 10),
+          Text(
             'Puedes adjuntar un nuevo documento si deseas corregir o actualizar el respaldo.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.black54,
+            style: textTheme.bodySmall?.copyWith(
+              color: colors.onPrimaryContainer,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _cargando ? null : _seleccionarDocumento,
             icon: const Icon(Icons.attach_file),
@@ -276,24 +295,25 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
               _nombreDocumento == null
                   ? 'Seleccionar nuevo documento'
                   : _nombreDocumento!,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (_nombreDocumento != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
+                Icon(
+                  Icons.check_circle_outline,
+                  color: colors.secondary,
                   size: 18,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Nuevo archivo seleccionado: $_nombreDocumento',
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.w600,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.secondary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -305,26 +325,76 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
     );
   }
 
-  Widget _bloqueError() {
+  Widget _bloqueError(BuildContext context) {
     if (_error.isEmpty) {
       return const SizedBox.shrink();
     }
 
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Text(
-        _error,
-        style: TextStyle(
-          color: Colors.red.shade700,
-          fontWeight: FontWeight.w500,
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: colors.onErrorContainer,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _error,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.onErrorContainer,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _avisoRevision(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.tertiaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            color: colors.onTertiaryContainer,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Al guardar cambios, el vehículo volverá a revisión administrativa.',
+              textAlign: TextAlign.left,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colors.onTertiaryContainer,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -333,155 +403,184 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
   Widget build(BuildContext context) {
     final placa = _texto(widget.vehiculo['placa']);
 
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar vehículo'),
       ),
       body: _cargandoCategorias
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        const CircleAvatar(
-                          radius: 36,
-                          backgroundColor: Color(0xFF2563EB),
-                          child: Icon(
-                            Icons.directions_car,
-                            color: Colors.white,
-                            size: 40,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          placa,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Al guardar cambios, el vehículo volverá a revisión administrativa.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 22),
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(22),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 78,
+                                height: 78,
+                                decoration: BoxDecoration(
+                                  color: colors.primaryContainer,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.directions_car,
+                                  color: colors.onPrimaryContainer,
+                                  size: 42,
+                                ),
+                              ),
 
-                        _campoTexto(
-                          controller: _marcaController,
-                          label: 'Marca',
-                          icon: Icons.car_rental,
-                        ),
+                              const SizedBox(height: 16),
 
-                        _campoTexto(
-                          controller: _modeloController,
-                          label: 'Modelo',
-                          icon: Icons.directions_car,
-                        ),
+                              Text(
+                                placa,
+                                textAlign: TextAlign.center,
+                                style: textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
 
-                        _campoTexto(
-                          controller: _colorController,
-                          label: 'Color',
-                          icon: Icons.color_lens,
-                        ),
+                              const SizedBox(height: 12),
 
-                        _campoTexto(
-                          controller: _anioController,
-                          label: 'Año',
-                          icon: Icons.calendar_month,
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Ingrese el año';
-                            }
+                              _avisoRevision(context),
 
-                            final anio = int.tryParse(value.trim());
+                              const SizedBox(height: 22),
 
-                            if (anio == null) {
-                              return 'Ingrese un año válido';
-                            }
+                              _campoTexto(
+                                controller: _marcaController,
+                                label: 'Marca',
+                                icon: Icons.car_rental,
+                              ),
 
-                            if (anio < 1980 ||
-                                anio > DateTime.now().year + 1) {
-                              return 'Año fuera de rango';
-                            }
+                              _campoTexto(
+                                controller: _modeloController,
+                                label: 'Modelo',
+                                icon: Icons.directions_car,
+                              ),
 
-                            return null;
-                          },
-                        ),
+                              _campoTexto(
+                                controller: _colorController,
+                                label: 'Color',
+                                icon: Icons.color_lens,
+                              ),
 
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: DropdownButtonFormField<int>(
-                            value: _categoriaSeleccionada,
-                            decoration: const InputDecoration(
-                              labelText: 'Categoría',
-                              prefixIcon: Icon(Icons.category),
-                            ),
-                            items: _categorias.map((categoria) {
-                              return DropdownMenuItem<int>(
-                                value: categoria['id'],
-                                child: Text(_nombreCategoria(categoria)),
-                              );
-                            }).toList(),
-                            onChanged: _cargando
-                                ? null
-                                : (value) {
-                                    setState(() {
-                                      _categoriaSeleccionada = value;
-                                    });
+                              _campoTexto(
+                                controller: _anioController,
+                                label: 'Año',
+                                icon: Icons.calendar_month,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(4),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Ingrese el año';
+                                  }
+
+                                  final anio = int.tryParse(value.trim());
+
+                                  if (anio == null) {
+                                    return 'Ingrese un año válido';
+                                  }
+
+                                  if (anio < 1980 ||
+                                      anio > DateTime.now().year + 1) {
+                                    return 'Año fuera de rango';
+                                  }
+
+                                  return null;
+                                },
+                              ),
+
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: DropdownButtonFormField<int>(
+                                  value: _categoriaSeleccionada,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Categoría',
+                                    prefixIcon: Icon(Icons.category),
+                                  ),
+                                  items: _categorias.map((categoria) {
+                                    return DropdownMenuItem<int>(
+                                      value: categoria['id'],
+                                      child: Text(
+                                        _nombreCategoria(categoria),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: _cargando
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            _categoriaSeleccionada = value;
+                                          });
+                                        },
+                                  validator: (value) {
+                                    if (value == null) {
+                                      return 'Seleccione una categoría';
+                                    }
+
+                                    return null;
                                   },
-                            validator: (value) {
-                              if (value == null) {
-                                return 'Seleccione una categoría';
-                              }
+                                ),
+                              ),
 
-                              return null;
-                            },
+                              _selectorDocumento(context),
+
+                              _bloqueError(context),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton.icon(
+                                  onPressed:
+                                      _cargando ? null : _guardarCambios,
+                                  icon: _cargando
+                                      ? SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: colors.onPrimary,
+                                          ),
+                                        )
+                                      : const Icon(Icons.save_outlined),
+                                  label: Text(
+                                    _cargando
+                                        ? 'Guardando...'
+                                        : 'Guardar cambios',
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              TextButton(
+                                onPressed: _cargando
+                                    ? null
+                                    : () {
+                                        Navigator.pop(context);
+                                      },
+                                child: const Text('Cancelar'),
+                              ),
+                            ],
                           ),
                         ),
-
-                        _selectorDocumento(),
-
-                        _bloqueError(),
-
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: _cargando ? null : _guardarCambios,
-                            icon: _cargando
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.save),
-                            label: Text(
-                              _cargando
-                                  ? 'Guardando...'
-                                  : 'Guardar cambios',
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

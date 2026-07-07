@@ -40,6 +40,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -58,99 +60,166 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
+  Widget _bloqueError(BuildContext context) {
+    if (_error.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: colors.onErrorContainer,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _error,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.onErrorContainer,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recuperar contraseña'),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
 
-              const Icon(
-                Icons.lock_reset,
-                size: 72,
-                color: primaryBlue,
-              ),
+                        Container(
+                          width: 82,
+                          height: 82,
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.lock_reset,
+                            size: 46,
+                            color: colors.onPrimaryContainer,
+                          ),
+                        ),
 
-              const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-              const Text(
-                '¿Olvidaste tu contraseña?',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                        Text(
+                          '¿Olvidaste tu contraseña?',
+                          textAlign: TextAlign.center,
+                          style: textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
 
-              const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
-              const Text(
-                'Ingresa tu correo y te enviaremos un código para restablecer tu contraseña.',
-                textAlign: TextAlign.center,
-              ),
+                        Text(
+                          'Ingresa tu correo y te enviaremos un código para restablecer tu contraseña.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium,
+                        ),
 
-              const SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Correo electrónico',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'El correo es obligatorio';
-                  }
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Correo electrónico',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'El correo es obligatorio';
+                            }
 
-                  if (!value.contains('@')) {
-                    return 'Ingresa un correo válido';
-                  }
+                            if (!value.contains('@')) {
+                              return 'Ingresa un correo válido';
+                            }
 
-                  return null;
-                },
-              ),
+                            return null;
+                          },
+                          onFieldSubmitted: (_) => _enviarCodigo(),
+                        ),
 
-              const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-              if (_error.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  color: Colors.red.shade50,
-                  child: Text(
-                    _error,
-                    style: TextStyle(color: Colors.red.shade700),
+                        _bloqueError(context),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _cargando ? null : _enviarCodigo,
+                            icon: _cargando
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colors.onPrimary,
+                                    ),
+                                  )
+                                : const Icon(Icons.send_outlined),
+                            label: Text(
+                              _cargando ? 'Enviando...' : 'Enviar código',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        TextButton(
+                          onPressed: _cargando
+                              ? null
+                              : () {
+                                  Navigator.pop(context);
+                                },
+                          child: const Text('Volver al inicio de sesión'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _cargando ? null : _enviarCodigo,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryBlue,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _cargando
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Enviar código'),
-                ),
               ),
-            ],
+            ),
           ),
         ),
       ),

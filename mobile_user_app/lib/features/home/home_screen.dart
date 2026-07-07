@@ -106,120 +106,146 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargarResumen();
   }
 
+  Widget _saldoPrincipal(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.primary,
+            colors.secondary,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withAlpha(35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Saldo disponible',
+            style: textTheme.bodyMedium?.copyWith(
+              color: colors.onPrimary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _cargando ? 'Cargando...' : _saldo,
+            style: textTheme.displaySmall?.copyWith(
+              color: colors.onPrimary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: () => _irRuta('/billetera'),
+              icon: const Icon(Icons.add),
+              label: const Text('Recargar billetera'),
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.onPrimary,
+                foregroundColor: colors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _notaActualizar(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: colors.primary,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Desliza hacia abajo para actualizar tu saldo y resumen.',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tituloSeccion(String titulo) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Text(
+        titulo,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(0xFF1D4ED8);
-    const Color darkGray = Color(0xFF0F172A);
-    const Color lightGray = Color(0xFFF8FAFC);
-    const Color borderGray = Color(0xFFE2E8F0);
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: lightGray,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Mi Peaje',
-          style: TextStyle(
-            color: darkGray,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
+        title: const Text('Mi Peaje'),
         actions: [
           IconButton(
             tooltip: 'Actualizar',
             onPressed: _cargarResumen,
-            icon: const Icon(Icons.refresh, color: primaryBlue),
+            icon: const Icon(Icons.refresh),
           ),
           IconButton(
             tooltip: 'Cerrar sesión',
             onPressed: () => _confirmarCerrarSesion(context),
-            icon: const Icon(Icons.logout, color: primaryBlue),
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _cargarResumen,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            primaryBlue,
-                            primaryBlue.withAlpha(220),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Saldo disponible',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _cargando ? 'Cargando...' : _saldo,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 40,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () => _irRuta('/billetera'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: primaryBlue,
-                                elevation: 0,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add, size: 20),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Recargar billetera',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _saldoPrincipal(context),
 
                     const SizedBox(height: 16),
 
@@ -229,10 +255,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: _InformationCard(
                             icon: Icons.directions_car,
                             label: 'Vehículos',
-                            value: _cargando
-                                ? '...'
-                                : _totalVehiculos.toString(),
-                            iconColor: const Color(0xFF16A34A),
+                            value: _cargando ? '...' : _totalVehiculos.toString(),
+                            iconColor: colors.secondary,
                             onTap: () => _irRuta('/vehiculos'),
                           ),
                         ),
@@ -241,36 +265,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: _InformationCard(
                             icon: Icons.warning_rounded,
                             label: 'Alertas',
-                            value:
-                                _cargando ? '...' : _totalAlertas.toString(),
-                            iconColor: const Color(0xFFDC2626),
+                            value: _cargando ? '...' : _totalAlertas.toString(),
+                            iconColor: colors.error,
                             onTap: () => _irRuta('/seguridad'),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
 
-              Container(
-                color: lightGray,
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        'Servicios',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: darkGray,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 28),
+
+                    _tituloSeccion('Servicios'),
 
                     GridView.count(
                       crossAxisCount: 2,
@@ -282,25 +287,26 @@ class _HomeScreenState extends State<HomeScreen> {
                         _ServiceCard(
                           icon: Icons.person,
                           title: 'Perfil',
-                          backgroundColor: const Color(0xFF1D4ED8),
+                          backgroundColor: colors.primary,
                           onTap: () => _irRuta('/perfil'),
                         ),
                         _ServiceCard(
                           icon: Icons.directions_car,
                           title: 'Vehículos',
-                          backgroundColor: const Color(0xFF16A34A),
+                          backgroundColor: colors.secondary,
                           onTap: () => _irRuta('/vehiculos'),
                         ),
                         _ServiceCard(
                           icon: Icons.card_membership,
                           title: 'Membresías',
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: colors.tertiary,
                           onTap: () => _irRuta('/membresias'),
                         ),
                         _ServiceCard(
                           icon: Icons.receipt_long,
                           title: 'Historial',
-                          backgroundColor: const Color(0xFF0891B2),
+                          backgroundColor: colors.primaryContainer,
+                          iconForegroundColor: colors.onPrimaryContainer,
                           onTap: () => _irRuta('/pasos'),
                         ),
                       ],
@@ -312,7 +318,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.account_balance_wallet,
                       title: 'Billetera',
                       subtitle: 'Consulta tu saldo y realiza recargas',
-                      backgroundColor: const Color(0xFFF59E0B),
+                      backgroundColor: colors.secondaryContainer,
+                      iconForegroundColor: colors.onSecondaryContainer,
                       onTap: () => _irRuta('/billetera'),
                     ),
 
@@ -322,47 +329,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.security,
                       title: 'Centro de seguridad',
                       subtitle: 'Alertas de robo y monitoreo',
-                      backgroundColor: const Color(0xFFDC2626),
+                      backgroundColor: colors.errorContainer,
+                      iconForegroundColor: colors.onErrorContainer,
                       onTap: () => _irRuta('/seguridad'),
                     ),
 
                     const SizedBox(height: 20),
 
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: borderGray,
-                          width: 1,
-                        ),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: primaryBlue,
-                            size: 22,
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Desliza hacia abajo para actualizar tu saldo y resumen.',
-                              style: TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _notaActualizar(context),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -374,31 +352,30 @@ class _ServiceCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final Color backgroundColor;
+  final Color? iconForegroundColor;
   final VoidCallback onTap;
 
   const _ServiceCard({
     required this.icon,
     required this.title,
     required this.backgroundColor,
+    this.iconForegroundColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final foregroundColor = iconForegroundColor ?? backgroundColor;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFE2E8F0),
-              width: 1,
-            ),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -407,11 +384,11 @@ class _ServiceCard extends StatelessWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   color: backgroundColor.withAlpha(25),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
-                  color: backgroundColor,
+                  color: foregroundColor,
                   size: 28,
                 ),
               ),
@@ -419,10 +396,9 @@ class _ServiceCard extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                style: textTheme.titleSmall?.copyWith(
+                  color: colors.onSurface,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -450,40 +426,36 @@ class _InformationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: const Color(0xFFE2E8F0),
-              width: 1,
-            ),
-          ),
-          padding: const EdgeInsets.all(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: iconColor, size: 20),
+              Icon(
+                icon,
+                color: iconColor,
+                size: 22,
+              ),
               const SizedBox(height: 8),
               Text(
                 value,
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                style: textTheme.titleLarge?.copyWith(
+                  color: colors.onSurface,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 12,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -500,6 +472,7 @@ class _ExpandedServiceCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final Color backgroundColor;
+  final Color iconForegroundColor;
   final VoidCallback onTap;
 
   const _ExpandedServiceCard({
@@ -507,38 +480,33 @@ class _ExpandedServiceCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.backgroundColor,
+    required this.iconForegroundColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFE2E8F0),
-              width: 1,
-            ),
-          ),
+        child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  color: backgroundColor.withAlpha(25),
-                  borderRadius: BorderRadius.circular(10),
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
-                  color: backgroundColor,
+                  color: iconForegroundColor,
                   size: 24,
                 ),
               ),
@@ -549,27 +517,24 @@ class _ExpandedServiceCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.arrow_forward_ios,
-                color: Color(0xFFCBD5E1),
+                color: colors.outline,
                 size: 16,
               ),
             ],

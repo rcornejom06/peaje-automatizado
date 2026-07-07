@@ -1,4 +1,6 @@
 from decimal import Decimal
+
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +10,8 @@ from .models import PlanMembresia, Membresia
 from .serializers import PlanMembresiaSerializer, MembresiaSerializer
 from ..usuarios.permissions import obtener_rol_usuario
 from ..pagos.models import Billetera, Transaccion
+from ..vehiculos.models import Vehiculo
+
 
 class PlanMembresiaViewSet(viewsets.ModelViewSet):
     queryset = PlanMembresia.objects.all()
@@ -23,7 +27,7 @@ class PlanMembresiaViewSet(viewsets.ModelViewSet):
         if rol == 'administrador':
             return [IsAuthenticated()]
 
-        return[IsAuthenticated()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
@@ -63,12 +67,46 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["post"], url_path="comprar")
+    @transaction.atomic
     def comprar(self, request):
         plan_id = request.data.get("plan_id") or request.data.get("plan")
 
         if not plan_id:
             return Response(
                 {"error": "Debe enviar el plan_id."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        membresia_activa = Membresia.objects.select_for_update().filter(
+            usuario=request.user,
+            estado=Membresia.Estado.ACTIVA,
+            pases_restantes__gt=0,
+        ).exists()
+
+        if membresia_activa:
+            return Response(
+                {
+                    "error": "Ya tienes una membresía activa. No puedes adquirir otra hasta que finalice o se agoten sus pases."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        vehiculos_usuario = Vehiculo.objects.select_related("categoria").filter(
+            usuario=request.user,
+            estado=Vehiculo.Estado.ACTIVO,
+            estado_revision=Vehiculo.EstadoRevision.APROBADO,
+        )
+
+        tiene_vehiculo_apto = any(
+            vehiculo.categoria and vehiculo.categoria.aplica_membresia
+            for vehiculo in vehiculos_usuario
+        )
+
+        if not tiene_vehiculo_apto:
+            return Response(
+                {
+                    "error": "La membresía solo aplica para vehículos livianos o de hasta 4 ejes. Los vehículos extrapesados pagan directamente desde la billetera."
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -83,13 +121,19 @@ class MembresiaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        billetera, created = Billetera.objects.get_or_create(
+        billetera, created = Billetera.objects.select_for_update().get_or_create(
             usuario=request.user,
             defaults={
                 "saldo": Decimal("0.00"),
                 "estado": Billetera.Estado.ACTIVA
             }
         )
+
+        if billetera.estado != Billetera.Estado.ACTIVA:
+            return Response(
+                {"error": "La billetera no está activa."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if billetera.saldo < plan.precio:
             return Response(
@@ -102,7 +146,7 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             )
 
         billetera.saldo -= plan.precio
-        billetera.save()
+        billetera.save(update_fields=["saldo"])
 
         membresia = Membresia.objects.create(
             usuario=request.user,
@@ -133,3 +177,22 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_201_CREATED
         )
+
+    def _categoria_aplica_membresia(self, categoria):
+        if not categoria:
+            return False
+
+        nombre = (getattr(categoria, "nombre", "") or "").lower().strip()
+        tipo = (getattr(categoria, "tipo", "") or "").lower().strip()
+        ejes = getattr(categoria, "ejes", None)
+
+        if "extrapesado" in nombre or tipo == "extrapesado":
+            return False
+
+        if ejes is not None:
+            try:
+                return int(ejes) <= 4
+            except (TypeError, ValueError):
+                return False
+
+        return any(valor in nombre for valor in categorias_validas)
