@@ -128,6 +128,104 @@ class PeajeViewSet(viewsets.ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
+
+class CamaraViewSet(viewsets.ModelViewSet):
+    serializer_class = CamaraSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Camara.objects.all().order_by("codigo")
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="stream",
+        permission_classes=[AllowAny]
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="stream",
+        permission_classes=[AllowAny]
+    )
+    def stream(self, request, pk=None):
+        if not validar_token_stream(request):
+            return Response(
+                {"error": "Token no válido o no enviado."},
+                status=401
+            )
+
+        source_url = request.GET.get("source_url")
+
+        if source_url:
+            fuente = source_url
+        else:
+            camara = self.get_object()
+
+            if not camara.stream_url:
+                return Response(
+                    {"error": "La cámara no tiene una fuente de video configurada."},
+                    status=400
+                )
+
+            fuente = obtener_fuente_camara(camara)
+
+        captura = cv2.VideoCapture(fuente)
+
+        if not captura.isOpened():
+            captura.release()
+            return Response(
+                {
+                    "error": "No se pudo abrir la cámara.",
+                    "fuente": str(fuente),
+                },
+                status=400
+            )
+
+        return StreamingHttpResponse(
+            generar_frames_camara(captura),
+            content_type="multipart/x-mixed-replace; boundary=frame"
+        )
+
+    def create(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede crear cámaras."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede actualizar cámaras."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede eliminar cámaras."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+class PasoPeajeViewSet(viewsets.ModelViewSet):
+    serializer_class = PasoPeajeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        if rol in ["operador", "administrador"]:
+            return PasoPeaje.objects.all().order_by("-fecha_hora")
+
+        return PasoPeaje.objects.filter(
+            vehiculo__usuario=self.request.user
+        ).order_by("-fecha_hora")
+
     @transaction.atomic
     def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada):
 
@@ -299,104 +397,6 @@ class PeajeViewSet(viewsets.ModelViewSet):
             "aplica_membresia": aplica_membresia,
         }
 
-
-class CamaraViewSet(viewsets.ModelViewSet):
-    serializer_class = CamaraSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Camara.objects.all().order_by("codigo")
-
-    @action(
-        detail=True,
-        methods=["get"],
-        url_path="stream",
-        permission_classes=[AllowAny]
-    )
-    @action(
-        detail=True,
-        methods=["get"],
-        url_path="stream",
-        permission_classes=[AllowAny]
-    )
-    def stream(self, request, pk=None):
-        if not validar_token_stream(request):
-            return Response(
-                {"error": "Token no válido o no enviado."},
-                status=401
-            )
-
-        source_url = request.GET.get("source_url")
-
-        if source_url:
-            fuente = source_url
-        else:
-            camara = self.get_object()
-
-            if not camara.stream_url:
-                return Response(
-                    {"error": "La cámara no tiene una fuente de video configurada."},
-                    status=400
-                )
-
-            fuente = obtener_fuente_camara(camara)
-
-        captura = cv2.VideoCapture(fuente)
-
-        if not captura.isOpened():
-            captura.release()
-            return Response(
-                {
-                    "error": "No se pudo abrir la cámara.",
-                    "fuente": str(fuente),
-                },
-                status=400
-            )
-
-        return StreamingHttpResponse(
-            generar_frames_camara(captura),
-            content_type="multipart/x-mixed-replace; boundary=frame"
-        )
-
-    def create(self, request, *args, **kwargs):
-        if obtener_rol_usuario(request.user) != "administrador":
-            return Response(
-                {"error": "Solo el administrador puede crear cámaras."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        return super().create(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        if obtener_rol_usuario(request.user) != "administrador":
-            return Response(
-                {"error": "Solo el administrador puede actualizar cámaras."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        if obtener_rol_usuario(request.user) != "administrador":
-            return Response(
-                {"error": "Solo el administrador puede eliminar cámaras."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        return super().destroy(request, *args, **kwargs)
-
-
-class PasoPeajeViewSet(viewsets.ModelViewSet):
-    serializer_class = PasoPeajeSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        rol = obtener_rol_usuario(self.request.user)
-
-        if rol in ["operador", "administrador"]:
-            return PasoPeaje.objects.all().order_by("-fecha_hora")
-
-        return PasoPeaje.objects.filter(
-            vehiculo__usuario=self.request.user
-        ).order_by("-fecha_hora")
-
     def procesar_seguridad_automatica(self, paso, vehiculo, peaje):
         """
         Revisa si el vehículo tiene un aviso activo de robo.
@@ -564,6 +564,7 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
 
         vehiculo_aprobado = (
                 vehiculo is not None and
+                vehiculo.estado == Vehiculo.Estado.ACTIVO and
                 vehiculo.estado_revision == Vehiculo.EstadoRevision.APROBADO
         )
 

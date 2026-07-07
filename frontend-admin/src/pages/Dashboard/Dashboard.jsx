@@ -78,7 +78,7 @@ function Dashboard() {
     const datosPasos = useMemo(() => {
         return [
             {
-                nombre: "Total pasos",
+                nombre: "Total de pases registrados",
                 total: Number(resumen?.total_pasos || 0),
             },
             {
@@ -163,7 +163,7 @@ function Dashboard() {
             <div className="stats-grid">
                 <div className="stat-card primary">
                     <div className="stat-icon">🛣️</div>
-                    <span>Total de pasos</span>
+                    <span>Total de pases registrados</span>
                     <strong>{resumen?.total_pasos ?? 0}</strong>
                     <small>Registros procesados por el sistema</small>
                 </div>

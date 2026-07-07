@@ -6,6 +6,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
 from .models import PlanMembresia, Membresia
 from .serializers import PlanMembresiaSerializer, MembresiaSerializer
 from ..usuarios.permissions import obtener_rol_usuario
@@ -14,27 +15,62 @@ from ..vehiculos.models import Vehiculo
 
 
 class PlanMembresiaViewSet(viewsets.ModelViewSet):
-    queryset = PlanMembresia.objects.all()
     serializer_class = PlanMembresiaSerializer
     permission_classes = [IsAuthenticated]
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [IsAuthenticated()]
-
-        rol = obtener_rol_usuario(self.request.user)
-
-        if rol == 'administrador':
-            return [IsAuthenticated()]
-
-        return [IsAuthenticated()]
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
 
-        if rol == 'administrador':
+        if rol == "administrador":
             return PlanMembresia.objects.all().order_by("nombre")
-        return PlanMembresia.objects.filter(estado=PlanMembresia.Estado.ACTIVO).order_by("nombre")
+
+        return PlanMembresia.objects.filter(
+            estado=PlanMembresia.Estado.ACTIVO
+        ).order_by("nombre")
+
+    def create(self, request, *args, **kwargs):
+        rol = obtener_rol_usuario(request.user)
+
+        if rol != "administrador":
+            return Response(
+                {"error": "No tiene permisos para crear planes de membresía."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        rol = obtener_rol_usuario(request.user)
+
+        if rol != "administrador":
+            return Response(
+                {"error": "No tiene permisos para editar planes de membresía."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        rol = obtener_rol_usuario(request.user)
+
+        if rol != "administrador":
+            return Response(
+                {"error": "No tiene permisos para editar planes de membresía."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        rol = obtener_rol_usuario(request.user)
+
+        if rol != "administrador":
+            return Response(
+                {"error": "No tiene permisos para eliminar planes de membresía."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().destroy(request, *args, **kwargs)
 
 
 class MembresiaViewSet(viewsets.ModelViewSet):
@@ -43,9 +79,15 @@ class MembresiaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.request.user.is_staff or self.request.user.is_superuser:
-            return Membresia.objects.select_related("usuario", "plan").all().order_by("-fecha_creacion")
+            return Membresia.objects.select_related(
+                "usuario",
+                "plan"
+            ).all().order_by("-fecha_creacion")
 
-        return Membresia.objects.select_related("usuario", "plan").filter(
+        return Membresia.objects.select_related(
+            "usuario",
+            "plan"
+        ).filter(
             usuario=self.request.user
         ).order_by("-fecha_creacion")
 
@@ -58,10 +100,7 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         ).order_by("-fecha_creacion").first()
 
         if not membresia:
-            return Response(
-                {"mensaje": "No tiene membresía activa."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({}, status=status.HTTP_200_OK)
 
         serializer = self.get_serializer(membresia)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -75,6 +114,17 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": "Debe enviar el plan_id."},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            plan = PlanMembresia.objects.get(
+                id=plan_id,
+                estado=PlanMembresia.Estado.ACTIVO
+            )
+        except PlanMembresia.DoesNotExist:
+            return Response(
+                {"error": "El plan de membresía no existe o no está activo."},
+                status=status.HTTP_404_NOT_FOUND
             )
 
         membresia_activa = Membresia.objects.select_for_update().filter(
@@ -98,7 +148,7 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         )
 
         tiene_vehiculo_apto = any(
-            vehiculo.categoria and vehiculo.categoria.aplica_membresia
+            self._categoria_aplica_membresia(vehiculo.categoria)
             for vehiculo in vehiculos_usuario
         )
 
@@ -110,22 +160,11 @@ class MembresiaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            plan = PlanMembresia.objects.get(
-                id=plan_id,
-                estado=PlanMembresia.Estado.ACTIVO
-            )
-        except PlanMembresia.DoesNotExist:
-            return Response(
-                {"error": "El plan de membresía no existe o no está activo."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
         billetera, created = Billetera.objects.select_for_update().get_or_create(
             usuario=request.user,
             defaults={
                 "saldo": Decimal("0.00"),
-                "estado": Billetera.Estado.ACTIVA
+                "estado": Billetera.Estado.ACTIVA,
             }
         )
 
@@ -182,6 +221,9 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         if not categoria:
             return False
 
+        if hasattr(categoria, "aplica_membresia"):
+            return bool(categoria.aplica_membresia)
+
         nombre = (getattr(categoria, "nombre", "") or "").lower().strip()
         tipo = (getattr(categoria, "tipo", "") or "").lower().strip()
         ejes = getattr(categoria, "ejes", None)
@@ -194,5 +236,16 @@ class MembresiaViewSet(viewsets.ModelViewSet):
                 return int(ejes) <= 4
             except (TypeError, ValueError):
                 return False
+
+        categorias_validas = [
+            "liviano",
+            "auto",
+            "automovil",
+            "automóvil",
+            "camioneta",
+            "moto",
+            "motocicleta",
+            "pesado",
+        ]
 
         return any(valor in nombre for valor in categorias_validas)
