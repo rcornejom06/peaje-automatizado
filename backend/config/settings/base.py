@@ -1,6 +1,8 @@
 
 from decouple import config
 from pathlib import Path
+from datetime import timedelta
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,8 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='13051684135ed11fsr1gv35fds1vfes1-dev-key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-ALLOWED_HOSTS = []
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+ALLOWED_HOSTS = ['*','192.168.0.102']
 
 
 # Application definition
@@ -34,6 +36,16 @@ INSTALLED_APPS = [
     'corsheaders',
 
     #Local apps
+    # Local apps
+    "apps.usuarios.apps.UsuariosConfig",
+    "apps.vehiculos.apps.VehiculosConfig",
+    "apps.peajes.apps.PeajesConfig",
+    "apps.pagos.apps.PagosConfig",
+    "apps.membresias.apps.MembresiasConfig",
+    "apps.seguridad.apps.SeguridadConfig",
+    "apps.notificaciones.apps.NotificacionesConfig",
+    "apps.auditoria.apps.AuditoriaConfig",
+    "apps.reportes.apps.ReportesConfig",
 ]
 
 MIDDLEWARE = [
@@ -49,6 +61,12 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
 
 TEMPLATES = [
     {

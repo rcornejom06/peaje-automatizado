@@ -1,0 +1,599 @@
+.auditoria-page {
+    --primary: #1d4ed8;
+    --primary-dark: #1e40af;
+    --primary-deep: #0f2f6b;
+    --primary-soft: #eff6ff;
+
+    --success: #16a34a;
+    --success-soft: #dcfce7;
+    --success-text: #166534;
+
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --danger-text: #991b1b;
+
+    --warning: #d97706;
+    --warning-soft: #fef3c7;
+    --warning-text: #92400e;
+
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --text-soft: #94a3b8;
+
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    --bg-card: #ffffff;
+    --bg-page: #f8fafc;
+
+    --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 18px 45px rgba(15, 23, 42, 0.12);
+
+    --radius-md: 16px;
+    --radius-lg: 22px;
+    --radius-xl: 28px;
+
+    width: 100%;
+    min-height: 100%;
+    padding: 0;
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.auditoria-header {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 22px;
+    padding: 28px;
+    border-radius: var(--radius-xl);
+    background:
+        radial-gradient(circle at top right, rgba(96, 165, 250, 0.45), transparent 35%),
+        linear-gradient(135deg, #0f2f6b, #1d4ed8 55%, #2563eb);
+    color: #ffffff;
+    border: 1px solid rgba(191, 219, 254, 0.35);
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 0;
+}
+
+.auditoria-header::before {
+    content: "";
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    right: -110px;
+    top: -120px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.auditoria-header::after {
+    content: "";
+    position: absolute;
+    width: 170px;
+    height: 170px;
+    right: 130px;
+    bottom: -100px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.auditoria-header > div,
+.auditoria-header .btn-primary,
+.auditoria-header .btn-secondary {
+    position: relative;
+    z-index: 1;
+}
+
+.auditoria-header h2 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 31px;
+    font-weight: 950;
+    letter-spacing: -0.8px;
+}
+
+.auditoria-header p {
+    max-width: 720px;
+    margin: 10px 0 0;
+    color: #dbeafe;
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 500;
+}
+
+/* =========================
+   ERROR
+========================= */
+
+.auditoria-error {
+    position: relative;
+    background: var(--danger-soft);
+    color: var(--danger-text);
+    padding: 15px 16px 15px 46px;
+    border-radius: var(--radius-md);
+    border: 1px solid #fecaca;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.45;
+    box-shadow: var(--shadow-sm);
+}
+
+.auditoria-error::before {
+    content: "⚠️";
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+}
+
+/* =========================
+   RESUMEN
+========================= */
+
+.auditoria-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0;
+}
+
+.auditoria-summary div {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease;
+}
+
+.auditoria-summary div:hover {
+    transform: translateY(-2px);
+    border-color: #bfdbfe;
+    box-shadow: var(--shadow-lg);
+}
+
+.auditoria-summary div::after {
+    content: "";
+    position: absolute;
+    right: -42px;
+    top: -42px;
+    width: 120px;
+    height: 120px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+}
+
+.auditoria-summary span {
+    position: relative;
+    z-index: 1;
+    display: block;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.auditoria-summary strong {
+    position: relative;
+    z-index: 1;
+    display: block;
+    font-size: 30px;
+    font-weight: 950;
+    color: var(--text-main);
+    letter-spacing: -0.8px;
+}
+
+/* =========================
+   FILTROS
+========================= */
+
+.auditoria-filtros {
+    background: var(--bg-card);
+    padding: 22px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 0;
+}
+
+.auditoria-filtros .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.auditoria-filtros label {
+    font-size: 13px;
+    font-weight: 900;
+    color: #334155;
+}
+
+.auditoria-filtros input,
+.auditoria-filtros select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 13px;
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    outline: none;
+    color: var(--text-main);
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    box-sizing: border-box;
+    transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+}
+
+.auditoria-filtros input::placeholder {
+    color: var(--text-soft);
+}
+
+.auditoria-filtros input:hover,
+.auditoria-filtros select:hover {
+    border-color: #94a3b8;
+}
+
+.auditoria-filtros input:focus,
+.auditoria-filtros select:focus {
+    border-color: var(--primary);
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.auditoria-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* =========================
+   BOTONES
+========================= */
+
+.auditoria-page .btn-primary,
+.auditoria-page .btn-secondary {
+    width: auto;
+    min-height: 43px;
+    padding: 11px 17px;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 950;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease,
+        color 0.18s ease;
+}
+
+.auditoria-page .btn-primary {
+    background: linear-gradient(135deg, var(--primary), #2563eb);
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.25);
+}
+
+.auditoria-page .btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(37, 99, 235, 0.32);
+}
+
+.auditoria-page .btn-secondary {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid var(--border);
+}
+
+.auditoria-page .btn-secondary:hover {
+    background: var(--primary-soft);
+    color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* =========================
+   TABLA
+========================= */
+
+.auditoria-table-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    padding: 0;
+    box-shadow: var(--shadow-md);
+    overflow-x: auto;
+}
+
+.auditoria-table-card::before {
+    content: "Registro de auditoría";
+    display: block;
+    padding: 18px 20px;
+    color: var(--text-main);
+    font-size: 17px;
+    font-weight: 950;
+    letter-spacing: -0.3px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.auditoria-table-card table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+}
+
+.auditoria-table-card th,
+.auditoria-table-card td {
+    padding: 15px 18px;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.auditoria-table-card th {
+    color: #334155;
+    background: #f8fafc;
+    font-size: 12px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.auditoria-table-card td {
+    color: #475569;
+    font-weight: 650;
+}
+
+.auditoria-table-card tbody tr {
+    transition: background 0.16s ease;
+}
+
+.auditoria-table-card tbody tr:hover {
+    background: #f8fafc;
+}
+
+.auditoria-table-card tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.auditoria-table-card::-webkit-scrollbar {
+    height: 8px;
+}
+
+.auditoria-table-card::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.auditoria-table-card::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+
+.auditoria-table-card::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.descripcion-auditoria {
+    max-width: 380px;
+    color: #475569;
+    line-height: 1.45;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* =========================
+   ESTADOS
+========================= */
+
+.estado {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 102px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.estado::before {
+    content: "●";
+    margin-right: 7px;
+    font-size: 9px;
+}
+
+.estado.exitoso {
+    background: var(--success-soft);
+    color: var(--success-text);
+    border-color: #bbf7d0;
+}
+
+.estado.fallido {
+    background: var(--danger-soft);
+    color: var(--danger-text);
+    border-color: #fecaca;
+}
+
+.estado.pendiente {
+    background: var(--warning-soft);
+    color: var(--warning-text);
+    border-color: #fde68a;
+}
+
+/* =========================
+   PAGINACIÓN
+========================= */
+
+.auditoria-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 18px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    color: #475569;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.auditoria-pagination strong {
+    color: var(--text-main);
+    font-weight: 950;
+}
+
+.auditoria-pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.auditoria-pagination-buttons button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+    .auditoria-filtros {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .auditoria-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .auditoria-page {
+        gap: 18px;
+    }
+
+    .auditoria-header {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 22px;
+        border-radius: 22px;
+    }
+
+    .auditoria-header h2 {
+        font-size: 25px;
+    }
+
+    .auditoria-header p {
+        font-size: 13px;
+    }
+
+    .auditoria-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .auditoria-summary div {
+        padding: 18px;
+        border-radius: 18px;
+    }
+
+    .auditoria-filtros {
+        grid-template-columns: 1fr;
+        padding: 20px;
+        border-radius: 18px;
+    }
+
+    .auditoria-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .auditoria-page .btn-primary,
+    .auditoria-page .btn-secondary {
+        width: 100%;
+    }
+
+    .auditoria-table-card {
+        border-radius: 18px;
+    }
+
+    .auditoria-table-card::before {
+        padding: 16px;
+        font-size: 16px;
+    }
+
+    .auditoria-table-card th,
+    .auditoria-table-card td {
+        padding: 13px 14px;
+    }
+
+    .auditoria-pagination {
+        flex-direction: column;
+        align-items: stretch;
+        border-radius: 18px;
+    }
+
+    .auditoria-pagination-buttons {
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 480px) {
+    .auditoria-header {
+        padding: 20px;
+    }
+
+    .auditoria-header h2 {
+        font-size: 23px;
+    }
+
+    .auditoria-summary strong {
+        font-size: 27px;
+    }
+
+    .estado {
+        min-width: 94px;
+        padding: 6px 10px;
+        font-size: 11.5px;
+    }
+}
