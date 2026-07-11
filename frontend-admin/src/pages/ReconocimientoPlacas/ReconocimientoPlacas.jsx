@@ -1,11 +1,18 @@
 import {useEffect, useState} from "react";
 import "../Styles/ReconocimientoPlacas.css";
+import {QRCodeCanvas} from "qrcode.react";
+import {obtenerComprobantePaso} from "../../api/comprobantesService.js";
 
 function ReconocimientoPlacas() {
     const [estadoCamara, setEstadoCamara] = useState("cargando");
     const [ultimaDeteccion, setUltimaDeteccion] = useState(null);
     const [historial, setHistorial] = useState([]);
     const [errorServidor, setErrorServidor] = useState("");
+
+    const [detalleAbierto, setDetalleAbierto] = useState(false);
+    const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState(null);
+    const [cargandoComprobante, setCargandoComprobante] = useState(false);
+    const [errorComprobante, setErrorComprobante] = useState("");
 
     const cameraServerUrl = "http://localhost:5001";
     const cameraFeedUrl = `${cameraServerUrl}/video_feed`;
@@ -41,8 +48,73 @@ function ReconocimientoPlacas() {
         return () => clearInterval(intervalo);
     }, []);
 
+    const abrirDetalle = async (deteccion) => {
+        if (!deteccion) return;
+
+        const pasoId =
+            deteccion?.django?.paso_id ||
+            deteccion?.paso_id ||
+            deteccion?.id_paso ||
+            deteccion?.id;
+
+        if (!pasoId) {
+            setErrorComprobante("No se encontró el ID del paso para generar el comprobante.");
+            setComprobanteSeleccionado(null);
+            setDetalleAbierto(true);
+            return;
+        }
+
+        try {
+            setCargandoComprobante(true);
+            setErrorComprobante("");
+            setDetalleAbierto(true);
+
+            const data = await obtenerComprobantePaso(pasoId);
+            setComprobanteSeleccionado(data);
+        } catch (error) {
+            setErrorComprobante("No se pudo cargar el comprobante del paso.");
+            setComprobanteSeleccionado(null);
+        } finally {
+            setCargandoComprobante(false);
+        }
+    };
+
+    const cerrarDetalle = () => {
+        setDetalleAbierto(false);
+        setComprobanteSeleccionado(null);
+        setErrorComprobante("");
+    };
+
+    const formatearFecha = (fecha) => {
+        if (!fecha) return "Sin fecha";
+
+        try {
+            return new Date(fecha).toLocaleString();
+        } catch {
+            return fecha;
+        }
+    };
+
+    const formatearDinero = (valor) => {
+        const numero = Number(valor || 0);
+
+        if (Number.isNaN(numero)) {
+            return "$0.00";
+        }
+
+        return `$${numero.toFixed(2)}`;
+    };
+
+    const textoEstadoPago = (estado) => {
+        if (estado === "pagado") return "Pagado";
+        if (estado === "membresia") return "Pagado con Membresía";
+        if (estado === "pendiente") return "Pendiente";
+        if (estado === "fallido") return "Fallido";
+        return estado || "Sin estado";
+    };
+
     const obtenerClaseEstadoPago = (estadoPago) => {
-        if (estadoPago === "pagado" || estadoPago === "membresia") {
+        if (estadoPago === "Pagado" || estadoPago === "Pagado con membresia") {
             return "success";
         }
 
@@ -75,16 +147,32 @@ function ReconocimientoPlacas() {
             : "--";
     };
 
+    const obtenerTarifaNumerica = (deteccion) => {
+        return deteccion?.django?.tarifa_aplicada || 0;
+    };
+
     const obtenerVehiculoRegistrado = (deteccion) => {
-        if (deteccion?.django?.vehiculo_encontrado === true) {
+        if (deteccion?.django?.deteccion === true) {
             return "Sí";
         }
 
-        if (deteccion?.django?.vehiculo_encontrado === false) {
+        if (deteccion?.django?.deteccion === false) {
             return "No";
         }
 
         return "--";
+    };
+
+    const obtenerVehiculoTexto = (deteccion) => {
+        if (deteccion?.django?.vehiculo_encontrado === true) {
+            return "Vehículo registrado";
+        }
+
+        if (deteccion?.django?.vehiculo_encontrado === false) {
+            return "No registrado";
+        }
+
+        return "Sin información";
     };
 
     const obtenerDuplicado = (deteccion) => {
@@ -97,6 +185,57 @@ function ReconocimientoPlacas() {
         }
 
         return "--";
+    };
+
+    const obtenerIdPase = (deteccion) => {
+        return deteccion?.django?.paso_id || "Sin ID";
+    };
+
+    const obtenerPlaca = (deteccion) => {
+        return deteccion?.placa || deteccion?.django?.placa_detectada || "Sin placa";
+    };
+
+    const obtenerCamara = (deteccion) => {
+        return deteccion?.django?.camara || "Sin cámara";
+    };
+
+    const obtenerEstadoPago = (deteccion) => {
+        return (
+            deteccion?.estado_pago ||
+            deteccion?.django?.estado_pago ||
+            "pendiente"
+        );
+    };
+
+    const obtenerEstadoSeguridad = (deteccion) => {
+        return (
+            deteccion?.estado_vehiculo ||
+            deteccion?.django?.estado_seguridad ||
+            "normal"
+        );
+    };
+
+    const obtenerTextoSeguridad = (deteccion) => {
+        const estado = obtenerEstadoSeguridad(deteccion);
+
+        if (estado === "alerta") {
+            return "ALERTA";
+        }
+
+        if (estado === "normal" || estado === "sin_novedades") {
+            return "Normal";
+        }
+
+        return estado;
+    };
+
+    const obtenerObservacion = (deteccion) => {
+        return (
+            deteccion?.django?.pago?.mensaje ||
+            deteccion?.django?.seguridad?.mensaje ||
+            deteccion?.django?.mensaje ||
+            "Sin observaciones."
+        );
     };
 
     return (
@@ -131,10 +270,9 @@ function ReconocimientoPlacas() {
             </div>
 
             {errorServidor && (
-                <div className="server-warning">
-                    {errorServidor}
-                </div>
+                <div className="server-warning">{errorServidor}</div>
             )}
+
             {ultimaDeteccion?.estado_vehiculo === "alerta" && (
                 <div className="security-alert-banner">
                     🚨 Vehículo con aviso activo detectado. Alerta de seguridad generada.
@@ -205,10 +343,10 @@ function ReconocimientoPlacas() {
                                     <span>Estado de Pago</span>
                                     <strong
                                         className={obtenerClaseEstadoPago(
-                                            ultimaDeteccion?.estado_pago
+                                            obtenerEstadoPago(ultimaDeteccion)
                                         )}
                                     >
-                                        {ultimaDeteccion?.estado_pago || "--"}
+                                        {obtenerEstadoPago(ultimaDeteccion)}
                                     </strong>
                                 </div>
 
@@ -216,12 +354,10 @@ function ReconocimientoPlacas() {
                                     <span>Estado Seguridad</span>
                                     <strong
                                         className={obtenerClaseSeguridad(
-                                            ultimaDeteccion?.estado_vehiculo
+                                            obtenerEstadoSeguridad(ultimaDeteccion)
                                         )}
                                     >
-                                        {ultimaDeteccion?.estado_vehiculo === "alerta"
-                                            ? "ALERTA"
-                                            : ultimaDeteccion?.estado_vehiculo || "Sin novedades"}
+                                        {obtenerTextoSeguridad(ultimaDeteccion)}
                                     </strong>
                                 </div>
 
@@ -235,12 +371,11 @@ function ReconocimientoPlacas() {
                                     <strong>{obtenerTarifaDeteccion(ultimaDeteccion)}</strong>
                                 </div>
 
-
-
                                 <div>
                                     <span>Duplicado</span>
                                     <strong>{obtenerDuplicado(ultimaDeteccion)}</strong>
                                 </div>
+
                                 <div>
                                     <span>Alerta Generada</span>
                                     <strong
@@ -250,16 +385,22 @@ function ReconocimientoPlacas() {
                                                 : "success"
                                         }
                                     >
-                                        {ultimaDeteccion?.django?.seguridad?.alerta_generada ? "Sí" : "No"}
+                                        {ultimaDeteccion?.django?.seguridad?.alerta_generada
+                                            ? "Sí"
+                                            : "No"}
                                     </strong>
                                 </div>
-
-
                             </div>
 
                             <div className="plate-actions">
-                                <button className="btn-detail">Ver Detalle</button>
-                                <button className="btn-print">🖨️</button>
+                                <button
+                                    className="btn-detail"
+                                    onClick={() => abrirDetalle(ultimaDeteccion)}
+                                    disabled={!ultimaDeteccion}
+                                >
+                                    Ver detalle
+                                </button>
+
                             </div>
                         </div>
                     </div>
@@ -331,23 +472,26 @@ function ReconocimientoPlacas() {
                                         <td>{item.placa}</td>
                                         <td>{obtenerPeajeDeteccion(item)}</td>
                                         <td>{item.confianza}%</td>
-                                        <td>{item.estado_pago}</td>
+                                        <td>{obtenerEstadoPago(item)}</td>
                                         <td>
-                                        <span
-                                            className={
-                                                item.estado_vehiculo === "alerta"
-                                                    ? "history-status danger"
-                                                    : "history-status success"
-                                                      }
-                                                    >
-                                                      {item.estado_vehiculo === "alerta" ? "ALERTA" : "Normal"}
-                                            </span>
+                        <span
+                            className={
+                                obtenerEstadoSeguridad(item) === "alerta"
+                                    ? "history-status danger"
+                                    : "history-status success"
+                            }
+                        >
+                          {obtenerTextoSeguridad(item)}
+                        </span>
                                         </td>
                                         <td>{obtenerTarifaDeteccion(item)}</td>
                                         <td>{obtenerVehiculoRegistrado(item)}</td>
                                         <td>{obtenerDuplicado(item)}</td>
                                         <td>
-                                            <button className="table-action-btn">
+                                            <button
+                                                className="table-action-btn"
+                                                onClick={() => abrirDetalle(item)}
+                                            >
                                                 Ver
                                             </button>
                                         </td>
@@ -355,15 +499,128 @@ function ReconocimientoPlacas() {
                                 ))
                         ) : (
                             <tr>
-                                <td colSpan="10">
-                                    Esperando detecciones reales...
-                                </td>
+                                <td colSpan="10">Esperando detecciones reales...</td>
                             </tr>
                         )}
                         </tbody>
                     </table>
                 </div>
             </section>
+            {detalleAbierto && (
+                <div className="receipt-overlay" onClick={cerrarDetalle}>
+                    <div className="receipt-ticket" onClick={(e) => e.stopPropagation()}>
+                        <button className="ticket-close" onClick={cerrarDetalle}>
+                            ×
+                        </button>
+
+                        {cargandoComprobante ? (
+                            <div className="ticket-loading">
+                                <strong>Cargando comprobante...</strong>
+                            </div>
+                        ) : errorComprobante ? (
+                            <div className="ticket-loading">
+                                <strong>{errorComprobante}</strong>
+                            </div>
+                        ) : comprobanteSeleccionado ? (
+                            <>
+                                <div className="thermal-header">
+                                    <h3>{comprobanteSeleccionado.peaje || "PEAJE"}</h3>
+                                    <p>{comprobanteSeleccionado.empresa}</p>
+                                    <p>{comprobanteSeleccionado.documento}</p>
+                                </div>
+
+                                <div className="thermal-separator"/>
+
+                                <div className="thermal-body">
+                                    <div className="thermal-line">
+                                        <span>Ticket:</span>
+                                        <strong>{comprobanteSeleccionado.ticket}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Placa:</span>
+                                        <strong>{comprobanteSeleccionado.placa}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Carril:</span>
+                                        <strong>{comprobanteSeleccionado.carril}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Categoría:</span>
+                                        <strong>{comprobanteSeleccionado.categoria}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Cliente:</span>
+                                        <strong>{comprobanteSeleccionado.tipo_cliente}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Forma de pago:</span>
+                                        <strong>{comprobanteSeleccionado.metodo_pago}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Vehículo:</span>
+                                        <strong>{comprobanteSeleccionado.vehiculo}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Usuario:</span>
+                                        <strong>{comprobanteSeleccionado.usuario}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Fecha:</span>
+                                        <strong>{formatearFecha(comprobanteSeleccionado.fecha_hora)}</strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Estado pago:</span>
+                                        <strong className={`ticket-status ${comprobanteSeleccionado.estado_pago}`}>
+                                            {textoEstadoPago(comprobanteSeleccionado.estado_pago)}
+                                        </strong>
+                                    </div>
+
+                                    <div className="thermal-line">
+                                        <span>Seguridad:</span>
+                                        <strong>{comprobanteSeleccionado.estado_seguridad}</strong>
+                                    </div>
+
+                                    <div className="thermal-total">
+                                        <span>Valor:</span>
+                                        <strong>{formatearDinero(comprobanteSeleccionado.valor)}</strong>
+                                    </div>
+
+                                    <div className="thermal-observation">
+                                        <span>Observación:</span>
+                                        <p>{comprobanteSeleccionado.observacion}</p>
+                                    </div>
+                                </div>
+
+                                <div className="thermal-separator"/>
+
+                                <div className="thermal-qr">
+                                    <QRCodeCanvas
+                                        value={comprobanteSeleccionado.codigo_qr || comprobanteSeleccionado.ticket}
+                                        size={150}
+                                        level="M"
+                                        includeMargin
+                                    />
+                                </div>
+
+                                <div className="thermal-footer">
+                                    <p>Gracias por utilizar el sistema de peaje automatizado.</p>
+                                    <small>Documento generado electrónicamente</small>
+                                </div>
+                            </>
+                        ) : null}
+                    </div>
+                </div>
+
+            )}
         </div>
     );
 }

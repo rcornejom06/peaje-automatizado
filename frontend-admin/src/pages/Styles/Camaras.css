@@ -1,49 +1,106 @@
-.camaras-page {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
+:root {
+  --primary: #1d4ed8;
+  --primary-dark: #1e40af;
+  --primary-soft: #eff6ff;
+
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --bg-card: #ffffff;
+
+  --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 18px 45px rgba(15, 23, 42, 0.12);
+
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
 }
 
-/* HEADER */
+.camaras-page {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: var(--text-main);
+}
+
+/* =========================
+   HEADER
+========================= */
 
 .camaras-header {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  padding: 24px;
-  border-radius: 22px;
+  gap: 22px;
+  padding: 28px;
+  border-radius: var(--radius-xl);
   background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.97), rgba(30, 64, 175, 0.94)),
-    radial-gradient(circle at top right, rgba(96, 165, 250, 0.5), transparent 34%);
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.45), transparent 35%),
+    linear-gradient(135deg, #0f2f6b, #1d4ed8 55%, #2563eb);
   color: white;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
-  position: relative;
-  overflow: hidden;
+  border: 1px solid rgba(191, 219, 254, 0.35);
+  box-shadow: var(--shadow-lg);
+}
+
+.camaras-header::before {
+  content: "";
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  right: -110px;
+  top: -120px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .camaras-header::after {
   content: "";
   position: absolute;
-  right: -70px;
-  top: -80px;
-  width: 220px;
-  height: 220px;
+  width: 170px;
+  height: 170px;
+  right: 130px;
+  bottom: -100px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
 }
 
+.camaras-header > div,
+.camaras-actions {
+  position: relative;
+  z-index: 1;
+}
+
 .camaras-header h2 {
   margin: 0;
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: -0.6px;
+  font-size: 31px;
+  font-weight: 950;
+  letter-spacing: -0.8px;
 }
 
 .camaras-header p {
-  margin: 8px 0 0;
+  max-width: 720px;
+  margin: 10px 0 0;
   color: #dbeafe;
   font-size: 14px;
+  line-height: 1.6;
   font-weight: 500;
 }
 
@@ -51,96 +108,140 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  position: relative;
-  z-index: 1;
+  flex-wrap: wrap;
 }
 
-/* BUTTONS */
+/* =========================
+   BUTTONS
+========================= */
 
 .btn-primary,
 .btn-secondary {
+  width: auto;
+  min-height: 43px;
   border: none;
   border-radius: 14px;
-  padding: 11px 15px;
+  padding: 11px 17px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 900;
-  transition: all 0.2s ease;
+  letter-spacing: 0.1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: linear-gradient(135deg, var(--primary), #2563eb);
   color: white;
-  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
 }
 
 .btn-primary:hover {
-  background: #1d4ed8;
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.34);
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.24);
   backdrop-filter: blur(10px);
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
 }
 
-/* ALERTS */
+.btn-primary:active,
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* =========================
+   ALERTS
+========================= */
 
 .camaras-error,
 .camaras-success {
-  padding: 14px 16px;
-  border-radius: 16px;
+  position: relative;
+  padding: 15px 16px 15px 46px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 800;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+  line-height: 1.45;
+  box-shadow: var(--shadow-sm);
+}
+
+.camaras-error::before,
+.camaras-success::before {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
 }
 
 .camaras-error {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--danger-soft);
+  color: #991b1b;
   border: 1px solid #fecaca;
 }
 
-.camaras-success {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+.camaras-error::before {
+  content: "⚠️";
 }
 
-/* FORM CARD */
+.camaras-success {
+  background: var(--success-soft);
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.camaras-success::before {
+  content: "✅";
+}
+
+/* =========================
+   FORM CARD
+========================= */
 
 .form-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 22px;
-  padding: 22px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
 }
 
 .form-card h3 {
-  margin: 0 0 18px;
-  color: #0f172a;
+  margin: 0 0 20px;
+  color: var(--text-main);
   font-size: 21px;
-  font-weight: 900;
-  letter-spacing: -0.4px;
+  font-weight: 950;
+  letter-spacing: -0.5px;
 }
 
 .camara-form {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px 20px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 
 .form-group label {
@@ -152,25 +253,36 @@
 .form-group input,
 .form-group select {
   width: 100%;
-  border: 1px solid #e2e8f0;
+  min-height: 46px;
+  border: 1px solid var(--border-strong);
   border-radius: 14px;
   padding: 11px 13px;
   outline: none;
   background: #ffffff;
-  color: #0f172a;
+  color: var(--text-main);
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  box-sizing: border-box;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .form-group input::placeholder {
-  color: #94a3b8;
+  color: var(--text-soft);
+}
+
+.form-group input:hover,
+.form-group select:hover {
+  border-color: #94a3b8;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: var(--primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
 .form-buttons {
@@ -178,14 +290,28 @@
   align-items: flex-end;
 }
 
-/* TABLE CARD */
+/* =========================
+   TABLE CARD
+========================= */
 
 .camaras-table-card {
   overflow-x: auto;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 22px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.camaras-table-card::before {
+  content: "Listado de cámaras";
+  display: block;
+  padding: 18px 20px;
+  color: var(--text-main);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.3px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
 }
 
 .camaras-table-card table {
@@ -198,20 +324,26 @@
   background: #f8fafc;
   color: #334155;
   text-align: left;
-  padding: 15px 16px;
+  padding: 15px 18px;
   font-size: 12px;
+  font-weight: 950;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-bottom: 1px solid #e2e8f0;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 
 .camaras-table-card td {
-  padding: 15px 16px;
+  padding: 15px 18px;
   color: #334155;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+}
+
+.camaras-table-card tbody tr {
+  transition: background 0.16s ease;
 }
 
 .camaras-table-card tbody tr:hover {
@@ -223,65 +355,153 @@
 }
 
 .camaras-table-card td:first-child {
-  color: #64748b;
+  color: var(--text-muted);
   font-weight: 900;
 }
 
 .camaras-table-card td:nth-child(2) {
-  color: #0f172a;
+  color: var(--text-main);
   font-weight: 900;
 }
 
-/* ESTADOS */
+.camaras-table-card::-webkit-scrollbar {
+  height: 8px;
+}
 
-.estado {
+.camaras-table-card::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.camaras-table-card::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.camaras-table-card::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* =========================
+   ESTADOS
+========================= */
+
+.estado,
+.estado-activa,
+.estado-inactiva,
+.estado-mantenimiento {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 104px;
+  min-width: 108px;
   border-radius: 999px;
-  padding: 6px 11px;
+  padding: 7px 12px;
   font-size: 12px;
   font-weight: 900;
   text-transform: capitalize;
+  border: 1px solid transparent;
+  letter-spacing: 0.2px;
 }
 
 .estado-activa {
-  background: #dcfce7;
+  background: var(--success-soft);
   color: #166534;
+  border-color: #bbf7d0;
 }
 
 .estado-inactiva {
-  background: #fee2e2;
+  background: var(--danger-soft);
   color: #991b1b;
+  border-color: #fecaca;
 }
 
 .estado-mantenimiento {
-  background: #fef3c7;
+  background: var(--warning-soft);
   color: #92400e;
+  border-color: #fde68a;
 }
 
-/* LOADING */
+.estado-activa::before,
+.estado-inactiva::before,
+.estado-mantenimiento::before {
+  content: "●";
+  margin-right: 7px;
+  font-size: 9px;
+}
+
+/* =========================
+   LOADING / TEXTOS SUELTOS
+========================= */
 
 .camaras-page > h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-main);
   font-size: 28px;
-  font-weight: 900;
+  font-weight: 950;
+  letter-spacing: -0.6px;
 }
 
 .camaras-page > p {
   width: fit-content;
-  padding: 14px 16px;
-  border-radius: 16px;
+  padding: 15px 17px;
+  border-radius: var(--radius-md);
   background: white;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
   font-weight: 800;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
-/* RESPONSIVE */
+/* =========================
+   BOTONES EN TABLA, SI EXISTEN
+========================= */
+
+.acciones,
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-icon,
+.btn-editar,
+.btn-eliminar,
+.btn-ver {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.btn-icon:hover,
+.btn-editar:hover,
+.btn-ver:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-eliminar:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
 
 @media (max-width: 1100px) {
   .camara-form {
@@ -290,13 +510,22 @@
 }
 
 @media (max-width: 760px) {
+  .camaras-page {
+    gap: 18px;
+  }
+
   .camaras-header {
     flex-direction: column;
-    padding: 20px;
+    padding: 22px;
+    border-radius: 22px;
   }
 
   .camaras-header h2 {
-    font-size: 24px;
+    font-size: 25px;
+  }
+
+  .camaras-header p {
+    font-size: 13px;
   }
 
   .camaras-actions {
@@ -309,11 +538,52 @@
     width: 100%;
   }
 
+  .form-card {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
   .camara-form {
     grid-template-columns: 1fr;
   }
 
   .form-buttons {
     align-items: stretch;
+  }
+
+  .camaras-table-card {
+    border-radius: 18px;
+  }
+
+  .camaras-table-card::before {
+    padding: 16px;
+    font-size: 16px;
+  }
+
+  .camaras-table-card th,
+  .camaras-table-card td {
+    padding: 13px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .camaras-header {
+    padding: 20px;
+  }
+
+  .camaras-header h2 {
+    font-size: 23px;
+  }
+
+  .form-card h3 {
+    font-size: 19px;
+  }
+
+  .estado,
+  .estado-activa,
+  .estado-inactiva,
+  .estado-mantenimiento {
+    min-width: 96px;
+    padding: 6px 10px;
   }
 }

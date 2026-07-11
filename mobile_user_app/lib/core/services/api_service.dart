@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-
 import '../constants/api_config.dart';
+import '../models/comprobante_paso.dart';
 import 'storage_service.dart';
 
 class ApiService {
@@ -32,17 +32,16 @@ class ApiService {
     return headers;
   }
 
-  Future<dynamic> get(
-    String endpoint, {
+  Future<dynamic> get(String endpoint, {
     Map<String, String>? queryParams,
     bool requiereAuth = true,
   }) async {
     try {
       final response = await http
           .get(
-            _buildUri(endpoint, queryParams),
-            headers: await _headers(requiereAuth: requiereAuth),
-          )
+        _buildUri(endpoint, queryParams),
+        headers: await _headers(requiereAuth: requiereAuth),
+      )
           .timeout(const Duration(seconds: 15));
 
       return _procesarRespuesta(response);
@@ -53,18 +52,17 @@ class ApiService {
     }
   }
 
-  Future<dynamic> post(
-    String endpoint, {
+  Future<dynamic> post(String endpoint, {
     Map<String, dynamic>? body,
     bool requiereAuth = true,
   }) async {
     try {
       final response = await http
           .post(
-            _buildUri(endpoint),
-            headers: await _headers(requiereAuth: requiereAuth),
-            body: jsonEncode(body ?? {}),
-          )
+        _buildUri(endpoint),
+        headers: await _headers(requiereAuth: requiereAuth),
+        body: jsonEncode(body ?? {}),
+      )
           .timeout(const Duration(seconds: 15));
 
       return _procesarRespuesta(response);
@@ -75,18 +73,17 @@ class ApiService {
     }
   }
 
-  Future<dynamic> patch(
-    String endpoint, {
+  Future<dynamic> patch(String endpoint, {
     Map<String, dynamic>? body,
     bool requiereAuth = true,
   }) async {
     try {
       final response = await http
           .patch(
-            _buildUri(endpoint),
-            headers: await _headers(requiereAuth: requiereAuth),
-            body: jsonEncode(body ?? {}),
-          )
+        _buildUri(endpoint),
+        headers: await _headers(requiereAuth: requiereAuth),
+        body: jsonEncode(body ?? {}),
+      )
           .timeout(const Duration(seconds: 15));
 
       return _procesarRespuesta(response);
@@ -95,6 +92,16 @@ class ApiService {
     } catch (e) {
       throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  Future<ComprobantePaso> obtenerComprobantePaso(int pasoId) async {
+    final data = await get('/peajes/pasos-peaje/$pasoId/comprobante/');
+
+    if (data is Map<String, dynamic>) {
+      return ComprobantePaso.fromJson(data);
+    }
+
+    return ComprobantePaso.fromJson(Map<String, dynamic>.from(data));
   }
 
   dynamic _procesarRespuesta(http.Response response) {
@@ -155,7 +162,9 @@ class ApiService {
           return value.first.toString();
         }
 
-        if (value is String && value.trim().isNotEmpty) {
+        if (value is String && value
+            .trim()
+            .isNotEmpty) {
           return value;
         }
 
@@ -185,7 +194,9 @@ class ApiService {
           return item.first.toString();
         }
 
-        if (item is String && item.trim().isNotEmpty) {
+        if (item is String && item
+            .trim()
+            .isNotEmpty) {
           return item;
         }
       }

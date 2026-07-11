@@ -9,6 +9,8 @@ import {
     obtenerUsoMembresias,
 } from "../../api/reportesService";
 import "../Styles/Reportes.css";
+import ModuleHeader from "../../components/ModuleHeader/ModuleHeader";
+
 
 function Reportes() {
     const [tab, setTab] = useState("recaudacion");
@@ -196,7 +198,6 @@ function Reportes() {
         ]);
 
 
-
         agregarHoja(workbook, "Uso membresías", [
             {
                 "Pasos cubiertos por membresía": valorSeguro(
@@ -224,26 +225,29 @@ function Reportes() {
 
     return (
         <div className="reportes-page">
-            <div className="reportes-header">
-                <div>
-                    <h2>Reportes</h2>
-                    <p>Indicadores y estadísticas del sistema de peaje automatizado.</p>
-                </div>
+            <ModuleHeader
+                icon="📈"
+                title="Reportes del sistema"
+                subtitle="Genera reportes operativos, financieros y de uso del sistema."
+                badge="Analítica"
+                status="Datos actualizados"
+                actions={
+                    <>
+                        <button className="btn-primary" onClick={descargarReporteExcel}>
+                            Descargar reporte completo
+                        </button>
+                        <button
+                            className="btn-secondary"
+                            onClick={() => cargarReportes()}
+                        >
+                            Actualizar reportes
+                        </button>
 
-                <div className="reportes-header-actions">
-                    <button className="btn-secondary" onClick={() => cargarReportes()}>
-                        Actualizar
-                    </button>
+                    </>
 
-                    <button
-                        className="btn-primary"
-                        onClick={descargarReporteExcel}
-                        disabled={cargando}
-                    >
-                        Descargar Excel
-                    </button>
-                </div>
-            </div>
+                }
+
+            />
 
             {error && <div className="reportes-error">{error}</div>}
 

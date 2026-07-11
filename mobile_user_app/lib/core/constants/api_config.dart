@@ -1,7 +1,7 @@
 class ApiConfig {
   //static const String baseUrl = 'http://localhost:8000/api';
-  //static const String baseUrl = 'http://192.168.0.107:8000/api';
-  static const String baseUrl = 'http://192.168.1.117:8000/api';
+  static const String baseUrl = 'http://192.168.0.105:8000/api';
+  //static const String baseUrl = 'http://192.168.1.117:8000/api';
 
   static const String token = '/auth/token/';
   static const String tokenRefresh = '/auth/token/refresh/';

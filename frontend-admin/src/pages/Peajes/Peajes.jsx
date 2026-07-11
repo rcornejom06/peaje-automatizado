@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { obtenerPeajes, crearPeaje } from "../../api/peajeService.js";
+import ModuleHeader from "../../components/ModuleHeader/ModuleHeader";
 import "../Styles/Peajes.css";
 
 function Peajes() {
@@ -28,7 +29,7 @@ function Peajes() {
 
       if (Array.isArray(data)) {
         setPeajes(data);
-      } else if (data.results) {
+      } else if (data?.results) {
         setPeajes(data.results);
       } else {
         setPeajes([]);
@@ -43,6 +44,17 @@ function Peajes() {
   useEffect(() => {
     cargarPeajes();
   }, []);
+
+  const abrirFormulario = () => {
+    setError("");
+    setMensaje("");
+    setMostrarFormulario(true);
+  };
+
+  const cerrarFormulario = () => {
+    setMostrarFormulario(false);
+    limpiarFormulario();
+  };
 
   const handleChange = (e) => {
     setFormulario({
@@ -89,41 +101,34 @@ function Peajes() {
     }
   };
 
-  if (cargando) {
-    return (
-      <div className="peajes-page">
-        <h2>Gestión de Peajes</h2>
-        <p>Cargando peajes...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="peajes-page">
-      <div className="peajes-header">
-        <div>
-          <h2>Gestión de Peajes</h2>
-          <p>
-            Administración de puntos de peaje, ubicación, coordenadas y estado
-            operativo. Las tarifas se gestionan por categoría de vehículo.
-          </p>
-        </div>
+      <ModuleHeader
+        icon="🛣️"
+        title="Gestión de peajes"
+        subtitle="Administra estaciones, ubicaciones y estado operativo de cada peaje."
+        badge="Módulo de peajes"
+        status="Sistema activo"
+        actions={
+          <>
+            <button
+              className="module-header-primary"
+              onClick={mostrarFormulario ? cerrarFormulario : abrirFormulario}
+            >
+              {mostrarFormulario ? "Cancelar" : "+ Nuevo peaje"}
+            </button>
 
-        <div className="peajes-actions">
-          <button className="btn-secondary" onClick={cargarPeajes}>
-            Actualizar
-          </button>
+            <button className="module-header-secondary" onClick={cargarPeajes}>
+              Actualizar
+            </button>
+          </>
+        }
+      />
 
-          <button
-            className="btn-primary"
-            onClick={() => setMostrarFormulario(!mostrarFormulario)}
-          >
-            {mostrarFormulario ? "Cancelar" : "Nuevo peaje"}
-          </button>
-        </div>
-      </div>
+      {cargando && <p className="peajes-loading">Cargando peajes...</p>}
 
       {error && <div className="peajes-error">{error}</div>}
+
       {mensaje && <div className="peajes-success">{mensaje}</div>}
 
       {mostrarFormulario && (
@@ -208,6 +213,14 @@ function Peajes() {
               <button type="submit" className="btn-primary">
                 Guardar peaje
               </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={cerrarFormulario}
+              >
+                Cancelar
+              </button>
             </div>
           </form>
         </div>
@@ -223,8 +236,6 @@ function Peajes() {
         <table>
           <thead>
             <tr>
-
-
               <th>Nombre</th>
               <th>Ciudad</th>
               <th>Ubicación</th>
@@ -234,10 +245,9 @@ function Peajes() {
           </thead>
 
           <tbody>
-            {peajes.length > 0 ? (
+            {!cargando && peajes.length > 0 ? (
               peajes.map((peaje) => (
                 <tr key={peaje.id}>
-
                   <td>{peaje.nombre}</td>
                   <td>{peaje.ciudad}</td>
                   <td>{peaje.ubicacion}</td>
@@ -251,11 +261,11 @@ function Peajes() {
                   </td>
                 </tr>
               ))
-            ) : (
+            ) : !cargando ? (
               <tr>
-                <td colSpan="6">No existen peajes registrados.</td>
+                <td colSpan="5">No existen peajes registrados.</td>
               </tr>
-            )}
+            ) : null}
           </tbody>
         </table>
       </div>

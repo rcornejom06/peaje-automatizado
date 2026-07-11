@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/services/paso_peaje_service.dart';
+import 'comprobante_paso_screen.dart';
 
 class PasosScreen extends StatefulWidget {
   const PasosScreen({super.key});
@@ -65,6 +66,39 @@ class _PasosScreenState extends State<PasosScreen>
     }
   }
 
+  int? _obtenerPasoId(dynamic paso) {
+    if (paso is! Map) return null;
+
+    final valor = paso['id'] ?? paso['id_paso'] ?? paso['paso_id'];
+
+    if (valor is int) return valor;
+
+    return int.tryParse(valor?.toString() ?? '');
+  }
+
+  void _abrirComprobante(dynamic paso) {
+    final pasoId = _obtenerPasoId(paso);
+
+    if (pasoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se encontró el ID del paso.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ComprobantePasoScreen(
+              pasoId: pasoId,
+            ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _refreshController.dispose();
@@ -72,7 +106,10 @@ class _PasosScreenState extends State<PasosScreen>
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor.toString().trim().isEmpty) {
+    if (valor == null || valor
+        .toString()
+        .trim()
+        .isEmpty) {
       return 'Sin dato';
     }
 
@@ -171,8 +208,12 @@ class _PasosScreenState extends State<PasosScreen>
   }
 
   Widget _errorView(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Center(
       child: Padding(
@@ -220,8 +261,12 @@ class _PasosScreenState extends State<PasosScreen>
   }
 
   Widget _emptyView(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       child: Padding(
@@ -257,15 +302,21 @@ class _PasosScreenState extends State<PasosScreen>
   Widget _tituloSeccion(String titulo) {
     return Text(
       titulo,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+      style: Theme
+          .of(context)
+          .textTheme
+          .titleMedium
+          ?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
 
     final total = _pasos.length;
     final pagados = _pasos
@@ -274,13 +325,13 @@ class _PasosScreenState extends State<PasosScreen>
     final membresia = _pasos
         .where(
           (p) => p['estado_pago']?.toString().toLowerCase() == 'membresia',
-        )
+    )
         .length;
     final alertas = _pasos
         .where(
           (p) =>
-              p['estado_seguridad']?.toString().toLowerCase() == 'alerta',
-        )
+      p['estado_seguridad']?.toString().toLowerCase() == 'alerta',
+    )
         .length;
 
     return Scaffold(
@@ -299,99 +350,104 @@ class _PasosScreenState extends State<PasosScreen>
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
           : _error.isNotEmpty
-              ? _errorView(context)
-              : RefreshIndicator(
-                  onRefresh: _cargarPasos,
-                  child: SafeArea(
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 720),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _tituloSeccion('Resumen'),
+          ? _errorView(context)
+          : RefreshIndicator(
+        onRefresh: _cargarPasos,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _tituloSeccion('Resumen'),
 
-                              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                              GridView.count(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                children: [
-                                  _ResumenCard(
-                                    icon: Icons.receipt_long,
-                                    label: 'Total de pasos',
-                                    value: total.toString(),
-                                    color: colors.primary,
-                                  ),
-                                  _ResumenCard(
-                                    icon: Icons.check_circle,
-                                    label: 'Pagados',
-                                    value: pagados.toString(),
-                                    color: colors.secondary,
-                                  ),
-                                  _ResumenCard(
-                                    icon: Icons.card_membership,
-                                    label: 'Por membresía',
-                                    value: membresia.toString(),
-                                    color: colors.primary,
-                                  ),
-                                  _ResumenCard(
-                                    icon: Icons.warning_rounded,
-                                    label: 'Alertas',
-                                    value: alertas.toString(),
-                                    color: colors.error,
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 28),
-
-                              _tituloSeccion('Últimos pasos'),
-
-                              const SizedBox(height: 16),
-
-                              if (_pasos.isEmpty)
-                                _emptyView(context)
-                              else
-                                Column(
-                                  children: _pasos.asMap().entries.map((entry) {
-                                    final paso = entry.value;
-                                    final index = entry.key;
-                                    final isLast = index == _pasos.length - 1;
-
-                                    return Column(
-                                      children: [
-                                        _PasoCard(
-                                          paso: paso,
-                                          dinero: _dinero,
-                                          texto: _texto,
-                                          fecha: _fecha,
-                                          obtenerPeaje: _obtenerPeaje,
-                                          obtenerCamara: _obtenerCamara,
-                                          colorEstadoPago: _colorEstadoPago,
-                                          colorEstadoSeguridad:
-                                              _colorEstadoSeguridad,
-                                          iconoEstadoPago: _iconoEstadoPago,
-                                        ),
-                                        if (!isLast)
-                                          const SizedBox(height: 12),
-                                      ],
-                                    );
-                                  }).toList(),
-                                ),
-                            ],
-                          ),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _ResumenCard(
+                          icon: Icons.receipt_long,
+                          label: 'Total de pasos',
+                          value: total.toString(),
+                          color: colors.primary,
                         ),
-                      ),
+                        _ResumenCard(
+                          icon: Icons.check_circle,
+                          label: 'Pagados',
+                          value: pagados.toString(),
+                          color: colors.secondary,
+                        ),
+                        _ResumenCard(
+                          icon: Icons.card_membership,
+                          label: 'Por membresía',
+                          value: membresia.toString(),
+                          color: colors.primary,
+                        ),
+                        _ResumenCard(
+                          icon: Icons.warning_rounded,
+                          label: 'Alertas',
+                          value: alertas.toString(),
+                          color: colors.error,
+                        ),
+                      ],
                     ),
-                  ),
+
+                    const SizedBox(height: 28),
+
+                    _tituloSeccion('Últimos pasos'),
+
+                    const SizedBox(height: 16),
+
+                    if (_pasos.isEmpty)
+                      _emptyView(context)
+                    else
+                      Column(
+                        children: _pasos
+                            .asMap()
+                            .entries
+                            .map((entry) {
+                          final paso = entry.value;
+                          final index = entry.key;
+                          final isLast = index == _pasos.length - 1;
+
+                          return Column(
+                            children: [
+                              _PasoCard(
+                                paso: paso,
+                                dinero: _dinero,
+                                texto: _texto,
+                                fecha: _fecha,
+                                obtenerPeaje: _obtenerPeaje,
+                                obtenerCamara: _obtenerCamara,
+                                colorEstadoPago: _colorEstadoPago,
+                                colorEstadoSeguridad:
+                                _colorEstadoSeguridad,
+                                iconoEstadoPago: _iconoEstadoPago,
+                                onVerComprobante: _abrirComprobante,
+
+                              ),
+                              if (!isLast)
+                                const SizedBox(height: 12),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                  ],
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -411,8 +467,12 @@ class _ResumenCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       child: Padding(
@@ -467,6 +527,7 @@ class _PasoCard extends StatelessWidget {
   final Color Function(String, ColorScheme) colorEstadoPago;
   final Color Function(String, ColorScheme) colorEstadoSeguridad;
   final IconData Function(String) iconoEstadoPago;
+  final void Function(dynamic paso) onVerComprobante;
 
   const _PasoCard({
     required this.paso,
@@ -478,12 +539,17 @@ class _PasoCard extends StatelessWidget {
     required this.colorEstadoPago,
     required this.colorEstadoSeguridad,
     required this.iconoEstadoPago,
+    required this.onVerComprobante,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final placa = texto(paso['placa_detectada']);
     final peaje = obtenerPeaje(paso);
@@ -630,6 +696,7 @@ class _PasoCard extends StatelessWidget {
                   color: colors.tertiaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
+
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -652,6 +719,16 @@ class _PasoCard extends StatelessWidget {
                 ),
               ),
             ],
+            const SizedBox(height: 14),
+
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => onVerComprobante(paso),
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Ver comprobante'),
+              ),
+            ),
           ],
         ),
       ),
@@ -672,8 +749,12 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Row(
       children: [
@@ -722,7 +803,9 @@ class _EstadoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Container(
       decoration: BoxDecoration(

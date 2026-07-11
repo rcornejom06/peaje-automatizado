@@ -397,6 +397,97 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             "aplica_membresia": aplica_membresia,
         }
 
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="comprobante",
+        permission_classes=[IsAuthenticated]
+    )
+    def comprobante(self, request, pk=None):
+        paso = self.get_object()
+
+        vehiculo = paso.vehiculo
+        usuario = vehiculo.usuario if vehiculo and vehiculo.usuario else None
+        categoria = vehiculo.categoria if vehiculo and vehiculo.categoria else None
+        peaje = paso.peaje
+        camara = paso.camara
+
+        if paso.estado_pago == "pagado":
+            metodo_pago = "Billetera virtual"
+        elif paso.estado_pago == "membresia":
+            metodo_pago = "Membresía"
+        elif paso.estado_pago == "pendiente":
+            metodo_pago = "Pendiente de pago"
+        elif paso.estado_pago == "fallido":
+            metodo_pago = "Pago fallido"
+        else:
+            metodo_pago = paso.estado_pago or "Sin método"
+
+        ticket = f"PEAJE-{paso.id:08d}"
+
+        categoria_nombre = "Sin categoría"
+        numero_ejes = None
+
+        if categoria:
+            categoria_nombre = getattr(categoria, "nombre", "Sin categoría")
+            numero_ejes = getattr(categoria, "numero_ejes", None)
+
+        valor = paso.tarifa_aplicada or Decimal("0.00")
+
+        codigo_qr = (
+            f"TICKET:{ticket}|"
+            f"PASO:{paso.id}|"
+            f"PLACA:{paso.placa_detectada}|"
+            f"PEAJE:{peaje.nombre if peaje else 'Sin peaje'}|"
+            f"VALOR:{valor}|"
+            f"PAGO:{paso.estado_pago}|"
+            f"FECHA:{paso.fecha_hora.isoformat()}"
+        )
+
+        data = {
+            "id_paso": paso.id,
+            "ticket": ticket,
+
+            "empresa": "Sistema de Peaje Automatizado",
+            "documento": "Comprobante electrónico de peaje",
+
+            "placa": paso.placa_detectada,
+            "vehiculo": str(vehiculo) if vehiculo else "No registrado",
+            "usuario": usuario.username if usuario else "No registrado",
+
+            "peaje": peaje.nombre if peaje else "Sin peaje",
+            "ciudad": peaje.ciudad if peaje and hasattr(peaje, "ciudad") else "",
+            "ubicacion": peaje.ubicacion if peaje and hasattr(peaje, "ubicacion") else "",
+
+            "camara": camara.codigo if camara else "Sin cámara",
+            "carril": camara.codigo if camara else "Sin carril",
+
+            "categoria": categoria_nombre,
+            "numero_ejes": numero_ejes,
+            "tipo_cliente": "Particular",
+
+            "metodo_pago": metodo_pago,
+            "estado_pago": paso.estado_pago,
+            "estado_seguridad": paso.estado_seguridad,
+
+            "valor": str(valor),
+            "tarifa_aplicada": str(valor),
+
+            "fecha_generacion": paso.fecha_hora,
+            "fecha_hora": paso.fecha_hora,
+
+            "membresia_utilizada": (
+                paso.membresia_utilizada.id
+                if paso.membresia_utilizada
+                else None
+            ),
+
+            "observacion": paso.observacion or "Sin observaciones.",
+            "codigo_qr": codigo_qr,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
     def procesar_seguridad_automatica(self, paso, vehiculo, peaje):
         """
         Revisa si el vehículo tiene un aviso activo de robo.

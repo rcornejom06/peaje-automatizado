@@ -6,6 +6,8 @@ import {
     obtenerDocumentoBlob,
 } from "../../api/vehiculosService";
 import "../Styles/Vehiculos.css";
+import ModuleHeader from "../../components/ModuleHeader/ModuleHeader";
+
 
 const estadosRevision = {
     en_revision: "En revisión",
@@ -277,19 +279,23 @@ function Vehiculos() {
 
     return (
         <div className="vehiculos-page">
-            <div className="vehiculos-header">
-                <div>
-                    <h2>Vehículos registrados</h2>
-                    <p>
-                        Consulta, revisión, aprobación y rechazo de vehículos registrados por
-                        los usuarios desde la app móvil.
-                    </p>
-                </div>
-
-                <button className="btn-secondary" onClick={cargarVehiculos}>
-                    Actualizar
-                </button>
-            </div>
+            <ModuleHeader
+                icon="🚗"
+                title="Vehículos registrados"
+                subtitle="Revisa vehículos, documentos, estados de aprobación y alertas asociadas."
+                badge="Módulo vehicular"
+                status="Activo"
+                actions={
+                    <>
+                        <button
+                            className="module-header-secondary"
+                            onClick={cargarVehiculos}
+                        >
+                            Actualizar
+                        </button>
+                    </>
+                }
+            />
 
             {mensaje && <div className="vehiculos-success">{mensaje}</div>}
             {error && <div className="vehiculos-error">{error}</div>}
