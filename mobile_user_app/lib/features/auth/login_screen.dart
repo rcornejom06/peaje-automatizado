@@ -176,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 28),
 
                           Text(
-                            'Mi Peaje',
+                            'ViaSmart',
                             textAlign: TextAlign.center,
                             style: textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.w800,
@@ -187,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 8),
 
                           Text(
-                            'Accede a tu cuenta de peajes',
+                            'Accede a tu cuenta ',
                             textAlign: TextAlign.center,
                             style: textTheme.bodyMedium,
                           ),

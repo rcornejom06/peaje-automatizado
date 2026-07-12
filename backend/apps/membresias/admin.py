@@ -10,7 +10,7 @@ class PlanMembresiaAdmin(admin.ModelAdmin):
 
 @admin.register(Membresia)
 class MembresiaAdmin(admin.ModelAdmin):
-    list_display = ("id","usuario","plan","fecha_inicio","fecha_fin","pases_restantes","estado","fecha_creacion",)
-    list_filter = ("estado","plan","fecha_inicio","fecha_fin",)
+    list_display = ("id","usuario","plan","fecha_inicio","pases_restantes","estado","fecha_creacion",)
+    list_filter = ("estado","plan","fecha_inicio",)
     search_fields = ("usuario__username","usuario__email","plan__nombre",)
     readonly_fields = ("fecha_creacion",)

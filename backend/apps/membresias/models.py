@@ -34,7 +34,6 @@ class Membresia(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="membresias")
     plan = models.ForeignKey(PlanMembresia,on_delete=models.PROTECT,related_name="membresias")
     fecha_inicio = models.DateField()
-    fecha_fin = models.DateField(blank=True, null=True)
     pases_restantes = models.PositiveIntegerField(default=0)
     estado = models.CharField(max_length=20,choices=Estado.choices,default=Estado.ACTIVA)
     fecha_creacion = models.DateTimeField(auto_now_add=True)

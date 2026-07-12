@@ -369,7 +369,6 @@ class UsoMembresiasReporteView(APIView):
                 "estado": membresia.estado,
                 "pases_restantes": membresia.pases_restantes,
                 "fecha_inicio": membresia.fecha_inicio,
-                "fecha_fin": membresia.fecha_fin,
             })
 
         return Response(

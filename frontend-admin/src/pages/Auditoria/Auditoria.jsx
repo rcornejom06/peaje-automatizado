@@ -17,7 +17,6 @@ function Auditoria() {
 
     const [filtros, setFiltros] = useState({
         fecha_inicio: "",
-        fecha_fin: "",
         modulo: "",
         estado: "",
         accion: "",
@@ -64,7 +63,6 @@ function Auditoria() {
     const limpiarFiltros = async () => {
         const filtrosLimpios = {
             fecha_inicio: "",
-            fecha_fin: "",
             modulo: "",
             estado: "",
             accion: "",
@@ -166,15 +164,7 @@ function Auditoria() {
                     />
                 </div>
 
-                <div className="form-group">
-                    <label>Fecha fin</label>
-                    <input
-                        type="date"
-                        name="fecha_fin"
-                        value={filtros.fecha_fin}
-                        onChange={handleChange}
-                    />
-                </div>
+
 
                 <div className="form-group">
                     <label>Módulo</label>

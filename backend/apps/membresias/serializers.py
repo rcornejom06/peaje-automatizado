@@ -51,7 +51,6 @@ class MembresiaSerializer(serializers.ModelSerializer):
             "plan_precio",
             "pases_incluidos",
             "fecha_inicio",
-            "fecha_fin",
             "pases_restantes",
             "estado",
             "fecha_creacion",
@@ -65,8 +64,8 @@ class MembresiaSerializer(serializers.ModelSerializer):
             "plan_precio",
             "pases_incluidos",
             "fecha_inicio",
-            "fecha_fin",
             "pases_restantes",
             "estado",
             "fecha_creacion",
         ]
+

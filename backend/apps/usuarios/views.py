@@ -1,17 +1,18 @@
 from datetime import timedelta
 import secrets
-from django.core.mail import send_mail
+
 from django.conf import settings
-from rest_framework_simplejwt.views import TokenObtainPairView
+from django.core.mail import send_mail
+from django.utils import timezone
+from django.utils.crypto import constant_time_compare
+from django.contrib.auth import get_user_model
+
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.utils import timezone
-from django.utils.crypto import constant_time_compare
-from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
+
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import PerfilUsuario
 from .serializers import (
@@ -21,6 +22,9 @@ from .serializers import (
     ActualizarMiPerfilSerializer,
     MiTokenObtainPairSerializer,
     CambiarPasswordSerializer,
+    SolicitarResetPasswordSerializer,
+    ConfirmarResetPasswordSerializer,
+    CrearOperadorSerializer,
 )
 
 User = get_user_model()
@@ -46,26 +50,16 @@ def enviar_codigo_verificacion(user):
     )
 
 
-def enviar_codigo_reset_password(user):
-    perfil = user.perfil
+def es_administrador(usuario):
+    if usuario.is_superuser or usuario.is_staff:
+        return True
 
-    asunto = "Código para restablecer contraseña - Sistema de Peaje"
-    mensaje = (
-        f"Hola {user.first_name or user.username},\n\n"
-        f"Recibimos una solicitud para restablecer tu contraseña.\n\n"
-        f"Tu código de seguridad es: {perfil.codigo_verificacion}\n\n"
-        f"Este código expira en 10 minutos.\n\n"
-        f"Si no solicitaste este cambio, ignora este mensaje.\n\n"
-        f"Sistema Inteligente de Peaje"
-    )
+    perfil = getattr(usuario, "perfil", None)
 
-    send_mail(
-        asunto,
-        mensaje,
-        settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-        fail_silently=False,
-    )
+    if not perfil:
+        return False
+
+    return perfil.rol == PerfilUsuario.Rol.ADMINISTRADOR
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -77,7 +71,7 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=["post"],
         permission_classes=[AllowAny],
-        url_path="registro"
+        url_path="registro",
     )
     def registro(self, request):
         serializer = RegistroUsuarioSerializer(data=request.data)
@@ -87,14 +81,14 @@ class UserViewSet(viewsets.ModelViewSet):
 
             try:
                 enviar_codigo_verificacion(user)
-            except Exception as e:
+            except Exception:
                 return Response(
                     {
                         "mensaje": "Usuario registrado, pero no se pudo enviar el correo.",
                         "requiere_reenvio": True,
                         "email": user.email,
                     },
-                    status=status.HTTP_201_CREATED
+                    status=status.HTTP_201_CREATED,
                 )
 
             return Response(
@@ -103,7 +97,7 @@ class UserViewSet(viewsets.ModelViewSet):
                     "usuario": UserSerializer(user).data,
                     "perfil": PerfilUsuarioSerializer(user.perfil).data,
                 },
-                status=status.HTTP_201_CREATED
+                status=status.HTTP_201_CREATED,
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -111,8 +105,82 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=["post"],
+        url_path="solicitar-reset-password",
         permission_classes=[AllowAny],
-        url_path="verificar-correo"
+    )
+    def solicitar_reset_password(self, request):
+        serializer = SolicitarResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        resultado = serializer.save()
+        usuario = resultado["usuario"]
+        codigo = resultado["codigo"]
+
+        asunto = "Código de recuperación de contraseña - VíaSmart"
+        mensaje = (
+            f"Hola {usuario.first_name or usuario.username},\n\n"
+            f"Tu código de recuperación de contraseña es: {codigo}\n\n"
+            f"Este código expira en 10 minutos.\n\n"
+            f"Si no solicitaste este cambio, ignora este mensaje.\n\n"
+            f"Sistema Inteligente de Peaje"
+        )
+
+        try:
+            send_mail(
+                asunto,
+                mensaje,
+                getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@viasmart.com"),
+                [usuario.email],
+                fail_silently=False,
+            )
+        except Exception as error:
+            if settings.DEBUG:
+                return Response(
+                    {
+                        "mensaje": "Código generado. El correo no pudo enviarse, pero estás en modo DEBUG.",
+                        "codigo_debug": codigo,
+                        "error_email": str(error),
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            return Response(
+                {
+                    "error": "No se pudo enviar el correo de recuperación."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(
+            {
+                "mensaje": "Código de recuperación enviado correctamente."
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="confirmar-reset-password",
+        permission_classes=[AllowAny],
+    )
+    def confirmar_reset_password(self, request):
+        serializer = ConfirmarResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "mensaje": "Contraseña actualizada correctamente. Ya puede iniciar sesión."
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[AllowAny],
+        url_path="verificar-correo",
     )
     def verificar_correo(self, request):
         email = request.data.get("email", "").lower().strip()
@@ -121,13 +189,13 @@ class UserViewSet(viewsets.ModelViewSet):
         if not email or not codigo:
             return Response(
                 {"error": "Debe enviar email y código."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if len(codigo) != 6 or not codigo.isdigit():
             return Response(
                 {"error": "El código debe tener 6 dígitos."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         user = User.objects.filter(email__iexact=email).first()
@@ -135,7 +203,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if not user:
             return Response(
                 {"error": "No existe un usuario con ese correo."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         perfil = getattr(user, "perfil", None)
@@ -143,63 +211,65 @@ class UserViewSet(viewsets.ModelViewSet):
         if not perfil:
             return Response(
                 {"error": "El usuario no tiene perfil asociado."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if perfil.correo_verificado:
             return Response(
                 {"mensaje": "El correo ya está verificado."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
         if not perfil.codigo_verificacion:
             return Response(
                 {"error": "No existe un código activo. Solicite uno nuevo."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not perfil.codigo_expira:
             return Response(
                 {"error": "El código no tiene fecha de expiración. Solicite uno nuevo."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if timezone.now() > perfil.codigo_expira:
             return Response(
                 {"error": "El código ha expirado. Solicite uno nuevo."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not constant_time_compare(perfil.codigo_verificacion, codigo):
             return Response(
                 {"error": "Código incorrecto."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         perfil.correo_verificado = True
         perfil.codigo_verificacion = None
         perfil.codigo_expira = None
         perfil.estado = True
-        perfil.save(update_fields=[
-            "correo_verificado",
-            "codigo_verificacion",
-            "codigo_expira",
-            "estado"
-        ])
+        perfil.save(
+            update_fields=[
+                "correo_verificado",
+                "codigo_verificacion",
+                "codigo_expira",
+                "estado",
+            ]
+        )
 
         user.is_active = True
         user.save(update_fields=["is_active"])
 
         return Response(
             {"mensaje": "Correo verificado correctamente. Ya puede iniciar sesión."},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     @action(
         detail=False,
         methods=["post"],
         permission_classes=[AllowAny],
-        url_path="reenviar-codigo"
+        url_path="reenviar-codigo",
     )
     def reenviar_codigo(self, request):
         email = request.data.get("email", "").lower().strip()
@@ -207,7 +277,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if not email:
             return Response(
                 {"error": "Debe enviar el email."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         user = User.objects.filter(email__iexact=email).first()
@@ -215,7 +285,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if not user:
             return Response(
                 {"error": "No existe un usuario con ese correo."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         perfil = getattr(user, "perfil", None)
@@ -223,13 +293,13 @@ class UserViewSet(viewsets.ModelViewSet):
         if not perfil:
             return Response(
                 {"error": "El usuario no tiene perfil asociado."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if perfil.correo_verificado:
             return Response(
                 {"mensaje": "El correo ya está verificado."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
         perfil.codigo_verificacion = f"{secrets.randbelow(1000000):06d}"
@@ -241,250 +311,127 @@ class UserViewSet(viewsets.ModelViewSet):
         except Exception:
             return Response(
                 {"error": "No se pudo enviar el correo. Intente nuevamente."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         return Response(
             {"mensaje": "Código reenviado correctamente."},
-            status=status.HTTP_200_OK
-        )
-
-    @action(
-        detail=False,
-        methods=["post"],
-        permission_classes=[AllowAny],
-        url_path="solicitar-reset-password"
-    )
-    def solicitar_reset_password(self, request):
-        email = request.data.get("email", "").lower().strip()
-
-        if not email:
-            return Response(
-                {"error": "Debe enviar el correo electrónico."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user = User.objects.filter(email__iexact=email).first()
-
-        # Respuesta genérica por seguridad
-        if not user:
-            return Response(
-                {
-                    "mensaje": "Si el correo está registrado, se enviará un código de recuperación."
-                },
-                status=status.HTTP_200_OK
-            )
-
-        perfil = getattr(user, "perfil", None)
-
-        if not perfil:
-            return Response(
-                {"error": "El usuario no tiene perfil asociado."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not perfil.correo_verificado:
-            return Response(
-                {
-                    "error": "Debe verificar su correo antes de recuperar la contraseña."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        codigo = f"{secrets.randbelow(1000000):06d}"
-
-        perfil.codigo_verificacion = codigo
-        perfil.codigo_expira = timezone.now() + timedelta(minutes=10)
-        perfil.requiere_cambio_password = True
-        perfil.save(update_fields=[
-            "codigo_verificacion",
-            "codigo_expira",
-            "requiere_cambio_password"
-        ])
-
-        try:
-            enviar_codigo_reset_password(user)
-        except Exception:
-            return Response(
-                {"error": "No se pudo enviar el código. Intente nuevamente."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        return Response(
-            {
-                "mensaje": "Si el correo está registrado, se enviará un código de recuperación."
-            },
-            status=status.HTTP_200_OK
-        )
-
-    @action(
-        detail=False,
-        methods=["post"],
-        permission_classes=[AllowAny],
-        url_path="confirmar-reset-password"
-    )
-    def confirmar_reset_password(self, request):
-        email = request.data.get("email", "").lower().strip()
-        codigo = request.data.get("codigo", "").strip()
-        nueva_password = request.data.get("nueva_password", "")
-        confirmar_password = request.data.get("confirmar_password", "")
-
-        if not email or not codigo or not nueva_password or not confirmar_password:
-            return Response(
-                {"error": "Debe enviar email, código, nueva contraseña y confirmación."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if len(codigo) != 6 or not codigo.isdigit():
-            return Response(
-                {"error": "El código debe tener 6 dígitos."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if nueva_password != confirmar_password:
-            return Response(
-                {"error": "Las contraseñas no coinciden."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user = User.objects.filter(email__iexact=email).first()
-
-        if not user:
-            return Response(
-                {"error": "Código incorrecto o expirado."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        perfil = getattr(user, "perfil", None)
-
-        if not perfil:
-            return Response(
-                {"error": "El usuario no tiene perfil asociado."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not perfil.requiere_cambio_password:
-            return Response(
-                {"error": "No existe una solicitud activa para cambiar la contraseña."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not perfil.codigo_verificacion:
-            return Response(
-                {"error": "No existe un código activo. Solicite uno nuevo."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not perfil.codigo_expira:
-            return Response(
-                {"error": "El código no tiene fecha de expiración. Solicite uno nuevo."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if timezone.now() > perfil.codigo_expira:
-            return Response(
-                {"error": "El código ha expirado. Solicite uno nuevo."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not constant_time_compare(perfil.codigo_verificacion, codigo):
-            return Response(
-                {"error": "Código incorrecto."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            validate_password(nueva_password, user)
-        except DjangoValidationError as e:
-            return Response(
-                {"error": list(e.messages)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user.set_password(nueva_password)
-        user.save(update_fields=["password"])
-
-        perfil.codigo_verificacion = None
-        perfil.codigo_expira = None
-        perfil.requiere_cambio_password = False
-        perfil.save(update_fields=[
-            "codigo_verificacion",
-            "codigo_expira",
-            "requiere_cambio_password"
-        ])
-
-        return Response(
-            {"mensaje": "Contraseña restablecida correctamente. Ya puede iniciar sesión."},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
 
 class PerfilUsuarioViewSet(viewsets.ModelViewSet):
-    queryset = PerfilUsuario.objects.all().order_by("id")
+    queryset = PerfilUsuario.objects.select_related("usuario").all()
     serializer_class = PerfilUsuarioSerializer
     permission_classes = [IsAuthenticated]
 
-    @action(detail=False, methods=["get"], url_path="mi-perfil")
+    def get_queryset(self):
+        usuario = self.request.user
+
+        if es_administrador(usuario):
+            return PerfilUsuario.objects.select_related("usuario").all()
+
+        return PerfilUsuario.objects.select_related("usuario").filter(usuario=usuario)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="mi-perfil",
+        permission_classes=[IsAuthenticated],
+    )
     def mi_perfil(self, request):
-        perfil = request.user.perfil
+        perfil, _ = PerfilUsuario.objects.get_or_create(usuario=request.user)
+        serializer = PerfilUsuarioSerializer(perfil)
 
-        return Response(
-            PerfilUsuarioSerializer(perfil).data,
-            status=status.HTTP_200_OK
-        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=["patch"], url_path="actualizar-mi-perfil")
+    @action(
+        detail=False,
+        methods=["patch"],
+        url_path="actualizar-mi-perfil",
+        permission_classes=[IsAuthenticated],
+    )
     def actualizar_mi_perfil(self, request):
-        perfil = request.user.perfil
+        perfil, _ = PerfilUsuario.objects.get_or_create(usuario=request.user)
 
         serializer = ActualizarMiPerfilSerializer(
             perfil,
             data=request.data,
             partial=True,
-            context={"request": request}
+            context={"request": request},
         )
 
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        perfil_actualizado = PerfilUsuarioSerializer(
-            perfil,
-            context={"request": request}
-        )
+        perfil.refresh_from_db()
+        respuesta = PerfilUsuarioSerializer(perfil)
 
         return Response(
             {
                 "mensaje": "Perfil actualizado correctamente.",
-                "perfil": perfil_actualizado.data,
+                "perfil": respuesta.data,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     @action(
         detail=False,
         methods=["post"],
+        url_path="cambiar-password",
         permission_classes=[IsAuthenticated],
-        url_path="cambiar-password"
     )
     def cambiar_password(self, request):
         serializer = CambiarPasswordSerializer(
             data=request.data,
-            context={"request": request}
+            context={"request": request},
         )
-
         serializer.is_valid(raise_exception=True)
 
-        user = request.user
         nueva_password = serializer.validated_data["nueva_password"]
 
-        user.set_password(nueva_password)
-        user.save(update_fields=["password"])
+        request.user.set_password(nueva_password)
+        request.user.save(update_fields=["password"])
+
+        perfil = getattr(request.user, "perfil", None)
+
+        if perfil:
+            perfil.requiere_cambio_password = False
+            perfil.save(update_fields=["requiere_cambio_password"])
+
+        return Response(
+            {"mensaje": "Contraseña actualizada correctamente."},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="crear-operador",
+        permission_classes=[IsAuthenticated],
+    )
+    def crear_operador(self, request):
+        if not es_administrador(request.user):
+            return Response(
+                {
+                    "error": "No tienes permisos para crear operadores."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = CrearOperadorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        usuario = serializer.save()
+
+        perfil = usuario.perfil
+        respuesta = PerfilUsuarioSerializer(perfil)
 
         return Response(
             {
-                "mensaje": "Contraseña actualizada correctamente. Vuelve a iniciar sesión."
+                "mensaje": "Operador creado correctamente.",
+                "perfil": respuesta.data,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_201_CREATED,
         )
 
 

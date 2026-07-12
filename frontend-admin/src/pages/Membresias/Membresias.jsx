@@ -21,7 +21,6 @@ function Membresias() {
         nombre: "",
         descripcion: "",
         precio: "0.00",
-        duracion_dias: 30,
         pases_incluidos: 30,
         descuento_porcentaje: "0.00",
         estado: "activo",
@@ -76,7 +75,6 @@ function Membresias() {
             nombre: "",
             descripcion: "",
             precio: "0.00",
-            duracion_dias: 30,
             pases_incluidos: 30,
             descuento_porcentaje: "0.00",
             estado: "activo",
@@ -191,17 +189,6 @@ function Membresias() {
                         </div>
 
                         <div className="form-group">
-                            <label>Duración en días</label>
-                            <input
-                                type="number"
-                                name="duracion_dias"
-                                value={formulario.duracion_dias}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="form-group">
                             <label>Pases incluidos</label>
                             <input
                                 type="number"
@@ -263,7 +250,6 @@ function Membresias() {
                             <th>ID</th>
                             <th>Nombre</th>
                             <th>Precio</th>
-                            <th>Duración</th>
                             <th>Pases</th>
                             <th>Descuento</th>
                             <th>Estado</th>
@@ -281,7 +267,6 @@ function Membresias() {
                                         <span>{plan.descripcion || "Sin descripción"}</span>
                                     </td>
                                     <td>${plan.precio}</td>
-                                    <td>{plan.duracion_dias} días</td>
                                     <td>{plan.pases_incluidos}</td>
                                     <td>{plan.descuento_porcentaje}%</td>
                                     <td>
@@ -332,7 +317,6 @@ function Membresias() {
                                             "Sin plan"}
                                     </td>
                                     <td>{membresia.fecha_inicio}</td>
-                                    <td>{membresia.fecha_fin}</td>
                                     <td>{membresia.pases_restantes}</td>
                                     <td>
                       <span className={`estado ${membresia.estado}`}>

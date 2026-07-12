@@ -583,13 +583,13 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         url_path="detectar-placa"
     )
     def detectar_placa(self, request):
-        placa_detectada = request.data.get("placa_detectada")
+        placa_detectada = request.data.get("placa_detectada", "").strip().upper()
         camara_id = request.data.get("camara_id")
         confianza = request.data.get("confianza", 0)
 
         if not placa_detectada:
             return Response(
-                {"error": "Debe enviar la placa_detectada."},
+                {"error": "No se recibio una placa valida."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -617,6 +617,9 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
 
         peaje = camara.peaje
 
+        # Evitar duplicados recientes.
+        # Si la misma placa fue detectada hace menos de 2 minutos en la misma cámara,
+        # no se crea otro paso, no se cobra y no se debe mostrar comprobante nuevamente.
         limite_tiempo = timezone.now() - timedelta(minutes=2)
 
         paso_reciente = PasoPeaje.objects.filter(
@@ -628,9 +631,18 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         if paso_reciente:
             return Response(
                 {
-                    "mensaje": "Placa detectada recientemente. No se registra duplicado.",
+                    "mensaje": "Placa detectada recientemente. No se registra duplicado, no se cobra y no se genera nuevo comprobante.",
                     "duplicado": True,
-                    "paso_id": paso_reciente.id,
+
+                    # IMPORTANTE:
+                    # No enviamos paso_id como comprobante disponible.
+                    # Así el frontend no abre el comprobante otra vez.
+                    "paso_id": None,
+                    "paso_original_id": paso_reciente.id,
+
+                    "mostrar_comprobante": False,
+                    "comprobante_generado": False,
+
                     "placa_detectada": placa_detectada,
                     "fecha_hora": paso_reciente.fecha_hora,
                     "estado_pago": paso_reciente.estado_pago,
@@ -640,10 +652,17 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                     "peaje": peaje.nombre if peaje else None,
                     "camara": camara.codigo,
 
+                    "pago": {
+                        "procesado": False,
+                        "motivo": "Detección duplicada reciente. Ya existe un paso registrado.",
+                        "paso_original_id": paso_reciente.id,
+                        "cobro_realizado": False,
+                    },
+
                     "seguridad": {
                         "estado_seguridad": paso_reciente.estado_seguridad,
-                        "alerta_generada": paso_reciente.estado_seguridad == "alerta",
-                        "mensaje": "Registro duplicado. Se devuelve el paso reciente."
+                        "alerta_generada": False,
+                        "mensaje": "Registro duplicado. No se generó un nuevo paso."
                     }
                 },
                 status=status.HTTP_200_OK
@@ -669,7 +688,11 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         observacion = f"Detección automática LPR. Confianza OCR: {confianza}%"
 
         if vehiculo and not vehiculo_aprobado:
-            observacion += f" Vehículo no aprobado para cobro. Estado revisión: {vehiculo.estado_revision}."
+            observacion += (
+                f" Vehículo no aprobado para cobro. "
+                f"Estado vehículo: {vehiculo.estado}. "
+                f"Estado revisión: {vehiculo.estado_revision}."
+            )
         elif not vehiculo:
             observacion += " Vehículo no registrado en el sistema."
 
@@ -718,6 +741,11 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 "mensaje": "Paso de peaje registrado desde LPR.",
                 "duplicado": False,
                 "paso_id": paso.id,
+                "paso_original_id": None,
+
+                "mostrar_comprobante": True,
+                "comprobante_generado": True,
+
                 "placa_detectada": placa_detectada,
                 "vehiculo_encontrado": vehiculo is not None,
                 "estado_revision": vehiculo.estado_revision if vehiculo else None,

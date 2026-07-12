@@ -147,33 +147,26 @@ function ReconocimientoPlacas() {
             : "--";
     };
 
-    const obtenerTarifaNumerica = (deteccion) => {
-        return deteccion?.django?.tarifa_aplicada || 0;
-    };
+
 
     const obtenerVehiculoRegistrado = (deteccion) => {
-        if (deteccion?.django?.deteccion === true) {
-            return "Sí";
+        const vehiculoEncontrado =
+            deteccion?.django?.vehiculo_encontrado ??
+            deteccion?.vehiculo_encontrado ??
+            deteccion?.django?.deteccion ??
+            deteccion?.deteccion;
+
+        if (vehiculoEncontrado === true) {
+            return "Registrado";
         }
 
-        if (deteccion?.django?.deteccion === false) {
-            return "No";
+        if (vehiculoEncontrado === false) {
+            return "No registrado";
         }
 
         return "--";
     };
 
-    const obtenerVehiculoTexto = (deteccion) => {
-        if (deteccion?.django?.vehiculo_encontrado === true) {
-            return "Vehículo registrado";
-        }
-
-        if (deteccion?.django?.vehiculo_encontrado === false) {
-            return "No registrado";
-        }
-
-        return "Sin información";
-    };
 
     const obtenerDuplicado = (deteccion) => {
         if (deteccion?.django?.duplicado === true) {
@@ -187,17 +180,6 @@ function ReconocimientoPlacas() {
         return "--";
     };
 
-    const obtenerIdPase = (deteccion) => {
-        return deteccion?.django?.paso_id || "Sin ID";
-    };
-
-    const obtenerPlaca = (deteccion) => {
-        return deteccion?.placa || deteccion?.django?.placa_detectada || "Sin placa";
-    };
-
-    const obtenerCamara = (deteccion) => {
-        return deteccion?.django?.camara || "Sin cámara";
-    };
 
     const obtenerEstadoPago = (deteccion) => {
         return (
@@ -229,14 +211,6 @@ function ReconocimientoPlacas() {
         return estado;
     };
 
-    const obtenerObservacion = (deteccion) => {
-        return (
-            deteccion?.django?.pago?.mensaje ||
-            deteccion?.django?.seguridad?.mensaje ||
-            deteccion?.django?.mensaje ||
-            "Sin observaciones."
-        );
-    };
 
     return (
         <div className="lpr-page">

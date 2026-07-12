@@ -262,15 +262,6 @@ function Reportes() {
                     />
                 </div>
 
-                <div className="form-group">
-                    <label>Fecha fin</label>
-                    <input
-                        type="date"
-                        name="fecha_fin"
-                        value={filtros.fecha_fin}
-                        onChange={handleFiltroChange}
-                    />
-                </div>
 
                 <div className="filtros-actions">
                     <button className="btn-primary" onClick={() => cargarReportes()}>
@@ -703,7 +694,11 @@ function Reportes() {
                                         <td>{item.estado}</td>
                                         <td>{item.pases_restantes}</td>
                                         <td>{item.fecha_inicio}</td>
-                                        <td>{item.fecha_fin}</td>
+                                        <td>
+                                            {item.pases_restantes > 0
+                                                ? `Agotamiento de pases (${item.pases_restantes} restantes)`
+                                                : "Pases agotados"}
+                                        </td>
                                     </tr>
                                 ))
                             ) : (

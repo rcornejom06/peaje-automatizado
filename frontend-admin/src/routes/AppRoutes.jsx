@@ -3,8 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { isAuthenticated } from "../auth/authService";
 
 import AdminLayout from "../layouts/AdminLayout.jsx";
-
 import Login from "../pages/Login/Login";
+import ForgotPassword from "../pages/ForgotPassword/ForgotPassword.jsx";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import Peajes from "../pages/Peajes/Peajes";
 import Camaras from "../pages/Camaras/Camaras";
@@ -28,8 +28,11 @@ function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Rutas públicas */}
         <Route path="/" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
+        {/* Rutas protegidas */}
         <Route
           element={
             <PrivateRoute>
@@ -50,9 +53,19 @@ function AppRoutes() {
           <Route path="/reportes" element={<Reportes />} />
           <Route path="/usuarios" element={<Usuarios />} />
           <Route path="/auditoria" element={<Auditoria />} />
-
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
+
+        {/* Ruta no encontrada */}
+        <Route
+          path="*"
+          element={
+            isAuthenticated() ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

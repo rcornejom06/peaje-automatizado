@@ -191,7 +191,6 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             usuario=request.user,
             plan=plan,
             fecha_inicio=timezone.now().date(),
-            fecha_fin=None,
             pases_restantes=plan.pases_incluidos,
             estado=Membresia.Estado.ACTIVA,
         )
