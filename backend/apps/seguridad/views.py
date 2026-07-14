@@ -4,16 +4,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from ..usuarios.permissions import obtener_rol_usuario
 from .models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion
-from .serializers import (AvisoVehiculoRobadoSerializer,AlertaSeguridadSerializer,UbicacionDeteccionSerializer,)
+from .serializers import (AvisoVehiculoRobadoSerializer, AlertaSeguridadSerializer, UbicacionDeteccionSerializer, )
 from ..vehiculos.models import Vehiculo
 from ..notificaciones.models import Notificacion
+from ..notificaciones.services import crear_notificacion, notificar_administradores
 from ..peajes.models import Peaje, PasoPeaje
 from ..auditoria.utils import registrar_historial
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 
 class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
     serializer_class = AvisoVehiculoRobadoSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
@@ -26,10 +29,11 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         ).order_by("-fecha_aviso")
 
     @action(detail=False, methods=["post"], url_path="crear-aviso")
-    def crear_aviso(self, request):
+    def crear_aviso(self, request, alerta=None, peaje=None, url_maps=None):
         vehiculo_id = request.data.get("vehiculo")
         placa = request.data.get("placa")
         rol = obtener_rol_usuario(self.request.user)
+
         numero_denuncia = request.data.get("numero_denuncia")
         entidad_denuncia = request.data.get("entidad_denuncia")
         fecha_denuncia = request.data.get("fecha_denuncia")
@@ -37,11 +41,14 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         descripcion = request.data.get("descripcion")
         latitud_robo = request.data.get("latitud_robo")
         longitud_robo = request.data.get("longitud_robo")
+
+        documento_respaldo = request.FILES.get("documento_respaldo")
+
         vehiculo = None
 
         if rol != "usuario":
             return Response(
-                {"error": "Solo los usuarios pueden crear avisos internos de vehiculos robados"},
+                {"error": "Solo los usuarios pueden crear avisos internos de vehículos robados."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -73,7 +80,50 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "error": "Este vehículo ya tiene un aviso activo.",
-                    "aviso": AvisoVehiculoRobadoSerializer(aviso_activo).data,
+                    "aviso": AvisoVehiculoRobadoSerializer(
+                        aviso_activo,
+                        context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not documento_respaldo:
+            return Response(
+                {
+                    "error": "Debe adjuntar el documento PDF de respaldo de la denuncia."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        nombre_archivo = documento_respaldo.name.lower()
+
+        if not nombre_archivo.endswith(".pdf"):
+            return Response(
+                {
+                    "error": "El documento de respaldo debe ser un archivo PDF."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if documento_respaldo.content_type not in [
+            "application/pdf",
+            "application/x-pdf",
+            "application/octet-stream",
+        ]:
+            return Response(
+                {
+                    "error": "El archivo adjunto no tiene un formato PDF válido."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        max_size = 5 * 1024 * 1024
+
+        if documento_respaldo.size > max_size:
+            return Response(
+                {
+                    "error": "El PDF de respaldo no debe superar los 5 MB."
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -87,35 +137,54 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
             descripcion=descripcion,
             latitud_robo=latitud_robo,
             longitud_robo=longitud_robo,
+            documento_respaldo=documento_respaldo,
             estado=AvisoVehiculoRobado.Estado.ACTIVO,
         )
 
         vehiculo.estado = Vehiculo.Estado.AVISO_ROBO
         vehiculo.save()
+        
+        notificar_administradores(
+            titulo="Nuevo aviso de vehículo robado",
+            mensaje=f"El usuario {request.user.username} reportó como robado el vehículo {vehiculo.placa}.",
+            tipo=Notificacion.Tipo.ALERTA,
+            tipo_accion="seguridad",
+        )
+
+        crear_notificacion(
+            usuario=vehiculo.usuario,
+            alerta=alerta,
+            titulo="Vehículo reportado detectado",
+            mensaje=(
+                f"Tu vehículo con placa {vehiculo.placa} fue detectado en "
+                f"{peaje.nombre if peaje else 'un peaje registrado'}."
+            ),
+            tipo=Notificacion.Tipo.ALERTA,
+            url_accion=url_maps,
+            tipo_accion="mapa",
+        )
 
         try:
-
-            Notificacion.objects.create(
+            registrar_historial(
                 usuario=request.user,
-                titulo="Aviso de vehículo robado registrado",
-                mensaje=f"Se registró un aviso interno para el vehículo {vehiculo.placa}.",
-                tipo=Notificacion.Tipo.ALERTA,
+                accion="Aviso interno de vehículo robado",
+                descripcion=(
+                    f"El usuario registró un aviso interno para el vehículo "
+                    f"{vehiculo.placa} con documento de respaldo PDF."
+                ),
+                modulo="Seguridad",
+                request=request,
             )
         except Exception:
             pass
 
-        registrar_historial(
-            usuario=request.user,
-            accion="Aviso interno de vehículo robado",
-            descripcion=f"El usuario registró un aviso interno para el vehículo {vehiculo.placa}.",
-            modulo="Seguridad",
-            request=request,
-        )
-
         return Response(
             {
                 "mensaje": "Aviso interno de vehículo robado creado correctamente.",
-                "aviso": AvisoVehiculoRobadoSerializer(aviso).data,
+                "aviso": AvisoVehiculoRobadoSerializer(
+                    aviso,
+                    context={"request": request}
+                ).data,
             },
             status=status.HTTP_201_CREATED
         )
@@ -249,7 +318,6 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
             vehiculo__usuario=self.request.user
         ).order_by("-fecha_hora")
 
-
     @action(detail=False, methods=["post"], url_path="generar-por-placa")
     def generar_por_placa(self, request):
         placa = request.data.get("placa")
@@ -337,7 +405,6 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
             modulo="Seguridad",
             request=request,
         )
-
 
         return Response(
             {

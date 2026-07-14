@@ -334,6 +334,7 @@ function Vehiculos() {
                             const documentoUrl = obtenerDocumentoUrl(vehiculo);
                             const estadoRevision = obtenerEstadoRevision(vehiculo);
                             const procesando = procesandoId === vehiculo.id;
+                            const estaAprobado = estadoRevision === "aprobado";
 
                             return (
                                 <tr key={vehiculo.id}>
@@ -382,7 +383,7 @@ function Vehiculos() {
                                         <div className="acciones-vehiculo">
                                             <button
                                                 type="button"
-                                                disabled={procesando || !documentoUrl}
+                                                disabled={procesando || !documentoUrl || estaAprobado}
                                                 onClick={() => aprobar(vehiculo)}
                                                 className="btn-aprobar"
                                             >
@@ -391,7 +392,7 @@ function Vehiculos() {
 
                                             <button
                                                 type="button"
-                                                disabled={procesando}
+                                                disabled={procesando || estaAprobado}
                                                 onClick={() => rechazar(vehiculo)}
                                                 className="btn-rechazar"
                                             >
@@ -526,6 +527,7 @@ function Vehiculos() {
                                 >
                                     Abrir documento en otra pestaña
                                 </a>
+
                             )}
                         </section>
 
@@ -536,30 +538,6 @@ function Vehiculos() {
                                 <strong>Motivo actual:</strong>{" "}
                                 {vehiculoSeleccionado.motivo_revision || "Sin motivo"}
                             </p>
-
-                            <div className="vehiculo-modal-actions">
-                                <button
-                                    type="button"
-                                    disabled={
-                                        procesandoId === vehiculoSeleccionado.id ||
-                                        !obtenerDocumentoUrl(vehiculoSeleccionado)
-                                    }
-                                    onClick={() => aprobar(vehiculoSeleccionado)}
-                                    className="btn-aprobar"
-                                >
-                                    Aprobar vehículo
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled={procesandoId === vehiculoSeleccionado.id}
-                                    onClick={() => rechazar(vehiculoSeleccionado)}
-                                    className="btn-rechazar"
-                                >
-                                    Rechazar vehículo
-                                </button>
-
-                            </div>
                         </section>
                     </div>
                 </div>

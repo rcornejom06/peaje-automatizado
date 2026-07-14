@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import '../../shared/widgets/mobile_app_header.dart';
 import '../../core/services/paso_peaje_service.dart';
 import 'comprobante_paso_screen.dart';
 
@@ -335,10 +335,17 @@ class _PasosScreenState extends State<PasosScreen>
         .length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Historial de pasos'),
-        actions: [
+      appBar: MobileAppHeader(
+        title: 'Historial de pasos',
+        subtitle: 'Pasos registrados',
+        icon: Icons.history,
+        showBackButton: true,
+        showRefresh: false,
+        showNotifications: true,
+        showLogout: true,
+        extraActions: [
           IconButton(
+            tooltip: 'Actualizar',
             onPressed: _cargando ? null : _cargarPasos,
             icon: RotationTransition(
               turns: _refreshController,
@@ -347,7 +354,9 @@ class _PasosScreenState extends State<PasosScreen>
           ),
         ],
       ),
+
       body: _cargando
+
           ? const Center(child: CircularProgressIndicator())
           : _error.isNotEmpty
           ? _errorView(context)
@@ -447,7 +456,8 @@ class _PasosScreenState extends State<PasosScreen>
             ),
           ),
         ),
-      ),
+      )
+      ,
     );
   }
 }

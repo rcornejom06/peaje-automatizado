@@ -12,6 +12,7 @@ import 'features/pasos/pasos_screen.dart';
 import 'features/seguridad/seguridad_screen.dart';
 import 'features/seguridad/crear_aviso_robo_screen.dart';
 import 'features/auth/verificar_correo_screen.dart';
+import 'features/notificaciones/notificaciones_screen.dart';
 
 class PeajeUserApp extends StatelessWidget {
   const PeajeUserApp({super.key});
@@ -35,6 +36,7 @@ class PeajeUserApp extends StatelessWidget {
         '/pasos': (_) => const PasosScreen(),
         '/seguridad': (_) => const SeguridadScreen(),
         '/crear-aviso-robo': (_) => const CrearAvisoRoboScreen(),
+        '/notificaciones': (context) => const NotificacionesScreen(),
       },
     );
   }

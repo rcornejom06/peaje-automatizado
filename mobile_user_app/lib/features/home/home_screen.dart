@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../shared/widgets/mobile_app_header.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/billetera_service.dart';
 import '../../core/services/vehiculo_service.dart';
@@ -107,8 +107,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _saldoPrincipal(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -170,8 +174,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _notaActualizar(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       child: Padding(
@@ -205,34 +213,34 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.only(bottom: 16),
       child: Text(
         titulo,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-            ),
+        style: Theme
+            .of(context)
+            .textTheme
+            .titleLarge
+            ?.copyWith(
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Peaje'),
-        actions: [
-          IconButton(
-            tooltip: 'Actualizar',
-            onPressed: _cargarResumen,
-            icon: const Icon(Icons.refresh),
-          ),
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: () => _confirmarCerrarSesion(context),
-            icon: const Icon(Icons.logout),
-          ),
-        ],
+      appBar: MobileAppHeader(
+        title: 'VíaSmart',
+        subtitle: 'Panel principal',
+        icon: Icons.home_rounded,
+        showBackButton: false,
+        showNotifications: true,
+        showLogout: true,
       ),
+
       body: RefreshIndicator(
         onRefresh: _cargarResumen,
         child: SafeArea(
@@ -255,7 +263,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: _InformationCard(
                             icon: Icons.directions_car,
                             label: 'Vehículos',
-                            value: _cargando ? '...' : _totalVehiculos.toString(),
+                            value: _cargando ? '...' : _totalVehiculos
+                                .toString(),
                             iconColor: colors.secondary,
                             onTap: () => _irRuta('/vehiculos'),
                           ),
@@ -365,8 +374,12 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final foregroundColor = iconForegroundColor ?? backgroundColor;
 
@@ -426,8 +439,12 @@ class _InformationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -486,8 +503,12 @@ class _ExpandedServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       clipBehavior: Clip.antiAlias,

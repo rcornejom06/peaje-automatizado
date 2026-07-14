@@ -356,6 +356,14 @@
     transition: margin-left 0.25s ease;
 }
 
+.content {
+    padding: 26px 28px 34px;
+}
+
+/* ===========================
+   TOPBAR OPCIONAL
+=========================== */
+
 .topbar {
     position: sticky;
     top: 0;
@@ -407,8 +415,109 @@
     box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
 }
 
-.content {
-    padding: 26px 28px 34px;
+/* ===========================
+   ADMIN TOPBAR OPCIONAL
+=========================== */
+
+.admin-topbar {
+    min-height: 74px;
+    padding: 14px 28px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.admin-topbar-title {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.admin-topbar-title span {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.admin-topbar-title h1 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.admin-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.topbar-logout-button {
+    border: none;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 10px 14px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.topbar-logout-button:hover {
+    background: #fecaca;
+}
+
+/* ===========================
+   CAMPANA FLOTANTE
+=========================== */
+
+.admin-floating-notification {
+    position: fixed !important;
+    top: 18px !important;
+    right: 24px !important;
+    left: auto !important;
+    bottom: auto !important;
+    z-index: 5000 !important;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-floating-notification .notification-bell-wrapper {
+    position: relative;
+}
+
+.admin-floating-notification .notification-bell-button {
+    width: 46px;
+    height: 46px;
+    background: #ffffff;
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+}
+
+.admin-floating-notification .notification-bell-button:hover {
+    background: var(--admin-primary-soft);
+    transform: translateY(-1px);
+}
+
+.admin-floating-notification .notification-panel {
+    position: absolute;
+    top: 56px;
+    right: 0;
+    left: auto;
+    z-index: 5100;
 }
 
 /* ===========================
@@ -509,6 +618,10 @@
         margin-left: 0;
     }
 
+    .content {
+        padding: 20px 16px 28px;
+    }
+
     .topbar {
         padding: 18px 18px 18px 72px;
     }
@@ -525,7 +638,26 @@
         display: none;
     }
 
-    .content {
-        padding: 20px 16px 28px;
+    .admin-topbar {
+        padding: 14px 16px 14px 64px;
+    }
+
+    .admin-topbar-title h1 {
+        font-size: 18px;
+    }
+
+    .topbar-logout-button span:last-child {
+        display: none;
+    }
+
+    .admin-floating-notification {
+        top: 14px !important;
+        right: 14px !important;
+    }
+
+    .admin-floating-notification .notification-panel {
+        width: calc(100vw - 28px);
+        max-width: calc(100vw - 28px);
+        right: 0;
     }
 }

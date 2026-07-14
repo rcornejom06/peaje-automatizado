@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import 'package:url_launcher/url_launcher.dart';
+import '../../shared/widgets/notificacion_bell.dart';
 import '../../core/services/seguridad_service.dart';
+import '../../shared/widgets/mobile_app_header.dart';
+
 
 class SeguridadScreen extends StatefulWidget {
   const SeguridadScreen({super.key});
@@ -67,7 +70,10 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor.toString().trim().isEmpty) {
+    if (valor == null || valor
+        .toString()
+        .trim()
+        .isEmpty) {
       return 'Sin dato';
     }
 
@@ -127,7 +133,9 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   Widget _resumen(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -180,8 +188,12 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     required String titulo,
     required String valor,
   }) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Column(
       children: [
@@ -204,8 +216,12 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   Widget _avisoCard(dynamic aviso) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final estado = _texto(aviso['estado']);
     final estadoColor = _colorEstado(estado, colors);
@@ -235,9 +251,9 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
           padding: const EdgeInsets.only(top: 6),
           child: Text(
             'Denuncia: ${_texto(aviso['numero_denuncia'])}\n'
-            'Entidad: ${_texto(aviso['entidad_denuncia'])}\n'
-            'Lugar: ${_texto(aviso['lugar_robo'])}\n'
-            'Estado: $estado',
+                'Entidad: ${_texto(aviso['entidad_denuncia'])}\n'
+                'Lugar: ${_texto(aviso['lugar_robo'])}\n'
+                'Estado: $estado',
             style: textTheme.bodyMedium?.copyWith(
               color: colors.onSurfaceVariant,
               height: 1.4,
@@ -249,12 +265,127 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     );
   }
 
+  String? _extraerUrlMapsDesdeTexto(String texto) {
+    final regex = RegExp(
+      r'https:\/\/www\.google\.com\/maps\?q=[^\s]+',
+      caseSensitive: false,
+    );
+
+    final match = regex.firstMatch(texto);
+
+    if (match == null) {
+      return null;
+    }
+
+    return match.group(0);
+  }
+
+  String? _obtenerUrlMaps(dynamic alerta) {
+    final urlDirecta = alerta['url_maps'];
+
+    if (urlDirecta != null && urlDirecta
+        .toString()
+        .trim()
+        .isNotEmpty) {
+      return urlDirecta.toString();
+    }
+
+    final ubicacionDetalle = alerta['ubicacion_detalle'];
+
+    if (ubicacionDetalle is Map &&
+        ubicacionDetalle['url_maps'] != null &&
+        ubicacionDetalle['url_maps']
+            .toString()
+            .trim()
+            .isNotEmpty) {
+      return ubicacionDetalle['url_maps'].toString();
+    }
+
+    final ubicacion = alerta['ubicacion'];
+
+    if (ubicacion is Map &&
+        ubicacion['url_maps'] != null &&
+        ubicacion['url_maps']
+            .toString()
+            .trim()
+            .isNotEmpty) {
+      return ubicacion['url_maps'].toString();
+    }
+
+    final ubicacionDeteccion = alerta['ubicacion_deteccion'];
+
+    if (ubicacionDeteccion is Map &&
+        ubicacionDeteccion['url_maps'] != null &&
+        ubicacionDeteccion['url_maps']
+            .toString()
+            .trim()
+            .isNotEmpty) {
+      return ubicacionDeteccion['url_maps'].toString();
+    }
+
+    final latitud = alerta['latitud_deteccion'];
+    final longitud = alerta['longitud_deteccion'];
+
+    if (latitud != null &&
+        longitud != null &&
+        latitud
+            .toString()
+            .trim()
+            .isNotEmpty &&
+        longitud
+            .toString()
+            .trim()
+            .isNotEmpty) {
+      return 'https://www.google.com/maps?q=$latitud,$longitud';
+    }
+
+    final descripcion = alerta['descripcion']?.toString() ?? '';
+    final mensaje = alerta['mensaje']?.toString() ?? '';
+
+    return _extraerUrlMapsDesdeTexto('$descripcion $mensaje');
+  }
+
+  Future<void> _abrirUbicacion(String url) async {
+    final uri = Uri.tryParse(url);
+
+    if (uri == null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La URL de ubicación no es válida.'),
+        ),
+      );
+      return;
+    }
+
+    final abierto = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!abierto) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir la ubicación.'),
+        ),
+      );
+    }
+  }
+
   Widget _alertaCard(dynamic alerta) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final estado = _texto(alerta['estado']);
     final estadoColor = _colorEstado(estado, colors);
+    final urlMaps = _obtenerUrlMaps(alerta);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -293,23 +424,29 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
+
             _infoLinea(
               context: context,
               label: 'Tipo',
               value: _texto(alerta['tipo_alerta']),
             ),
+
             _infoLinea(
               context: context,
               label: 'Peaje',
               value: _texto(alerta['peaje_nombre'] ?? alerta['peaje']),
             ),
+
             _infoLinea(
               context: context,
               label: 'Fecha',
               value: _fecha(alerta['fecha_hora']),
             ),
+
             const SizedBox(height: 10),
+
             Text(
               _texto(alerta['descripcion']),
               style: textTheme.bodyMedium?.copyWith(
@@ -317,6 +454,28 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                 height: 1.4,
               ),
             ),
+
+            if (urlMaps != null) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _abrirUbicacion(urlMaps),
+                  icon: const Icon(Icons.location_on_outlined),
+                  label: const Text('Ver ubicación'),
+                ),
+              ),
+            ] else
+              ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Ubicación no disponible',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colors.outline,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
           ],
         ),
       ),
@@ -328,7 +487,9 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     required String estado,
     required Color color,
   }) {
-    final textTheme = Theme.of(context).textTheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -354,8 +515,12 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     required String label,
     required String value,
   }) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -417,9 +582,13 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   Widget _tituloSeccion(String titulo) {
     return Text(
       titulo,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+      style: Theme
+          .of(context)
+          .textTheme
+          .titleLarge
+          ?.copyWith(
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 
@@ -427,8 +596,12 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     required IconData icon,
     required String text,
   }) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       child: ListTile(
@@ -447,8 +620,12 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   Widget _errorView(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Center(
       child: Padding(
@@ -497,14 +674,13 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Seguridad'),
-        actions: [
-          IconButton(
-            onPressed: _cargarDatos,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+      appBar: MobileAppHeader(
+        title: 'Seguridad',
+        subtitle: 'Avisos de robo y alertas',
+        icon: Icons.security,
+        showBackButton: true,
+        showRefresh: true,
+        onRefresh: _cargarDatos,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _irCrearAviso,
@@ -513,36 +689,36 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
       ),
       body: _cargando
           ? const Center(
-              child: CircularProgressIndicator(),
-            )
+        child: CircularProgressIndicator(),
+      )
           : _error.isNotEmpty
-              ? _errorView(context)
-              : RefreshIndicator(
-                  onRefresh: _cargarDatos,
-                  child: SafeArea(
-                    child: ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 620),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _resumen(context),
-                                const SizedBox(height: 22),
-                                _seccionAvisos(),
-                                const SizedBox(height: 22),
-                                _seccionAlertas(),
-                                const SizedBox(height: 80),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+          ? _errorView(context)
+          : RefreshIndicator(
+        onRefresh: _cargarDatos,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 620),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _resumen(context),
+                      const SizedBox(height: 22),
+                      _seccionAvisos(),
+                      const SizedBox(height: 22),
+                      _seccionAlertas(),
+                      const SizedBox(height: 80),
+                    ],
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

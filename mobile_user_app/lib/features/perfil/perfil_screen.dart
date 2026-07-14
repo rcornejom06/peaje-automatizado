@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../shared/widgets/mobile_app_header.dart';
 import 'cambiar_password_screen.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/services/api_service.dart';
@@ -60,9 +60,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
     final resultado = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EditarPerfilScreen(
-          perfil: _perfil!,
-        ),
+        builder: (_) =>
+            EditarPerfilScreen(
+              perfil: _perfil!,
+            ),
       ),
     );
 
@@ -81,7 +82,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor.toString().trim().isEmpty) {
+    if (valor == null || valor
+        .toString()
+        .trim()
+        .isEmpty) {
       return 'Sin dato';
     }
 
@@ -141,8 +145,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
     required String valor,
     required IconData icono,
   }) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -178,8 +186,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Widget _headerPerfil() {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Container(
       width: double.infinity,
@@ -262,9 +274,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget _tituloSeccion(String titulo) {
     return Text(
       titulo,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+      style: Theme
+          .of(context)
+          .textTheme
+          .titleLarge
+          ?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 
@@ -335,8 +351,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Widget _errorView(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Center(
       child: Padding(
@@ -386,22 +406,24 @@ class _PerfilScreenState extends State<PerfilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-        actions: [
-          IconButton(
-            onPressed: _cargarPerfil,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+      appBar: MobileAppHeader(
+        title: 'Mi perfil',
+        subtitle: 'Datos personales',
+        icon: Icons.person,
+        showBackButton: true,
+        showRefresh: true,
+        onRefresh: _cargarPerfil,
+        showNotifications: true,
+        showLogout: true,
       ),
+
       body: _cargando
           ? const Center(
-              child: CircularProgressIndicator(),
-            )
+        child: CircularProgressIndicator(),
+      )
           : _error.isNotEmpty
-              ? _errorView(context)
-              : _contenidoPerfil(),
+          ? _errorView(context)
+          : _contenidoPerfil(),
     );
   }
 }

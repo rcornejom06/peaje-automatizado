@@ -2,13 +2,15 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, request
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import PlanMembresia, Membresia
 from .serializers import PlanMembresiaSerializer, MembresiaSerializer
+from ..notificaciones.models import Notificacion
+from ..notificaciones.services import crear_notificacion
 from ..usuarios.permissions import obtener_rol_usuario
 from ..pagos.models import Billetera, Transaccion
 from ..vehiculos.models import Vehiculo
@@ -206,6 +208,17 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         )
 
         serializer = self.get_serializer(membresia)
+
+        crear_notificacion(
+            usuario=request.user,
+            titulo="Membresía activada",
+            mensaje=(
+                f"Tu membresía fue activada correctamente. "
+                f"Ya puedes usar tus pases disponibles."
+            ),
+            tipo=Notificacion.Tipo.MEMBRESIA,
+            tipo_accion="membresias",
+        )
 
         return Response(
             {

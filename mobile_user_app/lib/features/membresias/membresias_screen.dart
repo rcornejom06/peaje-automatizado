@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../shared/widgets/mobile_app_header.dart';
 import '../../core/services/membresia_service.dart';
 
 class MembresiasScreen extends StatefulWidget {
@@ -80,8 +80,12 @@ class _MembresiasScreenState extends State<MembresiasScreen>
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) {
-        final colors = Theme.of(context).colorScheme;
-        final textTheme = Theme.of(context).textTheme;
+        final colors = Theme
+            .of(context)
+            .colorScheme;
+        final textTheme = Theme
+            .of(context)
+            .textTheme;
 
         return AlertDialog(
           title: const Text('Confirmar compra'),
@@ -183,7 +187,10 @@ class _MembresiasScreenState extends State<MembresiasScreen>
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor.toString().trim().isEmpty) {
+    if (valor == null || valor
+        .toString()
+        .trim()
+        .isEmpty) {
       return 'Sin dato';
     }
 
@@ -210,12 +217,14 @@ class _MembresiasScreenState extends State<MembresiasScreen>
       return const SizedBox.shrink();
     }
 
-    final colors = Theme.of(context).colorScheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
 
     final backgroundColor =
-        esError ? colors.errorContainer : colors.secondaryContainer;
+    esError ? colors.errorContainer : colors.secondaryContainer;
     final foregroundColor =
-        esError ? colors.onErrorContainer : colors.onSecondaryContainer;
+    esError ? colors.onErrorContainer : colors.onSecondaryContainer;
     final icon = esError ? Icons.error_outline : Icons.check_circle_outline;
 
     return Container(
@@ -238,11 +247,15 @@ class _MembresiasScreenState extends State<MembresiasScreen>
           Expanded(
             child: Text(
               mensaje,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: foregroundColor,
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
+              style: Theme
+                  .of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                color: foregroundColor,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -253,16 +266,24 @@ class _MembresiasScreenState extends State<MembresiasScreen>
   Widget _tituloSeccion(String titulo) {
     return Text(
       titulo,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-          ),
+      style: Theme
+          .of(context)
+          .textTheme
+          .titleLarge
+          ?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      ),
     );
   }
 
   Widget _emptyPlanes(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       child: Padding(
@@ -367,22 +388,18 @@ class _MembresiasScreenState extends State<MembresiasScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Membresías'),
-        actions: [
-          IconButton(
-            onPressed: _cargando ? null : _cargarDatos,
-            icon: RotationTransition(
-              turns: _refreshController,
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-        ],
+      appBar: MobileAppHeader(
+        title: 'Membresías',
+        subtitle: 'Planes y pases disponibles',
+        icon: Icons.card_membership,
+        showBackButton: true,
+        showRefresh: true,
+        onRefresh: _cargarDatos,
       ),
       body: _cargando
           ? const Center(
-              child: CircularProgressIndicator(),
-            )
+        child: CircularProgressIndicator(),
+      )
           : _contenido(context),
     );
   }
@@ -393,8 +410,12 @@ class _MembresiaInactiveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Card(
       child: Padding(
@@ -485,8 +506,12 @@ class _MembresiaActivaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final nombrePlan = _obtenerNombrePlan();
     final pasesRestantes = texto(membresia['pases_restantes']);
@@ -581,8 +606,12 @@ class _MembresiaInfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Row(
       children: [
@@ -637,8 +666,12 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final nombre = texto(plan['nombre']);
     final descripcion = texto(plan['descripcion']);
@@ -736,13 +769,13 @@ class _PlanCard extends StatelessWidget {
                 onPressed: comprando ? null : onComprar,
                 icon: comprando
                     ? SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.onPrimary,
-                        ),
-                      )
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.onPrimary,
+                  ),
+                )
                     : const Icon(Icons.shopping_cart_outlined),
                 label: Text(
                   comprando ? 'Comprando...' : 'Comprar plan',
@@ -769,8 +802,12 @@ class _PlanFeature extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Container(
       decoration: BoxDecoration(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
+import '../../shared/widgets/mobile_app_header.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/billetera_service.dart';
 
@@ -801,17 +801,15 @@ class _BilleteraScreenState extends State<BilleteraScreen>
         .colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Billetera'),
-        actions: [
-          IconButton(
-            onPressed: _cargando ? null : _cargarBilletera,
-            icon: RotationTransition(
-              turns: _refreshController,
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-        ],
+      appBar: MobileAppHeader(
+        title: 'Billetera',
+        subtitle: 'Saldo y movimientos',
+        icon: Icons.account_balance_wallet,
+        showBackButton: true,
+        showRefresh: true,
+        onRefresh: _cargarBilletera,
+        showNotifications: true,
+        showLogout: true,
       ),
       body: _cargando
           ? const Center(

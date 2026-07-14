@@ -5,14 +5,6 @@ export const obtenerVehiculos = async () => {
   return response.data;
 };
 
-export const buscarVehiculoRevision = async (placa) => {
-  const response = await api.get("/vehiculos/vehiculos/buscar-revision/", {
-    params: { placa },
-  });
-
-  return response.data;
-};
-
 export const aprobarVehiculo = async (vehiculoId, motivoRevision) => {
   const response = await api.patch(
     `/vehiculos/vehiculos/${vehiculoId}/aprobar/`,

@@ -1,6 +1,6 @@
 class ApiConfig {
   //static const String baseUrl = 'http://localhost:8000/api';
-  static const String baseUrl = 'http://192.168.0.107:8000/api';
+  static const String baseUrl = 'http://192.168.0.106:8000/api';
   //static const String baseUrl = 'http://192.168.1.117:8000/api';
 
   static const String token = '/auth/token/';
@@ -35,4 +35,8 @@ class ApiConfig {
 
   static const String miBilletera = '/pagos/billeteras/mi-billetera/';
   static const String recargarBilletera = '/pagos/billeteras/recargar/';
+
+  static const String notificaciones = '/notificaciones/notificaciones/';
+static const String notificacionesNoLeidas =
+    '/notificaciones/notificaciones/no-leidas/';
 }

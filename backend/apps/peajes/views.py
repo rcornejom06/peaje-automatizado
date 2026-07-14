@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import Peaje, Camara, PasoPeaje
 from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer
+from ..notificaciones.models import Notificacion
+from ..notificaciones.services import crear_notificacion
 from ..usuarios.permissions import obtener_rol_usuario
 from ..vehiculos.models import Vehiculo
 from ..pagos.models import Transaccion, Billetera
@@ -142,12 +144,6 @@ class CamaraViewSet(viewsets.ModelViewSet):
         url_path="stream",
         permission_classes=[AllowAny]
     )
-    @action(
-        detail=True,
-        methods=["get"],
-        url_path="stream",
-        permission_classes=[AllowAny]
-    )
     def stream(self, request, pk=None):
         if not validar_token_stream(request):
             return Response(
@@ -227,7 +223,7 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         ).order_by("-fecha_hora")
 
     @transaction.atomic
-    def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada):
+    def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada,):
 
         if not vehiculo:
             paso.estado_pago = "pendiente"
@@ -304,6 +300,16 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                     "numero_ejes": categoria.numero_ejes,
                     "aplica_membresia": True,
                 }
+            crear_notificacion(
+                usuario=vehiculo.usuario,
+                titulo="Pago de peaje realizado",
+                mensaje=(
+                    f"Se registró un pago de peaje para el vehículo {vehiculo.placa}. "
+                    f"Valor: ${tarifa_aplicada}."
+                ),
+                tipo=Notificacion.Tipo.PAGO,
+                tipo_accion="pasos",
+            )
 
         try:
             billetera = Billetera.objects.select_for_update().get(usuario=usuario)
@@ -550,6 +556,22 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             url_maps=url_maps,
             fecha_hora=timezone.now()
         )
+
+        try:
+            Notificacion.objects.create(
+                usuario=vehiculo.usuario,
+                alerta=alerta,
+                titulo="Vehículo reportado detectado",
+                mensaje=(
+                    f"Tu vehículo con placa {vehiculo.placa} fue detectado en "
+                    f"{peaje.nombre if peaje else 'un peaje registrado'}."
+                ),
+                tipo=Notificacion.Tipo.ALERTA,
+                url_accion=url_maps,
+                tipo_accion="mapa",
+            )
+        except Exception:
+            pass
 
         aviso.estado = "detectado"
         aviso.save()

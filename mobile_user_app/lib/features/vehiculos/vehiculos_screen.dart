@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../shared/widgets/mobile_app_header.dart';
 import '../../core/services/vehiculo_service.dart';
 import 'editar_vehiculo_screen.dart';
 
@@ -56,9 +56,10 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     final resultado = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EditarVehiculoScreen(
-          vehiculo: Map<String, dynamic>.from(vehiculo),
-        ),
+        builder: (_) =>
+            EditarVehiculoScreen(
+              vehiculo: Map<String, dynamic>.from(vehiculo),
+            ),
       ),
     );
 
@@ -93,7 +94,10 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   String _obtenerTexto(dynamic valor) {
-    if (valor == null || valor.toString().trim().isEmpty) {
+    if (valor == null || valor
+        .toString()
+        .trim()
+        .isEmpty) {
       return 'Sin dato';
     }
 
@@ -142,13 +146,19 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   String? _obtenerDocumentoUrl(dynamic vehiculo) {
     final url = vehiculo['documento_respaldo_url'];
 
-    if (url != null && url.toString().trim().isNotEmpty) {
+    if (url != null && url
+        .toString()
+        .trim()
+        .isNotEmpty) {
       return url.toString();
     }
 
     final documento = vehiculo['documento_respaldo'];
 
-    if (documento != null && documento.toString().trim().isNotEmpty) {
+    if (documento != null && documento
+        .toString()
+        .trim()
+        .isNotEmpty) {
       return documento.toString();
     }
 
@@ -156,8 +166,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   Widget _estadoRevisionChip(dynamic vehiculo) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final estado = vehiculo['estado_revision'];
     final color = _colorEstadoRevision(estado, colors);
@@ -193,8 +207,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   Widget _documentoEstado(String? documentoUrl) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final tieneDocumento = documentoUrl != null;
     final color = tieneDocumento ? colors.primary : colors.outline;
@@ -226,8 +244,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     required dynamic estadoRevision,
     required dynamic motivoRevision,
   }) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     Color backgroundColor;
     Color foregroundColor;
@@ -244,7 +266,10 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
       foregroundColor = colors.onErrorContainer;
       icon = Icons.cancel_outlined;
       mensaje = motivoRevision != null &&
-              motivoRevision.toString().trim().isNotEmpty
+          motivoRevision
+              .toString()
+              .trim()
+              .isNotEmpty
           ? 'Motivo: $motivoRevision'
           : 'Vehículo rechazado. Contacta con administración.';
     } else {
@@ -286,8 +311,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   Widget _vehiculoCard(dynamic vehiculo) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final placa = _obtenerTexto(vehiculo['placa']);
     final marca = _obtenerTexto(vehiculo['marca']);
@@ -403,8 +432,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   Widget _errorView() {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Center(
       child: Padding(
@@ -451,8 +484,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   Widget _emptyView() {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Center(
       child: Padding(
@@ -533,20 +570,23 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mis vehículos'),
-        actions: [
-          IconButton(
-            onPressed: _cargarVehiculos,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+      appBar: MobileAppHeader(
+        title: 'Mis vehículos',
+        subtitle: 'Vehículos registrados',
+        icon: Icons.directions_car,
+        showBackButton: true,
+        showRefresh: true,
+        onRefresh: _cargarVehiculos,
+        showNotifications: true,
+        showLogout: true,
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _irARegistrar,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Registrar'),
       ),
       body: _contenido(),
     );
   }
+
 }

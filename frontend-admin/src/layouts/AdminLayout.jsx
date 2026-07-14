@@ -2,6 +2,7 @@ import {useState} from "react";
 import {NavLink, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {logout} from "../auth/authService";
 import "../layouts/styles/AdminLayout.css";
+import NotificationBell from "../components/NotificationBell/NotificationBell.jsx";
 
 const menuItems = [
     {
@@ -96,8 +97,6 @@ function AdminLayout() {
         setSidebarOculto((actual) => !actual);
     };
 
-    const tituloActual = pageTitles[location.pathname] || "Panel administrativo";
-
     return (
         <div
             className={`admin-layout ${sidebarOculto ? "sidebar-collapsed" : ""} ${
@@ -131,6 +130,9 @@ function AdminLayout() {
                     >
                         ×
                     </button>
+                </div>
+                <div className="admin-floating-notification">
+                    <NotificationBell/>
                 </div>
 
                 <nav className="sidebar-nav">

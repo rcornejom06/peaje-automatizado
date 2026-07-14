@@ -1,14 +1,15 @@
-from .models import CategoriaVehiculo,Vehiculo
+from .models import CategoriaVehiculo, Vehiculo
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .serializers import CategoriaVehiculoSerializer,VehiculoSerializer
+from .serializers import CategoriaVehiculoSerializer, VehiculoSerializer
+from ..notificaciones.models import Notificacion
+from ..notificaciones.services import crear_notificacion, notificar_administradores
 from ..usuarios.permissions import obtener_rol_usuario
 from ..auditoria.utils import registrar_historial
 from django.utils import timezone
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-
 
 
 class CategoriaVehiculoViewSet(viewsets.ReadOnlyModelViewSet):
@@ -18,15 +19,14 @@ class CategoriaVehiculoViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
         if rol == 'administrador':
-            return CategoriaVehiculo.objects.all().order_by("numero_ejes","tarifa")
-        return CategoriaVehiculo.objects.filter(estado=True).order_by("numero_ejes","tarifa")
+            return CategoriaVehiculo.objects.all().order_by("numero_ejes", "tarifa")
+        return CategoriaVehiculo.objects.filter(estado=True).order_by("numero_ejes", "tarifa")
 
 
 class VehiculoViewSet(viewsets.ModelViewSet):
     serializer_class = VehiculoSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
@@ -74,7 +74,7 @@ class VehiculoViewSet(viewsets.ModelViewSet):
             )
 
         vehiculo = Vehiculo.objects.create(
-            usuario = request.user,
+            usuario=request.user,
             placa=placa,
             marca=marca,
             categoria=categoria,
@@ -95,8 +95,16 @@ class VehiculoViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(vehiculo)
 
+        notificar_administradores(
+            titulo="Nuevo vehículo registrado",
+            mensaje=f"El usuario {request.user.username} registró el vehículo con placa {vehiculo.placa}.",
+            tipo=Notificacion.Tipo.SISTEMA,
+            tipo_accion="vehiculos",
+        )
+
         return Response(
-            {"message": "Vehículo registrado exitosamente. Queda en revisión hasta aprobación administrativa", "vehiculo": serializer.data},
+            {"message": "Vehículo registrado exitosamente. Queda en revisión hasta aprobación administrativa",
+             "vehiculo": serializer.data},
             status=status.HTTP_201_CREATED
         )
 
@@ -175,7 +183,6 @@ class VehiculoViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
-
     @action(detail=False, methods=["get"], url_path="buscar-revision")
     def buscar_revision(self, request):
         rol = obtener_rol_usuario(request.user)
@@ -212,8 +219,7 @@ class VehiculoViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(vehiculo)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    
+
     @action(detail=True, methods=["patch"], url_path="aprobar")
     def aprobar(self, request, pk=None):
         rol = obtener_rol_usuario(request.user)
@@ -236,6 +242,14 @@ class VehiculoViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(vehiculo)
 
+        crear_notificacion(
+            usuario=vehiculo.usuario,
+            titulo="Vehículo aprobado",
+            mensaje=f"Tu vehículo con placa {vehiculo.placa} fue aprobado correctamente.",
+            tipo=Notificacion.Tipo.SISTEMA,
+            tipo_accion="vehiculos",
+        )
+
         return Response(
             {
                 "mensaje": "Vehículo aprobado correctamente.",
@@ -243,8 +257,7 @@ class VehiculoViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK
         )
-        
-        
+
     @action(detail=True, methods=["patch"], url_path="rechazar")
     def rechazar(self, request, pk=None):
         rol = obtener_rol_usuario(request.user)
@@ -271,6 +284,16 @@ class VehiculoViewSet(viewsets.ModelViewSet):
         vehiculo.save()
 
         serializer = self.get_serializer(vehiculo)
+        crear_notificacion(
+            usuario=vehiculo.usuario,
+            titulo="Vehículo rechazado",
+            mensaje=(
+                f"Tu vehículo con placa {vehiculo.placa} fue rechazado. "
+                f"Revisa la información registrada."
+            ),
+            tipo=Notificacion.Tipo.SISTEMA,
+            tipo_accion="vehiculos",
+        )
 
         return Response(
             {
@@ -280,3 +303,40 @@ class VehiculoViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="cambiar-estado-revision",
+        permission_classes=[IsAuthenticated],
+    )
+    def cambiar_estado_revision(self, request, pk=None):
+        vehiculo = self.get_object()
+
+        nuevo_estado = request.data.get("estado_revision")
+        observacion = request.data.get("observacion_revision", "")
+
+        estados_validos = [
+            Vehiculo.EstadoRevision.PENDIENTE,
+            Vehiculo.EstadoRevision.APROBADO,
+            Vehiculo.EstadoRevision.RECHAZADO,
+        ]
+
+        if nuevo_estado not in estados_validos:
+            return Response(
+                {"error": "Estado de revisión inválido."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        vehiculo.estado_revision = nuevo_estado
+        vehiculo.observacion_revision = observacion
+        vehiculo.save()
+
+        serializer = self.get_serializer(vehiculo)
+
+        return Response(
+            {
+                "mensaje": "Estado de revisión actualizado correctamente.",
+                "vehiculo": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )

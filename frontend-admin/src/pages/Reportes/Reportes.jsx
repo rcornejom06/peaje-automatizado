@@ -56,8 +56,6 @@ function Reportes() {
             setAlertas(alertasData);
             setVehiculosDetectados(vehiculosData);
             setUsoMembresias(usoMembresiasData);
-        } catch (error) {
-            setError("No se pudieron cargar los reportes.");
         } finally {
             setCargando(false);
         }
