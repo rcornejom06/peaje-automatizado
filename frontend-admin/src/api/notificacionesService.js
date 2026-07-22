@@ -1,18 +1,18 @@
 import api from "./axios";
 
 export const obtenerNotificaciones = async () => {
-  const response = await api.get("/notificaciones/notificaciones/");
+  const response = await api.get("/notificaciones/");
   return response.data;
 };
 
 export const obtenerNotificacionesNoLeidas = async () => {
-  const response = await api.get("/notificaciones/notificaciones/no-leidas/");
+  const response = await api.get("/notificaciones/no-leidas/");
   return response.data;
 };
 
 export const marcarNotificacionLeida = async (id) => {
   const response = await api.patch(
-    `/notificaciones/notificaciones/${id}/marcar-leida/`,
+    `/notificaciones/${id}/marcar-leida/`,
     {}
   );
   return response.data;
@@ -20,7 +20,7 @@ export const marcarNotificacionLeida = async (id) => {
 
 export const marcarTodasNotificacionesLeidas = async () => {
   const response = await api.patch(
-    "/notificaciones/notificaciones/marcar-todas-leidas/",
+    "/notificaciones/marcar-todas-leidas/",
     {}
   );
   return response.data;

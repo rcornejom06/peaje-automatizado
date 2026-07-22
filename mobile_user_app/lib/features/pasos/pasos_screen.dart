@@ -342,7 +342,7 @@ class _PasosScreenState extends State<PasosScreen>
         showBackButton: true,
         showRefresh: false,
         showNotifications: true,
-        showLogout: true,
+        showLogout: false,
         extraActions: [
           IconButton(
             tooltip: 'Actualizar',

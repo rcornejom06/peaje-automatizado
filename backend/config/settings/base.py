@@ -1,4 +1,3 @@
-
 from decouple import config
 from pathlib import Path
 from datetime import timedelta
@@ -153,3 +152,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Firebase Cloud Messaging (notificaciones push a la app móvil)
+# Descarga la clave desde Firebase Console -> Configuración del proyecto ->
+# Cuentas de servicio -> Generar nueva clave privada. NUNCA subir este
+# archivo a git; se referencia por ruta y se puede sobreescribir con la
+# variable de entorno FIREBASE_CREDENTIALS_PATH en producción.
+FIREBASE_CREDENTIALS_PATH = config(
+    "FIREBASE_CREDENTIALS_PATH",
+    default=str(BASE_DIR / "firebase-service-account.json"),
+)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../../core/services/seguridad_service.dart';
 import '../../core/services/vehiculo_service.dart';
 
@@ -25,6 +26,8 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
 
   bool _cargando = true;
   bool _guardando = false;
+  bool _confirmaDatosCorrectos = false;
+
   String _error = '';
 
   List<dynamic> _vehiculos = [];
@@ -32,17 +35,45 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
 
   PlatformFile? _documentoRespaldoPdf;
 
+  @override
+  void initState() {
+    super.initState();
+    _cargarVehiculos();
+  }
+
+  @override
+  void dispose() {
+    _numeroDenunciaController.dispose();
+    _entidadDenunciaController.dispose();
+    _fechaDenunciaController.dispose();
+    _lugarRoboController.dispose();
+    _descripcionController.dispose();
+
+    super.dispose();
+  }
+
   Future<void> _cargarVehiculos() async {
     try {
+      setState(() {
+        _cargando = true;
+        _error = '';
+      });
+
       final data = await _vehiculoService.obtenerVehiculos();
 
       if (!mounted) return;
 
+      final vehiculosValidos = data.where((vehiculo) {
+        return int.tryParse(vehiculo['id']?.toString() ?? '') != null;
+      }).toList();
+
       setState(() {
-        _vehiculos = data;
+        _vehiculos = vehiculosValidos;
 
         if (_vehiculos.isNotEmpty) {
-          _vehiculoSeleccionado = _vehiculos.first['id'];
+          _vehiculoSeleccionado = int.tryParse(
+            _vehiculos.first['id'].toString(),
+          );
         }
       });
     } catch (e) {
@@ -70,9 +101,9 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
 
     if (fecha != null) {
       _fechaDenunciaController.text =
-      '${fecha.year.toString().padLeft(4, '0')}-${fecha.month
-          .toString()
-          .padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+      '${fecha.year.toString().padLeft(4, '0')}-'
+          '${fecha.month.toString().padLeft(2, '0')}-'
+          '${fecha.day.toString().padLeft(2, '0')}';
     }
   }
 
@@ -125,13 +156,82 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
         _documentoRespaldoPdf = archivo;
         _error = '';
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _error = 'No se pudo seleccionar el PDF.';
       });
     }
   }
 
+  void _quitarPdf() {
+    setState(() {
+      _documentoRespaldoPdf = null;
+    });
+  }
+
+  String _vehiculoNombre(dynamic vehiculo) {
+    final placa = vehiculo['placa']?.toString() ?? 'Sin placa';
+    final marca = vehiculo['marca']?.toString() ?? '';
+    final modelo = vehiculo['modelo']?.toString() ?? '';
+
+    final detalle = '$marca $modelo'.trim();
+
+    if (detalle.isEmpty) {
+      return placa;
+    }
+
+    return '$placa - $detalle';
+  }
+
+  String _vehiculoSeleccionadoNombre() {
+    try {
+      final vehiculo = _vehiculos.firstWhere(
+            (item) => item['id'].toString() == _vehiculoSeleccionado.toString(),
+      );
+
+      return _vehiculoNombre(vehiculo);
+    } catch (_) {
+      return 'Vehículo seleccionado';
+    }
+  }
+
+  Future<bool> _confirmarCreacionAviso() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirmar aviso de robo'),
+          content: SingleChildScrollView(
+            child: Text(
+              'Antes de crear el aviso, verifica que la información sea correcta:\n\n'
+                  'Vehículo: ${_vehiculoSeleccionadoNombre()}\n'
+                  'Número de denuncia: ${_numeroDenunciaController.text
+                  .trim()}\n'
+                  'Entidad: ${_entidadDenunciaController.text.trim()}\n'
+                  'Fecha: ${_fechaDenunciaController.text.trim()}\n'
+                  'Lugar: ${_lugarRoboController.text.trim()}\n\n'
+                  'Este aviso marcará el vehículo como reportado por robo y podrá generar alertas de seguridad cuando sea detectado en un peaje.\n\n'
+                  '¿Confirmas que los datos proporcionados son correctos?',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Revisar datos'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, true),
+              icon: const Icon(Icons.verified_user_outlined),
+              label: const Text('Sí, crear aviso'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmar == true;
+  }
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) {
@@ -168,6 +268,20 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
         });
         return;
       }
+    }
+
+    if (!_confirmaDatosCorrectos) {
+      setState(() {
+        _error =
+        'Debes confirmar que la información proporcionada en la denuncia es correcta.';
+      });
+      return;
+    }
+
+    final confirmado = await _confirmarCreacionAviso();
+
+    if (!confirmado) {
+      return;
     }
 
     try {
@@ -212,29 +326,14 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _cargarVehiculos();
-  }
+  String? _validarTextoObligatorio(String? value) {
+    if (value == null || value
+        .trim()
+        .isEmpty) {
+      return 'Este campo es obligatorio';
+    }
 
-  @override
-  void dispose() {
-    _numeroDenunciaController.dispose();
-    _entidadDenunciaController.dispose();
-    _fechaDenunciaController.dispose();
-    _lugarRoboController.dispose();
-    _descripcionController.dispose();
-
-    super.dispose();
-  }
-
-  String _vehiculoNombre(dynamic vehiculo) {
-    final placa = vehiculo['placa']?.toString() ?? 'Sin placa';
-    final marca = vehiculo['marca']?.toString() ?? '';
-    final modelo = vehiculo['modelo']?.toString() ?? '';
-
-    return '$placa - $marca $modelo';
+    return null;
   }
 
   Widget _campoTexto({
@@ -258,16 +357,7 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
         keyboardType: keyboardType,
         textInputAction: textInputAction,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        validator: validator ??
-                (value) {
-              if (value == null || value
-                  .trim()
-                  .isEmpty) {
-                return 'Este campo es obligatorio';
-              }
-
-              return null;
-            },
+        validator: validator ?? _validarTextoObligatorio,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),
@@ -352,10 +442,21 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Primero debe registrar un vehículo para crear un aviso de robo.',
+                  'Primero debes registrar un vehículo para crear un aviso de robo.',
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(
                     color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/registrar-vehiculo');
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Registrar vehículo'),
                   ),
                 ),
               ],
@@ -449,14 +550,28 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _guardando ? null : _seleccionarPdf,
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            label: Text(
-              tieneArchivo
-                  ? 'Cambiar PDF seleccionado'
-                  : 'Adjuntar denuncia PDF',
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _guardando ? null : _seleccionarPdf,
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: Text(
+                    tieneArchivo
+                        ? 'Cambiar PDF seleccionado'
+                        : 'Adjuntar denuncia PDF',
+                  ),
+                ),
+              ),
+              if (tieneArchivo) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _guardando ? null : _quitarPdf,
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Quitar PDF',
+                ),
+              ],
+            ],
           ),
           if (tieneArchivo) ...[
             const SizedBox(height: 10),
@@ -484,6 +599,78 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
         ],
       ),
     );
+  }
+
+  Widget _confirmacionDatos(BuildContext context) {
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withAlpha(70),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color:
+          _confirmaDatosCorrectos ? colors.primary : colors.outlineVariant,
+        ),
+      ),
+      child: CheckboxListTile(
+        value: _confirmaDatosCorrectos,
+        onChanged: _guardando
+            ? null
+            : (value) {
+          setState(() {
+            _confirmaDatosCorrectos = value ?? false;
+
+            if (_confirmaDatosCorrectos) {
+              _error = '';
+            }
+          });
+        },
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        title: Text(
+          'Confirmo que la información proporcionada en la denuncia es correcta.',
+          style: textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          'Entiendo que este aviso marcará mi vehículo como reportado por robo y podrá generar alertas de seguridad al ser detectado.',
+          style: textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+            height: 1.35,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<DropdownMenuItem<int>> _vehiculoItems() {
+    return _vehiculos
+        .map((vehiculo) {
+      final id = int.tryParse(vehiculo['id']?.toString() ?? '');
+
+      if (id == null) {
+        return null;
+      }
+
+      return DropdownMenuItem<int>(
+        value: id,
+        child: Text(
+          _vehiculoNombre(vehiculo),
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    })
+        .whereType<DropdownMenuItem<int>>()
+        .toList();
   }
 
   @override
@@ -525,20 +712,13 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
                             labelText: 'Vehículo',
                             prefixIcon: Icon(Icons.directions_car),
                           ),
-                          items: _vehiculos.map((vehiculo) {
-                            return DropdownMenuItem<int>(
-                              value: vehiculo['id'],
-                              child: Text(
-                                _vehiculoNombre(vehiculo),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          }).toList(),
+                          items: _vehiculoItems(),
                           onChanged: _guardando
                               ? null
                               : (value) {
                             setState(() {
                               _vehiculoSeleccionado = value;
+                              _error = '';
                             });
                           },
                           validator: (value) {
@@ -583,10 +763,12 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
                           label: 'Descripción',
                           icon: Icons.description,
                           maxLines: 3,
+                          textInputAction: TextInputAction.done,
                         ),
 
-
                         _selectorPdf(context),
+
+                        _confirmacionDatos(context),
 
                         _bloqueError(context),
 
@@ -594,7 +776,8 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton.icon(
-                            onPressed: _guardando ? null : _guardar,
+                            onPressed:
+                            _guardando ? null : _guardar,
                             icon: _guardando
                                 ? SizedBox(
                               width: 18,

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "510185635051",
+    "project_id": "viasmart-58ef7",
+    "storage_bucket": "viasmart-58ef7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:510185635051:android:d2ca37a1d6c71020c952ae",
+        "android_client_info": {
+          "package_name": "com.example.mobile_user_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpG53cjbJGdTrjow0fduGIELMENsycPlQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -25,6 +25,52 @@ class SeguridadService {
     return [];
   }
 
+  Future<dynamic> solicitarReactivacionVehiculo({
+    required int vehiculoId,
+    required String motivo,
+    String? documentoPath,
+  }) async {
+    final Map<String, String> fields = {
+      'vehiculo': vehiculoId.toString(),
+      'motivo': motivo,
+    };
+
+    final Map<String, String> archivos = {};
+
+    if (documentoPath != null && documentoPath
+        .trim()
+        .isNotEmpty) {
+      archivos['documento_respaldo'] = documentoPath;
+    }
+
+    return await _apiService.postMultipart(
+      '/seguridad/reactivaciones-vehiculo/solicitar/',
+      fields: fields,
+      files: archivos,
+    );
+  }
+
+
+  Future<List<dynamic>> obtenerSolicitudesReactivacion() async {
+    final data = await _apiService.get(
+      '/seguridad/reactivaciones-vehiculo/',
+    );
+
+    if (data is List) {
+      return data;
+    }
+
+    if (data is Map && data['results'] is List) {
+      return data['results'];
+    }
+
+    if (data is Map && data['solicitudes'] is List) {
+      return data['solicitudes'];
+    }
+
+    return [];
+  }
+
   Future<List<dynamic>> obtenerAlertas() async {
     final data = await _apiService.get(ApiConfig.alertas);
 
@@ -79,11 +125,15 @@ class SeguridadService {
     request.fields['lugar_robo'] = lugarRobo;
     request.fields['descripcion'] = descripcion;
 
-    if (latitudRobo != null && latitudRobo.trim().isNotEmpty) {
+    if (latitudRobo != null && latitudRobo
+        .trim()
+        .isNotEmpty) {
       request.fields['latitud_robo'] = latitudRobo.trim();
     }
 
-    if (longitudRobo != null && longitudRobo.trim().isNotEmpty) {
+    if (longitudRobo != null && longitudRobo
+        .trim()
+        .isNotEmpty) {
       request.fields['longitud_robo'] = longitudRobo.trim();
     }
 
@@ -96,7 +146,9 @@ class SeguridadService {
         ),
       );
     } else if (documentoRespaldoPath != null &&
-        documentoRespaldoPath.trim().isNotEmpty) {
+        documentoRespaldoPath
+            .trim()
+            .isNotEmpty) {
       request.files.add(
         await http.MultipartFile.fromPath(
           'documento_respaldo',
@@ -109,8 +161,8 @@ class SeguridadService {
     }
 
     final streamedResponse = await request.send().timeout(
-          const Duration(seconds: 30),
-        );
+      const Duration(seconds: 30),
+    );
 
     final response = await http.Response.fromStream(streamedResponse);
 

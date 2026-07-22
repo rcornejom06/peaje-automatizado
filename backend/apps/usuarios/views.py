@@ -1,5 +1,6 @@
 from datetime import timedelta
 import secrets
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -9,7 +10,7 @@ from django.contrib.auth import get_user_model
 
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.decorators import action
+from rest_framework.decorators import action,api_view, permission_classes
 from rest_framework.response import Response
 
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -60,6 +61,83 @@ def es_administrador(usuario):
         return False
 
     return perfil.rol == PerfilUsuario.Rol.ADMINISTRADOR
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def verificar_correo_operador(request):
+    email = request.data.get("email", "").strip().lower()
+    codigo = request.data.get("codigo", "").strip()
+
+    if not email or not codigo:
+        return Response(
+            {"error": "Debe ingresar el correo y el código de verificación."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    usuario = User.objects.filter(email__iexact=email).first()
+
+    if not usuario:
+        return Response(
+            {"error": "No existe una cuenta administrativa con ese correo."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    perfil = getattr(usuario, "perfil", None)
+
+    if not perfil:
+        return Response(
+            {"error": "El usuario no tiene perfil asociado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    roles_permitidos = [
+        PerfilUsuario.Rol.ADMINISTRADOR,
+        PerfilUsuario.Rol.OPERADOR,
+    ]
+
+    if perfil.rol not in roles_permitidos:
+        return Response(
+            {"error": "Este correo no pertenece a una cuenta administrativa."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if perfil.correo_verificado:
+        return Response(
+            {"mensaje": "El correo administrativo ya se encuentra verificado."},
+            status=status.HTTP_200_OK,
+        )
+
+    if perfil.codigo_verificacion != codigo:
+        return Response(
+            {"error": "Código de verificación incorrecto."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if perfil.codigo_expira and perfil.codigo_expira < timezone.now():
+        return Response(
+            {"error": "El código de verificación ha expirado. Solicite uno nuevo."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    perfil.correo_verificado = True
+    perfil.estado = True
+    perfil.codigo_verificacion = None
+    perfil.codigo_expira = None
+    perfil.save(update_fields=[
+        "correo_verificado",
+        "estado",
+        "codigo_verificacion",
+        "codigo_expira",
+        "fecha_actualizacion",
+    ])
+
+    return Response(
+        {
+            "mensaje": "Correo administrativo verificado correctamente. Ahora puede iniciar sesión."
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -308,7 +386,17 @@ class UserViewSet(viewsets.ModelViewSet):
 
         try:
             enviar_codigo_verificacion(user)
-        except Exception:
+        except Exception as error:
+            if settings.DEBUG:
+                return Response(
+                    {
+                        "mensaje": "Código generado. No se pudo enviar el correo, pero estás en modo DEBUG.",
+                        "codigo_debug": perfil.codigo_verificacion,
+                        "error_email": str(error),
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
             return Response(
                 {"error": "No se pudo enviar el correo. Intente nuevamente."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -324,6 +412,50 @@ class PerfilUsuarioViewSet(viewsets.ModelViewSet):
     queryset = PerfilUsuario.objects.select_related("usuario").all()
     serializer_class = PerfilUsuarioSerializer
     permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        if not es_administrador(request.user):
+            return Response(
+                {
+                    "error": "No tienes permisos para crear perfiles."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not es_administrador(request.user):
+            return Response(
+                {
+                    "error": "No tienes permisos para modificar perfiles directamente. Use actualizar-mi-perfil."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if not es_administrador(request.user):
+            return Response(
+                {
+                    "error": "No tienes permisos para modificar perfiles directamente. Use actualizar-mi-perfil."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not es_administrador(request.user):
+            return Response(
+                {
+                    "error": "No tienes permisos para eliminar perfiles."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().destroy(request, *args, **kwargs)
 
     def get_queryset(self):
         usuario = self.request.user
@@ -424,11 +556,140 @@ class PerfilUsuarioViewSet(viewsets.ModelViewSet):
         usuario = serializer.save()
 
         perfil = usuario.perfil
+
+        codigo = f"{secrets.randbelow(1000000):06d}"
+
+        perfil.rol = PerfilUsuario.Rol.OPERADOR
+        perfil.estado = True
+        perfil.correo_verificado = False
+        perfil.codigo_verificacion = codigo
+        perfil.codigo_expira = timezone.now() + timedelta(minutes=15)
+        perfil.requiere_cambio_password = True
+        perfil.save()
+
+        frontend_admin_url = getattr(
+            settings,
+            "FRONTEND_ADMIN_URL",
+            "http://localhost:5173",
+        )
+
+        query = urlencode(
+            {
+                "email": usuario.email,
+                "codigo": codigo,
+            }
+        )
+
+        enlace_verificacion = (
+            f"{frontend_admin_url}/verificar-correo-operador?{query}"
+        )
+
+        asunto = "Verificación de cuenta de operador - VíaSmart"
+
+        mensaje = (
+            f"Hola {usuario.first_name or usuario.username},\n\n"
+            f"Tu cuenta de operador fue creada en el Panel Administrativo de VíaSmart.\n\n"
+            f"Usuario: {usuario.username}\n\n"
+            f"Para verificar tu correo, abre el siguiente enlace:\n\n"
+            f"{enlace_verificacion}\n\n"
+            f"También puedes ingresar manualmente este código:\n\n"
+            f"{codigo}\n\n"
+            f"Este código expira en 15 minutos.\n\n"
+            f"Después de verificar tu correo, deberás cambiar tu contraseña temporal "
+            f"en el primer ingreso.\n\n"
+            f"Sistema Inteligente de Peaje Automatizado - VíaSmart"
+        )
+
+        html_message = f"""
+        <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">
+            <h2>Verificación de cuenta de operador - VíaSmart</h2>
+
+            <p>Hola <strong>{usuario.first_name or usuario.username}</strong>,</p>
+
+            <p>
+                Tu cuenta de operador fue creada en el Panel Administrativo de VíaSmart.
+            </p>
+
+            <p>
+                <strong>Usuario:</strong> {usuario.username}
+            </p>
+
+            <p>Para verificar tu correo, haz clic en el siguiente botón:</p>
+
+            <p style="margin: 24px 0;">
+                <a href="{enlace_verificacion}"
+                   style="
+                        background: #2563eb;
+                        color: #ffffff;
+                        padding: 12px 20px;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        display: inline-block;
+                   ">
+                    Verificar cuenta de operador
+                </a>
+            </p>
+
+            <p>Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+
+            <p style="word-break: break-all;">
+                <a href="{enlace_verificacion}">{enlace_verificacion}</a>
+            </p>
+
+            <p>También puedes ingresar este código manualmente:</p>
+
+            <h3 style="letter-spacing: 4px; font-size: 24px;">{codigo}</h3>
+
+            <p>Este código expira en 15 minutos.</p>
+
+            <p>
+                Después de verificar tu correo, deberás cambiar tu contraseña temporal
+                en el primer ingreso.
+            </p>
+
+            <hr />
+
+            <small>Sistema Inteligente de Peaje Automatizado - VíaSmart</small>
+        </div>
+        """
+
+        try:
+            send_mail(
+                asunto,
+                mensaje,
+                getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@viasmart.com"),
+                [usuario.email],
+                fail_silently=False,
+                html_message=html_message,
+            )
+        except Exception as error:
+            respuesta = PerfilUsuarioSerializer(perfil)
+
+            if settings.DEBUG:
+                return Response(
+                    {
+                        "mensaje": "Operador creado. No se pudo enviar el correo, pero estás en modo DEBUG.",
+                        "codigo_debug": codigo,
+                        "enlace_debug": enlace_verificacion,
+                        "error_email": str(error),
+                        "perfil": respuesta.data,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+
+            return Response(
+                {
+                    "error": "Operador creado, pero no se pudo enviar el correo de verificación."
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
         respuesta = PerfilUsuarioSerializer(perfil)
 
         return Response(
             {
-                "mensaje": "Operador creado correctamente.",
+                "mensaje": "Operador creado correctamente. Se envió el enlace de verificación al correo.",
                 "perfil": respuesta.data,
             },
             status=status.HTTP_201_CREATED,

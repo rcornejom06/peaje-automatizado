@@ -1,6 +1,6 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import {BrowserRouter, Navigate, Route, Routes} from "react-router-dom";
 
-import { isAuthenticated } from "../auth/authService";
+import {isAdminPanelUser, isAuthenticated} from "../auth/authService";
 
 import AdminLayout from "../layouts/AdminLayout.jsx";
 import Login from "../pages/Login/Login";
@@ -15,60 +15,65 @@ import Membresias from "../pages/Membresias/Membresias";
 import Reportes from "../pages/Reportes/Reportes";
 import Usuarios from "../pages/Usuarios/Usuarios";
 import Auditoria from "../pages/Auditoria/Auditoria.jsx";
+import SolicitudesReactivacion from "../components/Solicitudes/SolicitudesReactivacion.jsx";
+import VerificarCorreo from "../pages/Login/VerificarCorreo.jsx";
+import CambiarPasswordInicial from "../pages/Login/CambiarContraseña.jsx";
 
-function PrivateRoute({ children }) {
-  if (!isAuthenticated()) {
-    return <Navigate to="/" replace />;
-  }
+function PrivateRoute({children}) {
+    if (!isAuthenticated() || !isAdminPanelUser()) {
+        return <Navigate to="/" replace/>;
+    }
 
-  return children;
+    return children;
 }
 
 function AppRoutes() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Rutas públicas */}
-        <Route path="/" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+    return (
+        <BrowserRouter>
+            <Routes>
+                {/* Rutas públicas */}
+                <Route path="/" element={<Login/>}/>
+                <Route path="/forgot-password" element={<ForgotPassword/>}/>
+                <Route path="/cambiar-password-inicial" element={<CambiarPasswordInicial/>}/>
+                <Route path="/verificar-correo" element={<VerificarCorreo/>}/>
+                <Route path="/verificar-correo-operador" element={<VerificarCorreo/>}/>
 
-        {/* Rutas protegidas */}
-        <Route
-          element={
-            <PrivateRoute>
-              <AdminLayout />
-            </PrivateRoute>
-          }
-        >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/peajes" element={<Peajes />} />
-          <Route path="/camaras" element={<Camaras />} />
-          <Route path="/vehiculos" element={<Vehiculos />} />
-          <Route
-            path="/reconocimiento-placas"
-            element={<ReconocimientoPlacas />}
-          />
-          <Route path="/alertas" element={<Alertas />} />
-          <Route path="/membresias" element={<Membresias />} />
-          <Route path="/reportes" element={<Reportes />} />
-          <Route path="/usuarios" element={<Usuarios />} />
-          <Route path="/auditoria" element={<Auditoria />} />
-        </Route>
+                {/* Rutas protegidas */}
+                <Route
+                    element={
+                        <PrivateRoute>
+                            <AdminLayout/>
+                        </PrivateRoute>
+                    }
+                >
+                    <Route path="/dashboard" element={<Dashboard/>}/>
+                    <Route path="/peajes" element={<Peajes/>}/>
+                    <Route path="/camaras" element={<Camaras/>}/>
+                    <Route path="/vehiculos" element={<Vehiculos/>}/>
+                    <Route path="/reconocimiento-placas" element={<ReconocimientoPlacas/>}/>
+                    <Route path="/alertas" element={<Alertas/>}/>
+                    <Route path="/membresias" element={<Membresias/>}/>
+                    <Route path="/reportes" element={<Reportes/>}/>
+                    <Route path="/usuarios" element={<Usuarios/>}/>
+                    <Route path="/auditoria" element={<Auditoria/>}/>
+                    <Route path="/seguridad/reactivaciones" element={<SolicitudesReactivacion/>}/>
 
-        {/* Ruta no encontrada */}
-        <Route
-          path="*"
-          element={
-            isAuthenticated() ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-      </Routes>
-    </BrowserRouter>
-  );
+                </Route>
+
+                {/* Ruta no encontrada */}
+                <Route
+                    path="*"
+                    element={
+                        isAuthenticated() && isAdminPanelUser() ? (
+                            <Navigate to="/dashboard" replace/>
+                        ) : (
+                            <Navigate to="/" replace/>
+                        )
+                    }
+                />
+            </Routes>
+        </BrowserRouter>
+    );
 }
 
 export default AppRoutes;

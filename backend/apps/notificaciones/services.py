@@ -1,5 +1,6 @@
 from apps.usuarios.models import PerfilUsuario
-from .models import Notificacion
+from .models import DispositivoPush, Notificacion
+from .firebase import enviar_push
 
 
 def crear_notificacion(
@@ -15,7 +16,7 @@ def crear_notificacion(
         return None
 
     try:
-        return Notificacion.objects.create(
+        notificacion = Notificacion.objects.create(
             usuario=usuario,
             alerta=alerta,
             titulo=titulo,
@@ -26,6 +27,40 @@ def crear_notificacion(
         )
     except Exception:
         return None
+
+    _enviar_push_a_usuario(
+        usuario,
+        titulo=titulo,
+        mensaje=mensaje,
+        tipo=tipo,
+        url_accion=url_accion,
+        tipo_accion=tipo_accion,
+    )
+
+    return notificacion
+
+
+def _enviar_push_a_usuario(usuario, titulo, mensaje, tipo, url_accion, tipo_accion):
+    tokens = list(
+        DispositivoPush.objects.filter(usuario=usuario).values_list("token", flat=True)
+    )
+
+    if not tokens:
+        return
+
+    tokens_invalidos = enviar_push(
+        tokens,
+        titulo=titulo,
+        mensaje=mensaje,
+        datos={
+            "tipo": tipo,
+            "tipo_accion": tipo_accion,
+            "url_accion": url_accion,
+        },
+    )
+
+    if tokens_invalidos:
+        DispositivoPush.objects.filter(token__in=tokens_invalidos).delete()
 
 
 def notificar_administradores(

@@ -55,6 +55,19 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     }
   }
 
+  Future<void> _irSolicitarReactivacion() async {
+    final resultado = await Navigator.pushNamed(
+      context,
+      '/solicitar-reactivacion',
+    );
+
+    if (resultado == true) {
+      await _cargarDatos();
+    } else {
+      await _cargarDatos();
+    }
+  }
+
   Future<void> _irCrearAviso() async {
     final resultado = await Navigator.pushNamed(context, '/crear-aviso-robo');
 
@@ -671,22 +684,36 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     );
   }
 
+  Widget _accionesSeguridad() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _irCrearAviso,
+            icon: const Icon(Icons.report_gmailerrorred_outlined),
+            label: const Text('Reportar vehículo robado'),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _irSolicitarReactivacion,
+            icon: const Icon(Icons.restore),
+            label: const Text('Solicitar reactivación de vehículo'),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: MobileAppHeader(
-        title: 'Seguridad',
-        subtitle: 'Avisos de robo y alertas',
-        icon: Icons.security,
-        showBackButton: true,
-        showRefresh: true,
-        onRefresh: _cargarDatos,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _irCrearAviso,
-        icon: const Icon(Icons.add),
-        label: const Text('Aviso'),
-      ),
+
       body: _cargando
           ? const Center(
         child: CircularProgressIndicator(),
@@ -705,12 +732,33 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      MobileAppHeader(
+                        title: 'Seguridad',
+                        subtitle: 'Avisos de robo y alertas',
+                        icon: Icons.security,
+                        showBackButton: true,
+                        showRefresh: true,
+                        showLogout: false,
+                        onRefresh: _cargarDatos,
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      _accionesSeguridad(),
+
+                      const SizedBox(height: 22),
+
                       _resumen(context),
+
                       const SizedBox(height: 22),
+
                       _seccionAvisos(),
+
                       const SizedBox(height: 22),
+
                       _seccionAlertas(),
-                      const SizedBox(height: 80),
+
+                      const SizedBox(height: 90),
                     ],
                   ),
                 ),

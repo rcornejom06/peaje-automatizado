@@ -1,7 +1,7 @@
 import api from "./axios";
 
 export const obtenerUsuarios = async () => {
-    const response = await api.get("/usuarios/usuarios/");
+    const response = await api.get("/usuarios/");
     return response.data;
 };
 

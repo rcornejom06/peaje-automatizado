@@ -4,8 +4,8 @@ from .models import PlanMembresia, Membresia
 
 @admin.register(PlanMembresia)
 class PlanMembresiaAdmin(admin.ModelAdmin):
-    list_display = ( "id","nombre","precio","duracion_dias","pases_incluidos","descuento_porcentaje","estado",)
-    list_filter = ("estado","duracion_dias","pases_incluidos",)
+    list_display = ( "id","nombre","precio","pases_incluidos","descuento_porcentaje","estado",)
+    list_filter = ("estado","pases_incluidos",)
     search_fields = ("nombre","descripcion",)
 
 @admin.register(Membresia)

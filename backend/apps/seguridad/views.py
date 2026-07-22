@@ -3,9 +3,11 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from ..usuarios.permissions import obtener_rol_usuario
-from .models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion
-from .serializers import (AvisoVehiculoRobadoSerializer, AlertaSeguridadSerializer, UbicacionDeteccionSerializer, )
+from .models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion, SolicitudReactivacionVehiculo
+from .serializers import (AvisoVehiculoRobadoSerializer, AlertaSeguridadSerializer, UbicacionDeteccionSerializer,
+                          SolicitudReactivacionVehiculoSerializer)
 from ..vehiculos.models import Vehiculo
+from django.utils import timezone
 from ..notificaciones.models import Notificacion
 from ..notificaciones.services import crear_notificacion, notificar_administradores
 from ..peajes.models import Peaje, PasoPeaje
@@ -17,6 +19,38 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
     serializer_class = AvisoVehiculoRobadoSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "Use el endpoint /api/seguridad/avisos-robo/crear-aviso/ para registrar avisos de robo."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar avisos directamente. Use las acciones cerrar o cancelar."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar avisos directamente. Use las acciones cerrar o cancelar."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite eliminar avisos de robo."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
@@ -73,7 +107,10 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
 
         aviso_activo = AvisoVehiculoRobado.objects.filter(
             vehiculo=vehiculo,
-            estado=AvisoVehiculoRobado.Estado.ACTIVO
+            estado__in=[
+                AvisoVehiculoRobado.Estado.ACTIVO,
+                AvisoVehiculoRobado.Estado.DETECTADO,
+            ]
         ).first()
 
         if aviso_activo:
@@ -143,7 +180,7 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
 
         vehiculo.estado = Vehiculo.Estado.AVISO_ROBO
         vehiculo.save()
-        
+
         notificar_administradores(
             titulo="Nuevo aviso de vehículo robado",
             mensaje=f"El usuario {request.user.username} reportó como robado el vehículo {vehiculo.placa}.",
@@ -304,9 +341,318 @@ class AvisoVehiculoRobadoViewSet(viewsets.ModelViewSet):
         )
 
 
+class SolicitudReactivacionVehiculoViewSet(viewsets.ModelViewSet):
+    serializer_class = SolicitudReactivacionVehiculoSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "Use el endpoint /api/seguridad/reactivaciones-vehiculo/solicitar/ para solicitar reactivación."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar solicitudes directamente. Use aprobar o rechazar."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar solicitudes directamente. Use aprobar o rechazar."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite eliminar solicitudes de reactivación."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def get_queryset(self):
+        rol = obtener_rol_usuario(self.request.user)
+
+        queryset = SolicitudReactivacionVehiculo.objects.select_related(
+            "aviso",
+            "vehiculo",
+            "usuario",
+            "revisado_por",
+        ).order_by("-fecha_solicitud")
+
+        if rol in ["administrador", "operador"]:
+            return queryset
+
+        return queryset.filter(usuario=self.request.user)
+
+    @action(detail=False, methods=["post"], url_path="solicitar")
+    def solicitar(self, request):
+        rol = obtener_rol_usuario(request.user)
+
+        if rol != "usuario":
+            return Response(
+                {"error": "Solo los usuarios pueden solicitar la reactivación de sus vehículos."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        vehiculo_id = request.data.get("vehiculo") or request.data.get("vehiculo_id")
+        motivo = request.data.get("motivo", "").strip()
+
+        documento_respaldo = None
+
+        if hasattr(request, "FILES"):
+            documento_respaldo = request.FILES.get("documento_respaldo")
+
+        if not vehiculo_id:
+            return Response(
+                {"error": "Debe seleccionar el vehículo recuperado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not motivo:
+            return Response(
+                {"error": "Debe ingresar el motivo o detalle de recuperación."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        vehiculo = Vehiculo.objects.filter(
+            id=vehiculo_id,
+            usuario=request.user,
+        ).first()
+
+        if not vehiculo:
+            return Response(
+                {"error": "No se encontró un vehículo asociado al usuario autenticado."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if vehiculo.estado != Vehiculo.Estado.AVISO_ROBO:
+            return Response(
+                {
+                    "error": "Este vehículo no se encuentra reportado como robado.",
+                    "estado_actual": vehiculo.estado,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        aviso = AvisoVehiculoRobado.objects.filter(
+            vehiculo=vehiculo,
+            estado__in=[
+                AvisoVehiculoRobado.Estado.ACTIVO,
+                AvisoVehiculoRobado.Estado.DETECTADO,
+            ],
+        ).order_by("-fecha_aviso").first()
+
+        if not aviso:
+            return Response(
+                {"error": "Este vehículo no tiene un aviso de robo activo o detectado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        solicitud_pendiente = SolicitudReactivacionVehiculo.objects.filter(
+            vehiculo=vehiculo,
+            estado=SolicitudReactivacionVehiculo.Estado.PENDIENTE,
+        ).first()
+
+        if solicitud_pendiente:
+            serializer = self.get_serializer(solicitud_pendiente)
+
+            return Response(
+                {
+                    "error": "Ya existe una solicitud pendiente para este vehículo.",
+                    "solicitud": serializer.data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        datos_solicitud = {
+            "aviso": aviso,
+            "vehiculo": vehiculo,
+            "usuario": request.user,
+            "motivo": motivo,
+        }
+
+        if documento_respaldo:
+            datos_solicitud["documento_respaldo"] = documento_respaldo
+
+        solicitud = SolicitudReactivacionVehiculo.objects.create(
+            **datos_solicitud
+        )
+
+        try:
+            registrar_historial(
+                usuario=request.user,
+                accion="Solicitud de reactivación de vehículo",
+                descripcion=(
+                    f"El usuario solicitó reactivar el vehículo recuperado "
+                    f"con placa {vehiculo.placa}."
+                ),
+                modulo="Seguridad",
+                request=request,
+            )
+        except Exception:
+            pass
+
+        serializer = self.get_serializer(solicitud)
+
+        return Response(
+            {
+                "mensaje": "Solicitud enviada correctamente. Queda pendiente de aprobación administrativa.",
+                "solicitud": serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["patch"], url_path="aprobar")
+    def aprobar(self, request, pk=None):
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["administrador", "operador"]:
+            return Response(
+                {"error": "No tiene permisos para aprobar solicitudes."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        solicitud = self.get_object()
+
+        if solicitud.estado != SolicitudReactivacionVehiculo.Estado.PENDIENTE:
+            return Response(
+                {"error": "Esta solicitud ya fue revisada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        respuesta_admin = request.data.get(
+            "respuesta_admin",
+            "Solicitud aprobada. Vehículo recuperado y reactivado."
+        )
+
+        vehiculo = solicitud.vehiculo
+        aviso = solicitud.aviso
+
+        vehiculo.estado = Vehiculo.Estado.ACTIVO
+        vehiculo.save(update_fields=["estado", "fecha_actualizacion"])
+
+        aviso.estado = AvisoVehiculoRobado.Estado.RECUPERADO
+        aviso.save(update_fields=["estado"])
+
+        solicitud.estado = SolicitudReactivacionVehiculo.Estado.APROBADA
+        solicitud.respuesta_admin = respuesta_admin
+        solicitud.revisado_por = request.user
+        solicitud.fecha_revision = timezone.now()
+        solicitud.save()
+
+        registrar_historial(
+            usuario=request.user,
+            accion="Aprobación de reactivación de vehículo",
+            descripcion=f"El administrador aprobó la reactivación del vehículo {vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
+
+        serializer = self.get_serializer(solicitud)
+
+        return Response(
+            {
+                "mensaje": "Vehículo reactivado correctamente. Ya puede volver a generar cobros de peaje.",
+                "solicitud": serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["patch"], url_path="rechazar")
+    def rechazar(self, request, pk=None):
+        rol = obtener_rol_usuario(request.user)
+
+        if rol not in ["administrador", "operador"]:
+            return Response(
+                {"error": "No tiene permisos para rechazar solicitudes."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        solicitud = self.get_object()
+
+        if solicitud.estado != SolicitudReactivacionVehiculo.Estado.PENDIENTE:
+            return Response(
+                {"error": "Esta solicitud ya fue revisada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        respuesta_admin = request.data.get("respuesta_admin")
+
+        if not respuesta_admin or not respuesta_admin.strip():
+            return Response(
+                {"error": "Debe ingresar el motivo del rechazo."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        solicitud.estado = SolicitudReactivacionVehiculo.Estado.RECHAZADA
+        solicitud.respuesta_admin = respuesta_admin.strip()
+        solicitud.revisado_por = request.user
+        solicitud.fecha_revision = timezone.now()
+        solicitud.save()
+
+        registrar_historial(
+            usuario=request.user,
+            accion="Rechazo de reactivación de vehículo",
+            descripcion=f"El administrador rechazó la reactivación del vehículo {solicitud.vehiculo.placa}.",
+            modulo="Seguridad",
+            request=request,
+        )
+
+        serializer = self.get_serializer(solicitud)
+
+        return Response(
+            {
+                "mensaje": "Solicitud rechazada correctamente.",
+                "solicitud": serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+
 class AlertaSeguridadViewSet(viewsets.ModelViewSet):
     serializer_class = AlertaSeguridadSerializer
     permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "Use el endpoint /api/seguridad/alertas/generar-por-placa/ para generar alertas."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar alertas directamente. Use las acciones disponibles."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar alertas directamente. Use las acciones disponibles."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite eliminar alertas de seguridad."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)
@@ -624,6 +970,38 @@ class AlertaSeguridadViewSet(viewsets.ModelViewSet):
 class UbicacionDeteccionViewSet(viewsets.ModelViewSet):
     serializer_class = UbicacionDeteccionSerializer
     permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "Use el endpoint /api/seguridad/ubicaciones/registrar-maps/ para registrar ubicaciones."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar ubicaciones directamente."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar ubicaciones directamente."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite eliminar ubicaciones de detección."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     def get_queryset(self):
         rol = obtener_rol_usuario(self.request.user)

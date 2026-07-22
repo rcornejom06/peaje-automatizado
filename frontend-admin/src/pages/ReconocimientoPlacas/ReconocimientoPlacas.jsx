@@ -14,7 +14,8 @@ function ReconocimientoPlacas() {
     const [cargandoComprobante, setCargandoComprobante] = useState(false);
     const [errorComprobante, setErrorComprobante] = useState("");
 
-    const cameraServerUrl = "http://localhost:5001";
+    const cameraServerUrl =
+        import.meta.env.VITE_CAMERA_SERVER_URL || "http://localhost:5001";
     const cameraFeedUrl = `${cameraServerUrl}/video_feed`;
 
     const cargarDetecciones = async () => {
@@ -33,7 +34,7 @@ function ReconocimientoPlacas() {
 
             setHistorial(dataHistorial.detecciones || []);
             setErrorServidor("");
-        } catch (error) {
+        } catch {
             setErrorServidor("No se pudo conectar con el servidor de cámara.");
         }
     };
@@ -71,7 +72,7 @@ function ReconocimientoPlacas() {
 
             const data = await obtenerComprobantePaso(pasoId);
             setComprobanteSeleccionado(data);
-        } catch (error) {
+        } catch {
             setErrorComprobante("No se pudo cargar el comprobante del paso.");
             setComprobanteSeleccionado(null);
         } finally {
@@ -110,11 +111,12 @@ function ReconocimientoPlacas() {
         if (estado === "membresia") return "Pagado con Membresía";
         if (estado === "pendiente") return "Pendiente";
         if (estado === "fallido") return "Fallido";
+        if (estado === "exonerado") return "Exonerado";
         return estado || "Sin estado";
     };
 
     const obtenerClaseEstadoPago = (estadoPago) => {
-        if (estadoPago === "Pagado" || estadoPago === "Pagado con membresia") {
+        if (["pagado", "membresia", "exonerado"].includes(estadoPago)) {
             return "success";
         }
 
@@ -320,7 +322,7 @@ function ReconocimientoPlacas() {
                                             obtenerEstadoPago(ultimaDeteccion)
                                         )}
                                     >
-                                        {obtenerEstadoPago(ultimaDeteccion)}
+                                        {textoEstadoPago(obtenerEstadoPago(ultimaDeteccion))}
                                     </strong>
                                 </div>
 
@@ -446,7 +448,7 @@ function ReconocimientoPlacas() {
                                         <td>{item.placa}</td>
                                         <td>{obtenerPeajeDeteccion(item)}</td>
                                         <td>{item.confianza}%</td>
-                                        <td>{obtenerEstadoPago(item)}</td>
+                                        <td>{textoEstadoPago(obtenerEstadoPago(item))}</td>
                                         <td>
                         <span
                             className={

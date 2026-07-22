@@ -414,7 +414,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         showRefresh: true,
         onRefresh: _cargarPerfil,
         showNotifications: true,
-        showLogout: true,
+        showLogout: false,
       ),
 
       body: _cargando

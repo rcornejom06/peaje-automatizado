@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../shared/widgets/mobile_app_header.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/api_service.dart';
 import '../../core/services/billetera_service.dart';
 import '../../core/services/vehiculo_service.dart';
 import '../../core/services/seguridad_service.dart';
@@ -21,11 +22,13 @@ class _HomeScreenState extends State<HomeScreen> {
   String _saldo = '\$0.00';
   int _totalVehiculos = 0;
   int _totalAlertas = 0;
+  String _error = '';
 
   Future<void> _cargarResumen() async {
     try {
       setState(() {
         _cargando = true;
+        _error = '';
       });
 
       final resultados = await Future.wait([
@@ -49,6 +52,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _totalAlertas = alertas.length;
         _cargando = false;
       });
+    } on SesionExpiradaException {
+      if (!mounted) return;
+
+      await _cerrarSesion(context);
     } catch (_) {
       if (!mounted) return;
 
@@ -57,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _totalVehiculos = 0;
         _totalAlertas = 0;
         _cargando = false;
+        _error = 'No se pudo cargar tu información. Desliza para reintentar.';
       });
     }
   }
@@ -253,6 +261,40 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_error.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: colors.errorContainer,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: colors.onErrorContainer,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _error,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: colors.onErrorContainer,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     _saldoPrincipal(context),
 
                     const SizedBox(height: 16),
@@ -565,3 +607,6 @@ class _ExpandedServiceCard extends StatelessWidget {
     );
   }
 }
+
+
+

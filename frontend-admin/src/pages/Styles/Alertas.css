@@ -595,3 +595,54 @@
     font-size: 12px;
     font-weight: 700;
 }
+
+.alertas-tabs {
+    display: flex;
+    gap: 12px;
+    margin: 18px 0;
+    flex-wrap: wrap;
+}
+
+.alertas-tabs button {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.alertas-tabs button:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.alertas-tabs button.tab-activa {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+}
+
+.tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.alertas-empty {
+    padding: 24px;
+    margin: 0;
+    color: #64748b;
+    font-weight: 700;
+    text-align: center;
+}

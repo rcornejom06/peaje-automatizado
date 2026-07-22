@@ -27,6 +27,10 @@ function Vehiculos() {
     const [cargandoDocumento, setCargandoDocumento] = useState(false);
     const [errorDocumento, setErrorDocumento] = useState("");
 
+    const obtenerDocumentoUrl = (vehiculo) => {
+        return vehiculo?.documento_respaldo_url || vehiculo?.documento_respaldo || "";
+    };
+
     const cargarVehiculos = async () => {
         try {
             setCargando(true);
@@ -121,10 +125,6 @@ function Vehiculos() {
             );
         });
     }, [busqueda, vehiculos]);
-
-    const obtenerDocumentoUrl = (vehiculo) => {
-        return vehiculo?.documento_respaldo_url || vehiculo?.documento_respaldo || "";
-    };
 
     const obtenerEstadoRevision = (vehiculo) => {
         return vehiculo?.estado_revision || "en_revision";

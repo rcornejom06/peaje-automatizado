@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db.models import Count, Sum, DecimalField
+from django.db.models import Count, Sum, DecimalField, IntegerField
 from django.db.models.functions import Coalesce
 
 from rest_framework import status
@@ -73,32 +73,31 @@ class ResumenReporteView(APIView):
         total_alertas = alertas.count()
         total_vehiculos_detectados = pasos.values("placa_detectada").distinct().count()
 
-        pasos_pagados = pasos.filter(estado_pago="pagado").count()
-        pasos_membresia = pasos.filter(estado_pago="membresia").count()
-        pasos_pendientes = pasos.filter(estado_pago="pendiente").count()
-        pasos_fallidos = pasos.filter(estado_pago="fallido").count()
-
-        pasos_alerta = pasos.filter(estado_seguridad="alerta").count()
-        pasos_normales = pasos.filter(estado_seguridad="normal").count()
+        pasos_pagados = pasos.filter(estado_pago=PasoPeaje.EstadoPago.PAGADO).count()
+        pasos_membresia = pasos.filter(estado_pago=PasoPeaje.EstadoPago.MEMBRESIA).count()
+        pasos_pendientes = pasos.filter(estado_pago=PasoPeaje.EstadoPago.PENDIENTE).count()
+        pasos_fallidos = pasos.filter(estado_pago=PasoPeaje.EstadoPago.FALLIDO).count()
+        pasos_alerta = pasos.filter(estado_seguridad=PasoPeaje.EstadoSeguridad.ALERTA).count()
+        pasos_normales = pasos.filter(estado_seguridad=PasoPeaje.EstadoSeguridad.NORMAL).count()
 
         recaudacion_peajes = sumar_monto(
             transacciones.filter(
-                estado="aprobada",
-                tipo_transaccion="pago_peaje"
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE
             )
         )
 
         recaudacion_membresias = sumar_monto(
             transacciones.filter(
-                estado="aprobada",
-                tipo_transaccion="compra_membresia"
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA
             )
         )
 
         recargas_billetera = sumar_monto(
             transacciones.filter(
-                estado="aprobada",
-                tipo_transaccion="recarga"
+                estado=Transaccion.Estado.APROBADA,
+                tipo_transaccion=Transaccion.Tipo.RECARGA
             )
         )
 
@@ -134,31 +133,18 @@ class RecaudacionReporteView(APIView):
 
         transacciones = aplicar_filtros_fecha(Transaccion.objects.all(), request)
 
-        transacciones_aprobadas = transacciones.filter(estado="aprobada")
-        transacciones_fallidas = transacciones.filter(estado="fallida")
+        transacciones_aprobadas = transacciones.filter(estado=Transaccion.Estado.APROBADA)
+        transacciones_fallidas = transacciones.filter(estado=Transaccion.Estado.FALLIDA)
 
-        recaudacion_peajes = sumar_monto(
-            transacciones_aprobadas.filter(tipo_transaccion="pago_peaje")
-        )
+        recaudacion_peajes = sumar_monto(transacciones_aprobadas.filter(tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE))
 
-        recaudacion_membresias = sumar_monto(
-            transacciones_aprobadas.filter(tipo_transaccion="compra_membresia")
-        )
+        recaudacion_membresias = sumar_monto(transacciones_aprobadas.filter(tipo_transaccion=Transaccion.Tipo.COMPRA_MEMBRESIA))
 
-        recargas_billetera = sumar_monto(
-            transacciones_aprobadas.filter(tipo_transaccion="recarga")
-        )
+        recargas_billetera = sumar_monto(transacciones_aprobadas.filter(tipo_transaccion=Transaccion.Tipo.RECARGA))
 
-        pagos_por_billetera = sumar_monto(
-            transacciones_aprobadas.filter(
-                tipo_transaccion="pago_peaje",
-                metodo_pago="billetera"
-            )
-        )
+        pagos_por_billetera = sumar_monto(transacciones_aprobadas.filter(tipo_transaccion="pago_peaje",metodo_pago="billetera"))
 
-        usos_membresia = transacciones_aprobadas.filter(
-            tipo_transaccion="uso_membresia"
-        ).count()
+        usos_membresia = transacciones_aprobadas.filter(tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA).count()
 
         return Response(
             {
@@ -196,7 +182,6 @@ class PasosPorPeajeReporteView(APIView):
         ).annotate(
             total_pasos=Count("id"),
             vehiculos_distintos=Count("placa_detectada", distinct=True),
-            pasos_pagados=Count("id", filter=None),
         ).order_by("-total_pasos")
 
         resultado = []
@@ -212,12 +197,13 @@ class PasosPorPeajeReporteView(APIView):
                 "peaje_ciudad": item["peaje__ciudad"],
                 "total_pasos": item["total_pasos"],
                 "vehiculos_distintos": item["vehiculos_distintos"],
-                "pagados": pasos_peaje.filter(estado_pago="pagado").count(),
-                "membresia": pasos_peaje.filter(estado_pago="membresia").count(),
-                "pendientes": pasos_peaje.filter(estado_pago="pendiente").count(),
-                "fallidos": pasos_peaje.filter(estado_pago="fallido").count(),
-                "alertas": pasos_peaje.filter(estado_seguridad="alerta").count(),
-            })
+                "pagados": pasos_peaje.filter(estado_pago=PasoPeaje.EstadoPago.PAGADO).count(),
+                "membresia": pasos_peaje.filter(estado_pago=PasoPeaje.EstadoPago.MEMBRESIA).count(),
+                "pendientes": pasos_peaje.filter(estado_pago=PasoPeaje.EstadoPago.PENDIENTE).count(),
+                "fallidos": pasos_peaje.filter(estado_pago=PasoPeaje.EstadoPago.FALLIDO).count(),
+                "alertas": pasos_peaje.filter(estado_seguridad=PasoPeaje.EstadoSeguridad.ALERTA).count(),
+
+                })
 
         return Response(resultado, status=status.HTTP_200_OK)
 
@@ -339,16 +325,20 @@ class UsoMembresiasReporteView(APIView):
         pasos = aplicar_filtros_fecha(PasoPeaje.objects.all(), request)
 
         pasos_membresia = pasos.filter(
-            estado_pago="membresia"
+            estado_pago=PasoPeaje.EstadoPago.MEMBRESIA
         )
 
         membresias_activas = Membresia.objects.filter(
-            estado="activa",
-            pases_restantes__gt=0
+            estado=Membresia.Estado.ACTIVA,
+            pases_restantes__gt=0,
         )
 
         total_pases_restantes = membresias_activas.aggregate(
-            total=Coalesce(Sum("pases_restantes"), 0)
+            total=Coalesce(
+                Sum("pases_restantes"),
+                0,
+                output_field=IntegerField(),
+            )
         )["total"]
 
         uso_por_plan = pasos_membresia.values(

@@ -10,7 +10,6 @@ class PlanMembresiaSerializer(serializers.ModelSerializer):
             "nombre",
             "descripcion",
             "precio",
-            "duracion_dias",
             "pases_incluidos",
             "descuento_porcentaje",
             "estado",

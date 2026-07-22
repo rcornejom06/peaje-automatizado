@@ -394,6 +394,7 @@ class _MembresiasScreenState extends State<MembresiasScreen>
         icon: Icons.card_membership,
         showBackButton: true,
         showRefresh: true,
+        showLogout: false,
         onRefresh: _cargarDatos,
       ),
       body: _cargando

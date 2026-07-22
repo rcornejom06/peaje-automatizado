@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -17,6 +19,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   bool _cargando = true;
   String _error = '';
   List<dynamic> _notificaciones = [];
+  Timer? _timer;
 
   Future<void> _cargarNotificaciones() async {
     try {
@@ -44,6 +47,23 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
           _cargando = false;
         });
       }
+    }
+  }
+
+  // Igual que _cargarNotificaciones pero sin mostrar el spinner de carga,
+  // para poder llamarla cada 2 segundos sin que la pantalla parpadee.
+  Future<void> _actualizarSilenciosamente() async {
+    try {
+      final data = await _notificacionService.obtenerNotificaciones();
+
+      if (!mounted) return;
+
+      setState(() {
+        _notificaciones = data;
+      });
+    } catch (_) {
+      // Si falla una actualización en segundo plano no interrumpimos al
+      // usuario; el próximo intento (2s después) lo resuelve solo.
     }
   }
 
@@ -282,6 +302,16 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   void initState() {
     super.initState();
     _cargarNotificaciones();
+    _timer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _actualizarSilenciosamente(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override

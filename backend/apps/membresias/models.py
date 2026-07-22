@@ -11,7 +11,6 @@ class PlanMembresia(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
-    duracion_dias = models.PositiveIntegerField()
     pases_incluidos = models.PositiveIntegerField(default=30)
     descuento_porcentaje = models.DecimalField(max_digits=5,decimal_places=2,default=0.00)
     estado = models.CharField(max_length=20,choices=Estado.choices,default=Estado.ACTIVO)

@@ -661,3 +661,10 @@
         right: 0;
     }
 }
+.admin-current-page {
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  letter-spacing: 0.02em;
+}

@@ -170,22 +170,52 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
   }
 
   String _texto(dynamic valor) {
-    if (valor == null || valor.toString().trim().isEmpty) {
+    if (valor == null || valor
+        .toString()
+        .trim()
+        .isEmpty) {
       return 'Sin dato';
     }
 
     return valor.toString();
   }
 
-  String _nombreCategoria(dynamic categoria) {
-    final nombre = categoria['nombre']?.toString() ?? 'Categoría';
-    final tarifa = categoria['tarifa']?.toString();
+  String _capitalizar(String valor) {
+    final texto = valor.trim().replaceAll('_', ' ');
 
-    if (tarifa != null) {
-      return '$nombre - \$$tarifa';
+    if (texto.isEmpty) {
+      return '';
     }
 
-    return nombre;
+    return texto
+        .split(RegExp(r'\s+'))
+        .map((palabra) {
+      if (palabra.isEmpty) return palabra;
+
+      return palabra[0].toUpperCase() +
+          palabra.substring(1).toLowerCase();
+    })
+        .join(' ');
+  }
+
+  String _nombreCategoria(dynamic categoria) {
+    final tipo = _capitalizar(
+      categoria['tipo']?.toString() ?? '',
+    );
+
+    final ejes = categoria['numero_ejes']?.toString();
+
+    if (tipo.isNotEmpty && ejes != null && ejes
+        .trim()
+        .isNotEmpty) {
+      return '$tipo · $ejes ejes';
+    }
+
+    if (tipo.isNotEmpty) {
+      return tipo;
+    }
+
+    return categoria['nombre']?.toString() ?? 'Categoría';
   }
 
   Widget _campoTexto({
@@ -207,8 +237,10 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
         inputFormatters: inputFormatters,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: validator ??
-            (value) {
-              if (value == null || value.trim().isEmpty) {
+                (value) {
+              if (value == null || value
+                  .trim()
+                  .isEmpty) {
                 return 'Este campo es obligatorio';
               }
 
@@ -223,14 +255,21 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
   }
 
   Widget _documentoActual(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     final documentoUrl = widget.vehiculo['documento_respaldo_url'] ??
         widget.vehiculo['documento_respaldo'];
 
     final tieneDocumento =
-        documentoUrl != null && documentoUrl.toString().trim().isNotEmpty;
+        documentoUrl != null && documentoUrl
+            .toString()
+            .trim()
+            .isNotEmpty;
 
     return Row(
       children: [
@@ -256,8 +295,12 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
   }
 
   Widget _selectorDocumento(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Container(
       width: double.infinity,
@@ -330,7 +373,9 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
       return const SizedBox.shrink();
     }
 
-    final colors = Theme.of(context).colorScheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
 
     return Container(
       width: double.infinity,
@@ -352,10 +397,14 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
           Expanded(
             child: Text(
               _error,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.onErrorContainer,
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: Theme
+                  .of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                color: colors.onErrorContainer,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -364,8 +413,12 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
   }
 
   Widget _avisoRevision(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Container(
       width: double.infinity,
@@ -403,8 +456,12 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
   Widget build(BuildContext context) {
     final placa = _texto(widget.vehiculo['placa']);
 
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -412,180 +469,184 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
       ),
       body: _cargandoCategorias
           ? const Center(
-              child: CircularProgressIndicator(),
-            )
+        child: CircularProgressIndicator(),
+      )
           : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(22),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 78,
-                                height: 78,
-                                decoration: BoxDecoration(
-                                  color: colors.primaryContainer,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.directions_car,
-                                  color: colors.onPrimaryContainer,
-                                  size: 42,
-                                ),
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              Text(
-                                placa,
-                                textAlign: TextAlign.center,
-                                style: textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-
-                              const SizedBox(height: 12),
-
-                              _avisoRevision(context),
-
-                              const SizedBox(height: 22),
-
-                              _campoTexto(
-                                controller: _marcaController,
-                                label: 'Marca',
-                                icon: Icons.car_rental,
-                              ),
-
-                              _campoTexto(
-                                controller: _modeloController,
-                                label: 'Modelo',
-                                icon: Icons.directions_car,
-                              ),
-
-                              _campoTexto(
-                                controller: _colorController,
-                                label: 'Color',
-                                icon: Icons.color_lens,
-                              ),
-
-                              _campoTexto(
-                                controller: _anioController,
-                                label: 'Año',
-                                icon: Icons.calendar_month,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(4),
-                                ],
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Ingrese el año';
-                                  }
-
-                                  final anio = int.tryParse(value.trim());
-
-                                  if (anio == null) {
-                                    return 'Ingrese un año válido';
-                                  }
-
-                                  if (anio < 1980 ||
-                                      anio > DateTime.now().year + 1) {
-                                    return 'Año fuera de rango';
-                                  }
-
-                                  return null;
-                                },
-                              ),
-
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 14),
-                                child: DropdownButtonFormField<int>(
-                                  value: _categoriaSeleccionada,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Categoría',
-                                    prefixIcon: Icon(Icons.category),
-                                  ),
-                                  items: _categorias.map((categoria) {
-                                    return DropdownMenuItem<int>(
-                                      value: categoria['id'],
-                                      child: Text(
-                                        _nombreCategoria(categoria),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: _cargando
-                                      ? null
-                                      : (value) {
-                                          setState(() {
-                                            _categoriaSeleccionada = value;
-                                          });
-                                        },
-                                  validator: (value) {
-                                    if (value == null) {
-                                      return 'Seleccione una categoría';
-                                    }
-
-                                    return null;
-                                  },
-                                ),
-                              ),
-
-                              _selectorDocumento(context),
-
-                              _bloqueError(context),
-
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton.icon(
-                                  onPressed:
-                                      _cargando ? null : _guardarCambios,
-                                  icon: _cargando
-                                      ? SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: colors.onPrimary,
-                                          ),
-                                        )
-                                      : const Icon(Icons.save_outlined),
-                                  label: Text(
-                                    _cargando
-                                        ? 'Guardando...'
-                                        : 'Guardar cambios',
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 12),
-
-                              TextButton(
-                                onPressed: _cargando
-                                    ? null
-                                    : () {
-                                        Navigator.pop(context);
-                                      },
-                                child: const Text('Cancelar'),
-                              ),
-                            ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 78,
+                          height: 78,
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.directions_car,
+                            color: colors.onPrimaryContainer,
+                            size: 42,
                           ),
                         ),
-                      ),
+
+                        const SizedBox(height: 16),
+
+                        Text(
+                          placa,
+                          textAlign: TextAlign.center,
+                          style: textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        _avisoRevision(context),
+
+                        const SizedBox(height: 22),
+
+                        _campoTexto(
+                          controller: _marcaController,
+                          label: 'Marca',
+                          icon: Icons.car_rental,
+                        ),
+
+                        _campoTexto(
+                          controller: _modeloController,
+                          label: 'Modelo',
+                          icon: Icons.directions_car,
+                        ),
+
+                        _campoTexto(
+                          controller: _colorController,
+                          label: 'Color',
+                          icon: Icons.color_lens,
+                        ),
+
+                        _campoTexto(
+                          controller: _anioController,
+                          label: 'Año',
+                          icon: Icons.calendar_month,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(4),
+                          ],
+                          validator: (value) {
+                            if (value == null || value
+                                .trim()
+                                .isEmpty) {
+                              return 'Ingrese el año';
+                            }
+
+                            final anio = int.tryParse(value.trim());
+
+                            if (anio == null) {
+                              return 'Ingrese un año válido';
+                            }
+
+                            if (anio < 1980 ||
+                                anio > DateTime
+                                    .now()
+                                    .year + 1) {
+                              return 'Año fuera de rango';
+                            }
+
+                            return null;
+                          },
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: DropdownButtonFormField<int>(
+                            value: _categoriaSeleccionada,
+                            decoration: const InputDecoration(
+                              labelText: 'Categoría',
+                              prefixIcon: Icon(Icons.category),
+                            ),
+                            items: _categorias.map((categoria) {
+                              return DropdownMenuItem<int>(
+                                value: categoria['id'],
+                                child: Text(
+                                  _nombreCategoria(categoria),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: _cargando
+                                ? null
+                                : (value) {
+                              setState(() {
+                                _categoriaSeleccionada = value;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null) {
+                                return 'Seleccione una categoría';
+                              }
+
+                              return null;
+                            },
+                          ),
+                        ),
+
+                        _selectorDocumento(context),
+
+                        _bloqueError(context),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed:
+                            _cargando ? null : _guardarCambios,
+                            icon: _cargando
+                                ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colors.onPrimary,
+                              ),
+                            )
+                                : const Icon(Icons.save_outlined),
+                            label: Text(
+                              _cargando
+                                  ? 'Guardando...'
+                                  : 'Guardar cambios',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        TextButton(
+                          onPressed: _cargando
+                              ? null
+                              : () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Cancelar'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
     );
   }
 }

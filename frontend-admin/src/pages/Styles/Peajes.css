@@ -19,14 +19,12 @@
     --border: #e2e8f0;
     --border-strong: #cbd5e1;
 
-    --bg-page: #f8fafc;
     --bg-card: #ffffff;
 
     --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.05);
     --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 18px 45px rgba(15, 23, 42, 0.12);
+    --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.18);
 
-    --radius-sm: 10px;
     --radius-md: 16px;
     --radius-lg: 22px;
 }
@@ -49,9 +47,8 @@
     margin-bottom: 24px;
     padding: 24px;
     border-radius: var(--radius-lg);
-    background:
-        linear-gradient(135deg, rgba(29, 78, 216, 0.08), rgba(56, 189, 248, 0.08)),
-        var(--bg-card);
+    background: linear-gradient(135deg, rgba(29, 78, 216, 0.08), rgba(56, 189, 248, 0.08)),
+    var(--bg-card);
     border: 1px solid rgba(191, 219, 254, 0.9);
     box-shadow: var(--shadow-sm);
 }
@@ -97,11 +94,10 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    transition:
-        transform 0.18s ease,
-        box-shadow 0.18s ease,
-        background 0.18s ease,
-        color 0.18s ease;
+    transition: transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .btn-primary {
@@ -116,11 +112,6 @@
     box-shadow: 0 14px 26px rgba(37, 99, 235, 0.32);
 }
 
-.btn-primary:active,
-.btn-secondary:active {
-    transform: translateY(0);
-}
-
 .btn-secondary {
     background: #f1f5f9;
     color: #334155;
@@ -131,6 +122,14 @@
     background: #e2e8f0;
     color: var(--text-main);
     box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 /* =========================
@@ -245,10 +244,9 @@
     color: var(--text-main);
     background: #ffffff;
     box-sizing: border-box;
-    transition:
-        border-color 0.18s ease,
-        box-shadow 0.18s ease,
-        background 0.18s ease;
+    transition: border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .form-group input::placeholder {
@@ -272,8 +270,105 @@
     grid-column: span 2;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 10px;
     padding-top: 8px;
+}
+
+/* =========================
+   TARIFAS EN FORMULARIO
+========================= */
+
+.tarifas-section {
+    grid-column: 1 / -1;
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #f8fafc;
+}
+
+.tarifas-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.tarifas-header h4 {
+    margin: 0;
+    font-size: 16px;
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.tarifas-header p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.tarifas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.tarifa-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+.tarifa-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.tarifa-info strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.tarifa-info span {
+    color: #64748b;
+    font-size: 12px;
+    text-transform: capitalize;
+    font-weight: 700;
+}
+
+.tarifa-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.tarifa-input span {
+    font-weight: 900;
+    color: #0f172a;
+}
+
+.tarifa-input input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    outline: none;
+    font-weight: 700;
+}
+
+.tarifa-input input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 /* =========================
@@ -284,7 +379,8 @@
     background: var(--bg-card);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     box-shadow: var(--shadow-md);
 }
 
@@ -302,12 +398,12 @@
 .peajes-table-card table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 900px;
+    min-width: 1100px;
 }
 
 .peajes-table-card th,
 .peajes-table-card td {
-    padding: 15px 18px;
+    padding: 14px 16px;
     text-align: left;
     border-bottom: 1px solid var(--border);
     font-size: 14px;
@@ -317,9 +413,9 @@
 .peajes-table-card th {
     background: #f8fafc;
     color: #334155;
-    font-size: 12px;
     font-weight: 900;
     text-transform: uppercase;
+    font-size: 12px;
     letter-spacing: 0.5px;
     white-space: nowrap;
 }
@@ -341,11 +437,6 @@
     border-bottom: none;
 }
 
-/* Contenedor responsive para tabla */
-.peajes-table-card {
-    overflow-x: auto;
-}
-
 .peajes-table-card::-webkit-scrollbar {
     height: 8px;
 }
@@ -361,6 +452,85 @@
 
 .peajes-table-card::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
+}
+
+/* =========================
+   RESUMEN DE TARIFAS EN TABLA
+========================= */
+
+.tarifa-resumen {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+    border: 1px solid #bfdbfe;
+    white-space: nowrap;
+}
+
+.tarifa-vacia {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+/* =========================
+   ACCIONES EN TABLA
+========================= */
+
+.acciones-peaje {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-ver-detalle,
+.btn-editar-peaje {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.btn-ver-detalle {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.btn-ver-detalle:hover {
+    background: #dbeafe;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-editar-peaje {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.btn-editar-peaje:hover {
+    background: #d1fae5;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
 }
 
 /* =========================
@@ -418,55 +588,176 @@
 }
 
 /* =========================
-   BOTONES EN TABLA, SI EXISTEN
+   MODAL
 ========================= */
 
-.acciones,
-.table-actions {
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
     display: flex;
     align-items: center;
-    gap: 8px;
-}
-
-.btn-icon,
-.btn-editar,
-.btn-eliminar,
-.btn-ver {
-    width: 34px;
-    height: 34px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: #ffffff;
-    color: #475569;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
-    transition:
-        background 0.18s ease,
-        color 0.18s ease,
-        transform 0.18s ease,
-        box-shadow 0.18s ease;
+    padding: 24px;
+    z-index: 3000;
 }
 
-.btn-icon:hover,
-.btn-editar:hover,
-.btn-ver:hover {
-    background: var(--primary-soft);
-    color: var(--primary);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
+.modal-card {
+    width: 100%;
+    max-height: calc(100vh - 48px);
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--shadow-lg);
+    overflow-y: auto;
 }
 
-.btn-eliminar:hover {
-    background: var(--danger-soft);
-    color: var(--danger);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
+.peaje-modal {
+    max-width: 850px;
+}
+
+.detalle-modal {
+    max-width: 780px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #ffffff;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.modal-header p {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.modal-close {
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 22px;
+    font-weight: 900;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.modal-close:hover {
+    background: #e2e8f0;
 }
 
 /* =========================
-   EMPTY / LOADING OPCIONAL
+   DETALLE MODAL
+========================= */
+
+.detalle-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    padding: 22px 24px 10px;
+}
+
+.detalle-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px;
+}
+
+.detalle-item span {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    color: #64748b;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+}
+
+.detalle-item strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 900;
+    word-break: break-word;
+}
+
+.detalle-full {
+    grid-column: 1 / -1;
+}
+
+.detalle-tarifas {
+    padding: 8px 24px 22px;
+}
+
+.detalle-tarifas h4 {
+    margin: 0 0 14px;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.detalle-tarifas-list {
+    display: grid;
+    gap: 10px;
+}
+
+.detalle-tarifa-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px 14px;
+}
+
+.detalle-tarifa-row span {
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.detalle-tarifa-row strong {
+    color: #047857;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.tarifa-vacia-detalle {
+    padding: 14px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.detalle-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 24px 24px;
+}
+
+/* =========================
+   EMPTY / LOADING
 ========================= */
 
 .peajes-empty,
@@ -526,6 +817,43 @@
     }
 }
 
+@media (max-width: 760px) {
+    .modal-overlay {
+        align-items: flex-start;
+        padding: 16px;
+    }
+
+    .modal-card {
+        max-height: calc(100vh - 32px);
+    }
+
+    .detalle-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detalle-full {
+        grid-column: span 1;
+    }
+
+    .detalle-actions {
+        flex-direction: column;
+    }
+
+    .detalle-actions .btn-primary,
+    .detalle-actions .btn-secondary {
+        width: 100%;
+    }
+
+    .acciones-peaje {
+        flex-direction: column;
+    }
+
+    .btn-ver-detalle,
+    .btn-editar-peaje {
+        width: 100%;
+    }
+}
+
 @media (max-width: 600px) {
     .peajes-header {
         border-radius: 18px;
@@ -554,6 +882,23 @@
         padding: 18px;
     }
 
+    .tarifas-section {
+        padding: 14px;
+    }
+
+    .tarifas-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tarifa-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tarifa-input {
+        width: 100%;
+    }
+
     .peajes-table-card {
         border-radius: 18px;
     }
@@ -566,5 +911,193 @@
     .peajes-table-card th,
     .peajes-table-card td {
         padding: 13px 14px;
+    }
+
+    .detalle-tarifa-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .modal-form,
+    .vias-form {
+        padding: 22px 24px 24px;
+    }
+
+    .form-group textarea {
+        width: 100%;
+        min-height: 92px;
+        padding: 11px 13px;
+        border: 1px solid var(--border-strong);
+        border-radius: 12px;
+        font-size: 14px;
+        color: var(--text-main);
+        background: #ffffff;
+        box-sizing: border-box;
+        resize: vertical;
+        font-family: inherit;
+        transition: border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+    }
+
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    .vias-modal {
+        max-width: 980px;
+    }
+
+    .check-group {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .check-option {
+        display: flex !important;
+        align-items: center;
+        gap: 10px;
+        margin: 0 !important;
+        padding: 11px 13px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .check-option input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--primary);
+    }
+
+    .vias-list {
+        padding: 0 24px 24px;
+        display: grid;
+        gap: 12px;
+    }
+
+    .via-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+        border-radius: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .via-item strong {
+        display: block;
+        color: #0f172a;
+        font-size: 15px;
+        font-weight: 900;
+        margin-bottom: 4px;
+    }
+
+    .via-item span {
+        display: block;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+
+    .via-item p {
+        margin: 8px 0 0;
+        color: #475569;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .via-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .via-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .via-status.active {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    .via-status.inactive {
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+
+    .via-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .via-empty {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .via-empty-card {
+        padding: 16px;
+        border-radius: 16px;
+        background: #f8fafc;
+        color: #64748b;
+        border: 1px dashed #cbd5e1;
+        font-size: 14px;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    @media (max-width: 760px) {
+        .via-item {
+            flex-direction: column;
+        }
+
+        .via-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .vias-list {
+            padding: 0 16px 16px;
+        }
     }
 }

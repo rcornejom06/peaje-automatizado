@@ -274,6 +274,23 @@ function Reportes() {
 
             {cargando && <p>Cargando reportes...</p>}
 
+            {resumen && (
+                <div className="stats-grid resumen-general-grid">
+                    <div className="stat-card">
+                        <span>Total pasos</span>
+                        <strong>{resumen.total_pasos ?? 0}</strong>
+                    </div>
+                    <div className="stat-card success">
+                        <span>Pasos pagados</span>
+                        <strong>{resumen.pasos_pagados ?? 0}</strong>
+                    </div>
+                    <div className="stat-card danger">
+                        <span>Alertas</span>
+                        <strong>{resumen.pasos_alerta ?? resumen.total_alertas ?? 0}</strong>
+                    </div>
+                </div>
+            )}
+
             <div className="tabs">
 
 

@@ -1,15 +1,21 @@
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
 *.pyd
-*.sqlite3
-*.log
+.pytest_cache/
+.coverage
+htmlcov/
+./backend/firebase-service-account.json
 
 # Django
 backend/staticfiles/
 backend/media/
 backend/db.sqlite3
+.env
+*.sqlite3
+media/
+staticfiles/
 
 # Entornos virtuales
 venv/

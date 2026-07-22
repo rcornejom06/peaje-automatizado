@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../shared/widgets/mobile_app_header.dart';
+
 import '../../core/services/api_service.dart';
 import '../../core/services/billetera_service.dart';
+import '../../core/services/tarjeta_bancaria_service.dart';
+import '../../shared/widgets/mobile_app_header.dart';
 
 class BilleteraScreen extends StatefulWidget {
   const BilleteraScreen({super.key});
@@ -15,16 +17,24 @@ class _BilleteraScreenState extends State<BilleteraScreen>
     with SingleTickerProviderStateMixin {
   final BilleteraService _billeteraService = BilleteraService();
   final ApiService _apiService = ApiService();
+  final TarjetaBancariaService _tarjetaService = TarjetaBancariaService();
+
   final TextEditingController _montoController = TextEditingController();
+  final TextEditingController _cvvController = TextEditingController();
 
   late AnimationController _refreshController;
 
   bool _cargando = true;
   bool _recargando = false;
+
   String _error = '';
   String _mensaje = '';
+
   Map<String, dynamic>? _billetera;
   List<dynamic> _movimientos = [];
+  List<dynamic> _tarjetas = [];
+
+  int? _tarjetaSeleccionadaId;
 
   @override
   void initState() {
@@ -46,16 +56,19 @@ class _BilleteraScreenState extends State<BilleteraScreen>
         _mensaje = '';
       });
 
-      _refreshController.forward();
+      _refreshController.forward(from: 0);
 
       final dataBilletera = await _billeteraService.obtenerMiBilletera();
       final dataMovimientos = await _obtenerMovimientosSeguro();
+      final dataTarjetas = await _obtenerTarjetasSeguro();
 
       if (!mounted) return;
 
       setState(() {
         _billetera = dataBilletera;
         _movimientos = dataMovimientos;
+        _tarjetas = dataTarjetas;
+        _tarjetaSeleccionadaId = _obtenerTarjetaInicial(dataTarjetas);
       });
     } catch (e) {
       if (!mounted) return;
@@ -77,6 +90,7 @@ class _BilleteraScreenState extends State<BilleteraScreen>
   Future<List<dynamic>> _obtenerMovimientosSeguro() async {
     try {
       final data = await _apiService.get('/pagos/transacciones/');
+
       final movimientos = _extraerListaMovimientos(data)
           .map(_normalizarMovimiento)
           .where(_movimientoTieneDatos)
@@ -102,6 +116,23 @@ class _BilleteraScreenState extends State<BilleteraScreen>
       });
 
       return movimientosConIndice.map((entry) => entry.value).take(5).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> _obtenerTarjetasSeguro() async {
+    try {
+      final data = await _tarjetaService.obtenerTarjetas();
+
+      return data
+          .map(_normalizarTarjeta)
+          .where((tarjeta) {
+        return tarjeta.isNotEmpty &&
+            tarjeta['estado'] == 'activa' &&
+            tarjeta['vencida'] != true;
+      })
+          .toList();
     } catch (_) {
       return [];
     }
@@ -145,6 +176,47 @@ class _BilleteraScreenState extends State<BilleteraScreen>
     return {};
   }
 
+  Map<String, dynamic> _normalizarTarjeta(dynamic tarjeta) {
+    if (tarjeta is Map<String, dynamic>) {
+      return tarjeta;
+    }
+
+    if (tarjeta is Map) {
+      return tarjeta.map(
+            (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+
+    return {};
+  }
+
+  int? _obtenerTarjetaId(dynamic tarjeta) {
+    final mapa = _normalizarTarjeta(tarjeta);
+
+    if (mapa['id'] == null) {
+      return null;
+    }
+
+    return int.tryParse(mapa['id'].toString());
+  }
+
+  int? _obtenerTarjetaInicial(List<dynamic> tarjetas) {
+    if (tarjetas.isEmpty) {
+      return null;
+    }
+
+    final principales = tarjetas.where((tarjeta) {
+      final mapa = _normalizarTarjeta(tarjeta);
+      return mapa['principal'] == true;
+    }).toList();
+
+    if (principales.isNotEmpty) {
+      return _obtenerTarjetaId(principales.first);
+    }
+
+    return _obtenerTarjetaId(tarjetas.first);
+  }
+
   dynamic _valorCampo(Map<String, dynamic> movimiento, List<String> campos) {
     for (final campo in campos) {
       final valor = movimiento[campo];
@@ -173,6 +245,7 @@ class _BilleteraScreenState extends State<BilleteraScreen>
   bool _movimientoTieneDatos(Map<String, dynamic> movimiento) {
     final monto = _montoMovimiento(movimiento);
     final fecha = _fechaValorMovimiento(movimiento);
+
     final descripcion = _textoCampo(movimiento, [
       'descripcion',
       'detalle',
@@ -182,6 +255,7 @@ class _BilleteraScreenState extends State<BilleteraScreen>
       'tipo_display',
       'tipo_nombre',
     ]);
+
     final tipo = _textoCampo(movimiento, [
       'tipo',
       'tipo_transaccion',
@@ -228,14 +302,63 @@ class _BilleteraScreenState extends State<BilleteraScreen>
         DateTime.fromMillisecondsSinceEpoch(0);
   }
 
+  String _textoTarjeta(dynamic tarjeta) {
+    final mapa = _normalizarTarjeta(tarjeta);
+
+    final alias = mapa['alias']?.toString();
+    final marca = mapa['marca_display']?.toString() ?? 'Tarjeta';
+    final numero = mapa['numero_enmascarado']?.toString() ?? '';
+
+    if (alias != null && alias
+        .trim()
+        .isNotEmpty) {
+      return '$alias · $numero';
+    }
+
+    return '$marca · $numero';
+  }
+
+  Future<void> _irATarjetas() async {
+    await Navigator.pushNamed(context, '/mis-tarjetas');
+
+    if (!mounted) return;
+
+    await _cargarBilletera();
+  }
 
   Future<void> _recargar() async {
     final montoTexto = _montoController.text.trim().replaceAll(',', '.');
     final monto = double.tryParse(montoTexto);
 
+    if (_tarjetas.isEmpty) {
+      setState(() {
+        _error = 'Primero debes registrar una tarjeta bancaria.';
+        _mensaje = '';
+      });
+      return;
+    }
+
+    if (_tarjetaSeleccionadaId == null) {
+      setState(() {
+        _error = 'Selecciona una tarjeta bancaria.';
+        _mensaje = '';
+      });
+      return;
+    }
+
     if (monto == null || monto <= 0) {
       setState(() {
         _error = 'Ingresa un monto válido y mayor a cero.';
+        _mensaje = '';
+      });
+      return;
+    }
+
+    if (_cvvController.text
+        .trim()
+        .length < 3) {
+      setState(() {
+        _error = 'Ingresa el CVV de la tarjeta.';
         _mensaje = '';
       });
       return;
@@ -248,24 +371,26 @@ class _BilleteraScreenState extends State<BilleteraScreen>
     });
 
     try {
-      await _billeteraService.recargar(
-        monto: monto,
-        metodoPago: 'app_movil',
-        referenciaPago:
-        'RECARGA-MOVIL-${DateTime
-            .now()
-            .millisecondsSinceEpoch}',
+      final respuesta = await _tarjetaService.recargarBilletera(
+        tarjetaId: _tarjetaSeleccionadaId!,
+        monto: montoTexto,
+        cvv: _cvvController.text.trim(),
       );
 
       _montoController.clear();
+      _cvvController.clear();
 
       if (!mounted) return;
 
+      final saldoActual = respuesta is Map ? respuesta['saldo_actual'] : null;
+
       setState(() {
-        _mensaje = 'Recarga exitosa. Tu saldo ha sido actualizado.';
+        _mensaje = saldoActual != null
+            ? 'Recarga exitosa. Saldo actual: \$$saldoActual.'
+            : 'Recarga exitosa. Tu saldo ha sido actualizado.';
       });
 
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 1200));
 
       if (!mounted) return;
 
@@ -293,6 +418,7 @@ class _BilleteraScreenState extends State<BilleteraScreen>
     }
 
     final numero = double.tryParse(saldo.toString()) ?? 0;
+
     return '\$${numero.toStringAsFixed(2)}';
   }
 
@@ -323,12 +449,10 @@ class _BilleteraScreenState extends State<BilleteraScreen>
     final monto = _montoMovimiento(movimiento);
 
     return monto == 0 &&
-        (
-            textoCompleto.contains('uso_membresia') ||
-                textoCompleto.contains('uso membresia') ||
-                textoCompleto.contains('uso membresía') ||
-                textoCompleto.contains('membresia') && metodoPago == 'membresia'
-        );
+        (textoCompleto.contains('uso_membresia') ||
+            textoCompleto.contains('uso membresia') ||
+            textoCompleto.contains('uso membresía') ||
+            textoCompleto.contains('membresia') && metodoPago == 'membresia');
   }
 
   bool _esMovimientoIngreso(Map<String, dynamic> movimiento) {
@@ -463,12 +587,16 @@ class _BilleteraScreenState extends State<BilleteraScreen>
   }
 
   String _formatearFechaMovimiento(dynamic valor) {
-    if (valor == null) return 'Sin fecha';
+    if (valor == null) {
+      return 'Sin fecha';
+    }
 
     try {
       final fecha = DateTime.parse(valor.toString()).toLocal();
 
-      String dosDigitos(int value) => value.toString().padLeft(2, '0');
+      String dosDigitos(int value) {
+        return value.toString().padLeft(2, '0');
+      }
 
       return '${dosDigitos(fecha.day)}/${dosDigitos(fecha.month)}/${fecha
           .year} '
@@ -481,6 +609,7 @@ class _BilleteraScreenState extends State<BilleteraScreen>
   @override
   void dispose() {
     _montoController.dispose();
+    _cvvController.dispose();
     _refreshController.dispose();
     super.dispose();
   }
@@ -500,8 +629,10 @@ class _BilleteraScreenState extends State<BilleteraScreen>
 
     final backgroundColor =
     esError ? colors.errorContainer : colors.secondaryContainer;
+
     final foregroundColor =
     esError ? colors.onErrorContainer : colors.onSecondaryContainer;
+
     final icon = esError ? Icons.error_outline : Icons.check_circle_outline;
 
     return Container(
@@ -635,7 +766,8 @@ class _BilleteraScreenState extends State<BilleteraScreen>
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Las recargas se procesarán en tiempo real. Tu saldo se actualizará inmediatamente.',
+              'Las recargas se realizan con una tarjeta bancaria registrada. '
+                  'No guardamos el CVV y el saldo se actualiza inmediatamente.',
               style: Theme
                   .of(context)
                   .textTheme
@@ -731,52 +863,52 @@ class _BilleteraScreenState extends State<BilleteraScreen>
             return Column(
               children: [
                 ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: esIngreso
+                          ? colors.secondary.withAlpha(22)
+                          : colors.error.withAlpha(22),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    leading: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: esIngreso
-                            ? colors.secondary.withAlpha(22)
-                            : colors.error.withAlpha(22),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        esIngreso
-                            ? Icons.add_circle_outline
-                            : Icons.remove_circle_outline,
-                        color: esIngreso ? colors.secondary : colors.error,
-                        size: 22,
-                      ),
+                    child: Icon(
+                      esIngreso
+                          ? Icons.add_circle_outline
+                          : Icons.remove_circle_outline,
+                      color: esIngreso ? colors.secondary : colors.error,
+                      size: 22,
                     ),
-                    title: Text(
-                      descripcion,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: colors.onSurface,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  ),
+                  title: Text(
+                    descripcion,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurface,
+                      fontWeight: FontWeight.w800,
                     ),
-                    subtitle: Text(
-                      _formatearFechaMovimiento(fecha),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
+                  ),
+                  subtitle: Text(
+                    _formatearFechaMovimiento(fecha),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
                     ),
-                    trailing: Text(
-                      '${esIngreso ? '+' : '-'}\$${monto.abs().toStringAsFixed(
-                          2)}',
-                      style: textTheme.titleSmall?.copyWith(
-                        color: esIngreso ? colors.secondary : colors.error,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    )
+                  ),
+                  trailing: Text(
+                    '${esIngreso ? '+' : '-'}\$${monto.abs().toStringAsFixed(
+                        2)}',
+                    style: textTheme.titleSmall?.copyWith(
+                      color: esIngreso ? colors.secondary : colors.error,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
                 if (index != movimientosValidos.length - 1)
                   Divider(
@@ -793,13 +925,204 @@ class _BilleteraScreenState extends State<BilleteraScreen>
     );
   }
 
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _seccionRecarga(BuildContext context) {
     final colors = Theme
         .of(context)
         .colorScheme;
 
+    final Set<int> idsUsados = {};
+
+    final List<DropdownMenuItem<int>> tarjetasItems = [];
+
+    for (final tarjeta in _tarjetas) {
+      final id = _obtenerTarjetaId(tarjeta);
+
+      if (id == null) {
+        continue;
+      }
+
+      if (idsUsados.contains(id)) {
+        continue;
+      }
+
+      idsUsados.add(id);
+
+      tarjetasItems.add(
+        DropdownMenuItem<int>(
+          value: id,
+          child: Text(
+            _textoTarjeta(tarjeta),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+      );
+    }
+
+    final bool seleccionExiste = tarjetasItems.any(
+          (item) => item.value == _tarjetaSeleccionadaId,
+    );
+
+    final int? valorSeleccionado = seleccionExiste
+        ? _tarjetaSeleccionadaId
+        : tarjetasItems.isNotEmpty
+        ? tarjetasItems.first.value
+        : null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            if (_tarjetas.isEmpty || tarjetasItems.isEmpty) ...[
+              Icon(
+                Icons.credit_card_off,
+                size: 46,
+                color: colors.primary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'No tienes tarjetas registradas',
+                textAlign: TextAlign.center,
+                style: Theme
+                    .of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Agrega una tarjeta bancaria para poder recargar tu billetera.',
+                textAlign: TextAlign.center,
+                style: Theme
+                    .of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _irATarjetas,
+                  icon: const Icon(Icons.add_card),
+                  label: const Text('Agregar tarjeta'),
+                ),
+              ),
+            ] else
+              ...[
+                DropdownButtonFormField<int>(
+                  value: valorSeleccionado,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Tarjeta bancaria',
+                    prefixIcon: Icon(Icons.credit_card),
+                  ),
+                  items: tarjetasItems,
+                  onChanged: _recargando
+                      ? null
+                      : (value) {
+                    setState(() {
+                      _tarjetaSeleccionadaId = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Seleccione una tarjeta.';
+                    }
+
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                _CustomRechargeField(
+                  controller: _montoController,
+                  enabled: !_recargando,
+                ),
+
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: _cvvController,
+                  enabled: !_recargando,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'CVV',
+                    hintText: '123',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _recargando ? null : _irATarjetas,
+                    icon: const Icon(Icons.manage_accounts_outlined),
+                    label: const Text('Administrar tarjetas'),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                _mensajeEstado(
+                  context: context,
+                  mensaje: _error,
+                  esError: true,
+                ),
+
+                _mensajeEstado(
+                  context: context,
+                  mensaje: _mensaje,
+                  esError: false,
+                ),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _recargando ? null : _recargar,
+                    icon: _recargando
+                        ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: colors.onPrimary,
+                      ),
+                    )
+                        : const Icon(Icons.payment),
+                    label: Text(
+                      _recargando ? 'Procesando...' : 'Recargar con tarjeta',
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                _notaInformativa(context),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: MobileAppHeader(
         title: 'Billetera',
@@ -809,7 +1132,7 @@ class _BilleteraScreenState extends State<BilleteraScreen>
         showRefresh: true,
         onRefresh: _cargarBilletera,
         showNotifications: true,
-        showLogout: true,
+        showLogout: false,
       ),
       body: _cargando
           ? const Center(
@@ -825,76 +1148,14 @@ class _BilleteraScreenState extends State<BilleteraScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _saldoCard(context),
-
                   const SizedBox(height: 24),
-
                   _seccionTitulo('Movimientos'),
-
                   const SizedBox(height: 12),
-
                   _movimientosBilletera(context),
-
                   const SizedBox(height: 24),
-
                   _seccionTitulo('Recargar saldo'),
-
                   const SizedBox(height: 12),
-
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          _CustomRechargeField(
-                            controller: _montoController,
-                            enabled: !_recargando,
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          _mensajeEstado(
-                            context: context,
-                            mensaje: _error,
-                            esError: true,
-                          ),
-
-                          _mensajeEstado(
-                            context: context,
-                            mensaje: _mensaje,
-                            esError: false,
-                          ),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton.icon(
-                              onPressed:
-                              _recargando ? null : _recargar,
-                              icon: _recargando
-                                  ? SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: colors.onPrimary,
-                                ),
-                              )
-                                  : const Icon(Icons.add),
-                              label: Text(
-                                _recargando
-                                    ? 'Recargando...'
-                                    : 'Recargar billetera',
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          _notaInformativa(context),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _seccionRecarga(context),
                 ],
               ),
             ),

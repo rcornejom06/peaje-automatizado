@@ -52,7 +52,7 @@ function Membresias() {
             } else {
                 setMembresias([]);
             }
-        } catch (error) {
+        } catch {
             setError("No se pudieron cargar las membresías.");
         } finally {
             setCargando(false);
@@ -94,7 +94,7 @@ function Membresias() {
             limpiarFormulario();
             setMostrarFormulario(false);
             await cargarDatos();
-        } catch (error) {
+        } catch {
             if (error.response?.status === 403) {
                 setError("No tiene permisos para crear planes de membresía.");
             } else {

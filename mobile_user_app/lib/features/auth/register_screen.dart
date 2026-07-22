@@ -37,6 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   String _mensaje = '';
   bool _mostrarPassword = false;
   bool _mostrarConfirmPassword = false;
+  bool _aceptaTerminos = false;
 
   bool _soloLetras(String texto) {
     final regex = RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$");
@@ -92,6 +93,25 @@ class _RegisterScreenState extends State<RegisterScreen>
       return;
     }
 
+    if (!_aceptaTerminos) {
+      setState(() {
+        _error = 'Debes aceptar los términos y condiciones para registrarte.';
+        _mensaje = '';
+      });
+
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOut,
+        );
+      }
+
+      return;
+    }
+
     final email = _emailController.text.trim();
     final nombreFormateado = _capitalizarPalabras(_firstNameController.text);
     final apellidoFormateado = _capitalizarPalabras(_lastNameController.text);
@@ -114,6 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         lastName: apellidoFormateado,
         cedula: _cedulaController.text.trim(),
         telefono: _telefonoController.text.trim(),
+        aceptaTerminos: _aceptaTerminos,
       );
 
       if (!mounted) return;
@@ -145,6 +166,64 @@ class _RegisterScreenState extends State<RegisterScreen>
         });
       }
     }
+  }
+
+  void _mostrarTerminosCondiciones() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final colors = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          title: const Text('Términos y condiciones'),
+          content: const SingleChildScrollView(
+            child: Text(
+              'Al registrarte en VíaSmart aceptas que tus datos personales, '
+              'vehículos registrados, movimientos de billetera, membresías y pasos '
+              'por peaje sean utilizados únicamente para la operación del sistema '
+              'de peaje automatizado.\n\n'
+              'El usuario declara que la información registrada es verdadera y se '
+              'compromete a mantener actualizados sus datos personales, vehículos '
+              'y métodos de pago registrados.\n\n'
+              'El sistema podrá registrar eventos de paso por peaje, cobros '
+              'automáticos, uso de membresías, recargas de billetera y '
+              'notificaciones relacionadas con la cuenta.\n\n'
+              'Las recargas y pagos realizados en la aplicación forman parte del '
+              'historial de movimientos de la billetera virtual del usuario.\n\n'
+              'No se almacenará información sensible completa de tarjetas bancarias '
+              'ni códigos CVV. Las tarjetas se guardan de forma simulada mostrando '
+              'solo los últimos cuatro dígitos.\n\n'
+              'El usuario acepta recibir notificaciones relacionadas con el estado '
+              'de sus vehículos, pagos, membresías, avisos de seguridad y pasos '
+              'por peaje.\n\n'
+              'Al continuar, aceptas estos términos y condiciones.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+
+                if (!mounted) return;
+
+                setState(() {
+                  _aceptaTerminos = true;
+                  _error = '';
+                });
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.primary,
+              ),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -206,6 +285,61 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _terminosCheckbox(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _aceptaTerminos
+            ? colors.primaryContainer.withAlpha(80)
+            : colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _aceptaTerminos ? colors.primary : colors.outline.withAlpha(80),
+        ),
+      ),
+      child: CheckboxListTile(
+        value: _aceptaTerminos,
+        onChanged: _cargando
+            ? null
+            : (value) {
+                setState(() {
+                  _aceptaTerminos = value ?? false;
+
+                  if (_aceptaTerminos) {
+                    _error = '';
+                  }
+                });
+              },
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 4,
+        ),
+        title: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text('Acepto los '),
+            GestureDetector(
+              onTap: _mostrarTerminosCondiciones,
+              child: Text(
+                'términos y condiciones',
+                style: TextStyle(
+                  color: colors.primary,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+        subtitle: const Text(
+          'Debes aceptarlos para poder crear tu cuenta.',
+        ),
       ),
     );
   }
@@ -529,6 +663,10 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                             const SizedBox(height: 24),
 
+                            _terminosCheckbox(context),
+
+                            const SizedBox(height: 16),
+
                             _mensajeEstado(
                               context: context,
                               mensaje: _error,
@@ -577,7 +715,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             const SizedBox(height: 30),
 
                             Text(
-                              'Al crear una cuenta aceptas nuestros términos y condiciones',
+                              'Tu registro requiere aceptar los términos y condiciones.',
                               textAlign: TextAlign.center,
                               style: textTheme.bodySmall,
                             ),
@@ -718,8 +856,9 @@ class _CustomTextFormFieldState extends State<_CustomTextFormField> {
               ? IconButton(
                   icon: Icon(
                     widget.suffixIcon,
-                    color:
-                        _isFocused ? colors.primary : colors.onSurfaceVariant,
+                    color: _isFocused
+                        ? colors.primary
+                        : colors.onSurfaceVariant,
                   ),
                   onPressed: widget.onSuffixTap,
                 )

@@ -93,6 +93,38 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             usuario=self.request.user
         ).order_by("-fecha_creacion")
 
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "Use el endpoint /api/membresias/comprar/ para adquirir una membresía."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar membresías directamente."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar membresías directamente."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite eliminar membresías."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
     @action(detail=False, methods=["get"], url_path="mi-membresia-activa")
     def mi_membresia_activa(self, request):
         membresia = Membresia.objects.select_related("usuario", "plan").filter(
@@ -255,8 +287,6 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             "automovil",
             "automóvil",
             "camioneta",
-            "moto",
-            "motocicleta",
             "pesado",
         ]
 

@@ -1,9 +1,9 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Notificacion
-from .serializers import NotificacionSerializer
+from .models import DispositivoPush, Notificacion
+from .serializers import DispositivoPushSerializer, NotificacionSerializer
 
 
 class NotificacionViewSet(viewsets.ModelViewSet):
@@ -60,3 +60,23 @@ class NotificacionViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK
         )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def registrar_token_push(request):
+    serializer = DispositivoPushSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    DispositivoPush.objects.update_or_create(
+        token=serializer.validated_data["token"],
+        defaults={
+            "usuario": request.user,
+            "plataforma": serializer.validated_data.get("plataforma", "android"),
+        },
+    )
+
+    return Response(
+        {"mensaje": "Token de notificaciones registrado correctamente."},
+        status=status.HTTP_200_OK,
+    )

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Notificacion
+from .models import DispositivoPush, Notificacion
 
 
 class NotificacionSerializer(serializers.ModelSerializer):
@@ -22,3 +22,9 @@ class NotificacionSerializer(serializers.ModelSerializer):
             "usuario",
             "fecha_hora",
         ]
+
+
+class DispositivoPushSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DispositivoPush
+        fields = ["token", "plataforma"]

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/services/notificacion_service.dart';
@@ -14,6 +16,7 @@ class _NotificationBellState extends State<NotificationBell> {
 
   int _noLeidas = 0;
   bool _cargando = false;
+  Timer? _timer;
 
   Future<void> _cargarNoLeidas() async {
     if (_cargando) return;
@@ -43,6 +46,16 @@ class _NotificationBellState extends State<NotificationBell> {
   void initState() {
     super.initState();
     _cargarNoLeidas();
+    _timer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _cargarNoLeidas(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override

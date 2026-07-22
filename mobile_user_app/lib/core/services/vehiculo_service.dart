@@ -57,7 +57,7 @@ class VehiculoService {
     }
 
     final uri = Uri.parse(
-      '${ApiConfig.baseUrl}/vehiculos/vehiculos/registrar-propio/',
+      '${ApiConfig.baseUrl}/vehiculos/registrar-propio/',
     );
 
     final request = http.MultipartRequest('POST', uri);
@@ -147,7 +147,7 @@ class VehiculoService {
     }
 
     final uri = Uri.parse(
-      '${ApiConfig.baseUrl}/vehiculos/vehiculos/$vehiculoId/actualizar-propio/',
+      '${ApiConfig.baseUrl}/vehiculos/$vehiculoId/actualizar-propio/',
     );
 
     final request = http.MultipartRequest('PATCH', uri);

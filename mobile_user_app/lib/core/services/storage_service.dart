@@ -24,6 +24,11 @@ class StorageService {
     return prefs.getString(_refreshTokenKey);
   }
 
+  Future<void> actualizarAccessToken(String accessToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accessTokenKey, accessToken);
+  }
+
   Future<bool> estaAutenticado() async {
     final token = await obtenerAccessToken();
     return token != null && token.isNotEmpty;

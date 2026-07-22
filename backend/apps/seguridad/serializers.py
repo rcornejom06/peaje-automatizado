@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion
+from .models import AvisoVehiculoRobado, AlertaSeguridad, UbicacionDeteccion, SolicitudReactivacionVehiculo
 
 
 class AvisoVehiculoRobadoSerializer(serializers.ModelSerializer):
@@ -17,23 +17,21 @@ class AvisoVehiculoRobadoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AvisoVehiculoRobado
-        fields = [
-            "id",
-            "vehiculo",
-            "vehiculo_placa",
-            "usuario_username",
-            "numero_denuncia",
-            "entidad_denuncia",
-            "fecha_denuncia",
-            "fecha_aviso",
-            "lugar_robo",
-            "descripcion",
-            "latitud_robo",
-            "longitud_robo",
-            "documento_respaldo",
-            "documento_respaldo_url",
-            "estado",
-        ]
+        fields = ["id", "vehiculo",
+                  "vehiculo_placa",
+                  "usuario_username",
+                  "numero_denuncia",
+                  "entidad_denuncia",
+                  "fecha_denuncia",
+                  "fecha_aviso",
+                  "lugar_robo",
+                  "descripcion",
+                  "latitud_robo",
+                  "longitud_robo",
+                  "documento_respaldo",
+                  "documento_respaldo_url",
+                  "estado",
+                  ]
 
         read_only_fields = [
             "id",
@@ -51,6 +49,68 @@ class AvisoVehiculoRobadoSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.documento_respaldo.url)
 
         return obj.documento_respaldo.url
+
+
+class SolicitudReactivacionVehiculoSerializer(serializers.ModelSerializer):
+    placa = serializers.CharField(
+        source="vehiculo.placa",
+        read_only=True
+    )
+    usuario_username = serializers.CharField(
+        source="usuario.username",
+        read_only=True
+    )
+    aviso_estado = serializers.CharField(
+        source="aviso.estado",
+        read_only=True
+    )
+    documento_respaldo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SolicitudReactivacionVehiculo
+        fields = [
+            "id",
+            "aviso",
+            "vehiculo",
+            "placa",
+            "usuario",
+            "usuario_username",
+            "motivo",
+            "documento_respaldo",
+            "documento_respaldo_url",
+            "estado",
+            "respuesta_admin",
+            "revisado_por",
+            "fecha_solicitud",
+            "fecha_revision",
+            "aviso_estado",
+        ]
+        read_only_fields = [
+            "id",
+            "aviso",
+            "vehiculo",
+            "usuario",
+            "usuario_username",
+            "estado",
+            "respuesta_admin",
+            "revisado_por",
+            "fecha_solicitud",
+            "fecha_revision",
+            "aviso_estado",
+            "documento_respaldo_url",
+        ]
+
+    def get_documento_respaldo_url(self, obj):
+        if not obj.documento_respaldo:
+            return None
+
+        url = obj.documento_respaldo.url
+        request = self.context.get("request")
+
+        if request:
+            return request.build_absolute_uri(url)
+
+        return url
 
 
 class UbicacionDeteccionSerializer(serializers.ModelSerializer):

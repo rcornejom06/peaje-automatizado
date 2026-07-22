@@ -42,7 +42,7 @@ function Auditoria() {
 
             setPaginaActual(1);
             setResumen(resumenData);
-        } catch (error) {
+        } catch {
             setError("No se pudo cargar el historial de auditoría.");
         } finally {
             setCargando(false);

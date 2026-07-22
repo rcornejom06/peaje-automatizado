@@ -2,7 +2,7 @@ import api from "./axios";
 
 export const solicitarResetPassword = async (email) => {
   const response = await api.post(
-    "/usuarios/usuarios/solicitar-reset-password/",
+    "/usuarios/solicitar-reset-password/",
     {
       email,
     }
@@ -17,7 +17,7 @@ export const confirmarResetPassword = async ({
   nuevaPassword,
 }) => {
   const response = await api.post(
-    "/usuarios/usuarios/confirmar-reset-password/",
+    "/usuarios/confirmar-reset-password/",
     {
       email,
       codigo,

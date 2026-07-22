@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   obtenerNotificaciones,
   obtenerNotificacionesNoLeidas,
@@ -7,7 +8,21 @@ import {
 } from "../../api/notificacionesService.js";
 import "../../components/NotificationBell/NotificationBell.css";
 
+const RUTAS_POR_ACCION = {
+  vehiculos: "/vehiculos",
+  seguridad: "/alertas",
+  membresias: "/membresias",
+  billetera: "/reportes",
+  pagos: "/reportes",
+  pasos: "/reconocimiento-placas",
+  peajes: "/peajes",
+  camaras: "/camaras",
+  auditoria: "/auditoria",
+};
+
 function NotificationBell() {
+  const navigate = useNavigate();
+
   const [abierto, setAbierto] = useState(false);
   const [notificaciones, setNotificaciones] = useState([]);
   const [noLeidas, setNoLeidas] = useState(0);
@@ -17,7 +32,7 @@ function NotificationBell() {
     try {
       const data = await obtenerNotificacionesNoLeidas();
       setNoLeidas(Number(data?.no_leidas || 0));
-    } catch (error) {
+    } catch {
       setNoLeidas(0);
     }
   };
@@ -37,7 +52,7 @@ function NotificationBell() {
       }
 
       await cargarContador();
-    } catch (error) {
+    } catch {
       setNotificaciones([]);
     } finally {
       setCargando(false);
@@ -45,7 +60,11 @@ function NotificationBell() {
   };
 
   useEffect(() => {
-    cargarContador();
+    const iniciar = async () => {
+      await cargarContador();
+    };
+
+    iniciar();
 
     const interval = setInterval(() => {
       cargarContador();
@@ -74,24 +93,11 @@ function NotificationBell() {
       return;
     }
 
-    switch (notificacion?.tipo_accion) {
-      case "vehiculos":
-        window.location.href = "/vehiculos";
-        break;
-      case "seguridad":
-        window.location.href = "/alertas";
-        break;
-      case "membresias":
-        window.location.href = "/membresias";
-        break;
-      case "billetera":
-        window.location.href = "/billetera";
-        break;
-      case "pasos":
-        window.location.href = "/pasos";
-        break;
-      default:
-        break;
+    const ruta = RUTAS_POR_ACCION[notificacion?.tipo_accion];
+
+    if (ruta) {
+      navigate(ruta);
+      setAbierto(false);
     }
   };
 

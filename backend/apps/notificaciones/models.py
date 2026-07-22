@@ -26,3 +26,26 @@ class Notificacion(models.Model):
 
     def __str__(self):
         return f"{self.titulo} - {self.usuario.username}"
+
+
+class DispositivoPush(models.Model):
+    """Token de Firebase Cloud Messaging de un dispositivo (app móvil),
+    usado para poder enviarle notificaciones push al teléfono del usuario."""
+
+    class Plataforma(models.TextChoices):
+        ANDROID = "android", "Android"
+        IOS = "ios", "iOS"
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="dispositivos_push")
+    token = models.CharField(max_length=255, unique=True)
+    plataforma = models.CharField(max_length=20,choices=Plataforma.choices,default=Plataforma.ANDROID)
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dispositivo push"
+        verbose_name_plural = "Dispositivos push"
+        ordering = ["-actualizado"]
+
+    def __str__(self):
+        return f"{self.usuario.username} - {self.plataforma}"

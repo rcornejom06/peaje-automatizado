@@ -1,5 +1,6 @@
 import random
-from datetime import timezone, timedelta
+from datetime import timedelta
+from django.utils import timezone
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
@@ -8,16 +9,17 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
 class PerfilUsuario(models.Model):
     class Rol(models.TextChoices):
         USUARIO = "usuario", "Usuario"
         OPERADOR = "operador", "Operador"
         ADMINISTRADOR = "administrador", "Administrador"
 
-    usuario = models.OneToOneField(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="perfil")
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="perfil")
     telefono = models.CharField(max_length=20, blank=True, null=True)
     cedula = models.CharField(max_length=20, blank=True, null=True)
-    rol = models.CharField(max_length=20,choices=Rol.choices,default=Rol.USUARIO)
+    rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.USUARIO)
     estado = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
@@ -52,6 +54,7 @@ class PerfilUsuario(models.Model):
             return False
 
         return self.codigo_verificacion == codigo
+
 
 @receiver(post_save, sender=User)
 def crear_perfil_usuario(sender, instance, created, **kwargs):

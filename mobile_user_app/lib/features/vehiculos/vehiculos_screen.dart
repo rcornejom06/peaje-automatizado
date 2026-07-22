@@ -578,7 +578,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
         showRefresh: true,
         onRefresh: _cargarVehiculos,
         showNotifications: true,
-        showLogout: true,
+        showLogout: false,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _irARegistrar,

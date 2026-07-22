@@ -290,15 +290,42 @@ class _RegistrarVehiculoScreenState extends State<RegistrarVehiculoScreen> {
     );
   }
 
-  String _nombreCategoria(dynamic categoria) {
-    final nombre = categoria['nombre']?.toString() ?? 'Categoría';
-    final tarifa = categoria['tarifa']?.toString();
+  String _capitalizar(String valor) {
+    final texto = valor.trim().replaceAll('_', ' ');
 
-    if (tarifa != null) {
-      return '$nombre - \$$tarifa';
+    if (texto.isEmpty) {
+      return '';
     }
 
-    return nombre;
+    return texto
+        .split(RegExp(r'\s+'))
+        .map((palabra) {
+      if (palabra.isEmpty) return palabra;
+
+      return palabra[0].toUpperCase() +
+          palabra.substring(1).toLowerCase();
+    })
+        .join(' ');
+  }
+
+  String _nombreCategoria(dynamic categoria) {
+    final tipo = _capitalizar(
+      categoria['tipo']?.toString() ?? '',
+    );
+
+    final ejes = categoria['numero_ejes']?.toString();
+
+    if (tipo.isNotEmpty && ejes != null && ejes
+        .trim()
+        .isNotEmpty) {
+      return '$tipo · $ejes ejes';
+    }
+
+    if (tipo.isNotEmpty) {
+      return tipo;
+    }
+
+    return categoria['nombre']?.toString() ?? 'Categoría';
   }
 
   Widget _selectorDocumento(BuildContext context) {
