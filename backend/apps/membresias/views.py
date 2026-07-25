@@ -2,13 +2,15 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, request
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import PlanMembresia, Membresia
 from .serializers import PlanMembresiaSerializer, MembresiaSerializer
+from ..notificaciones.models import Notificacion
+from ..notificaciones.services import crear_notificacion
 from ..usuarios.permissions import obtener_rol_usuario
 from ..pagos.models import Billetera, Transaccion
 from ..vehiculos.models import Vehiculo
@@ -90,6 +92,38 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         ).filter(
             usuario=self.request.user
         ).order_by("-fecha_creacion")
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "Use el endpoint /api/membresias/comprar/ para adquirir una membresía."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar membresías directamente."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite modificar membresías directamente."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {
+                "error": "No se permite eliminar membresías."
+            },
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     @action(detail=False, methods=["get"], url_path="mi-membresia-activa")
     def mi_membresia_activa(self, request):
@@ -191,7 +225,6 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             usuario=request.user,
             plan=plan,
             fecha_inicio=timezone.now().date(),
-            fecha_fin=None,
             pases_restantes=plan.pases_incluidos,
             estado=Membresia.Estado.ACTIVA,
         )
@@ -207,6 +240,17 @@ class MembresiaViewSet(viewsets.ModelViewSet):
         )
 
         serializer = self.get_serializer(membresia)
+
+        crear_notificacion(
+            usuario=request.user,
+            titulo="Membresía activada",
+            mensaje=(
+                f"Tu membresía fue activada correctamente. "
+                f"Ya puedes usar tus pases disponibles."
+            ),
+            tipo=Notificacion.Tipo.MEMBRESIA,
+            tipo_accion="membresias",
+        )
 
         return Response(
             {
@@ -243,8 +287,6 @@ class MembresiaViewSet(viewsets.ModelViewSet):
             "automovil",
             "automóvil",
             "camioneta",
-            "moto",
-            "motocicleta",
             "pesado",
         ]
 

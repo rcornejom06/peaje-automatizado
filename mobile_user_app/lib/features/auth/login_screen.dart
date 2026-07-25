@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'forgot_password_screen.dart';
+import 'verificar_correo_screen.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,6 +64,19 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;
+
+      if (e is ApiException && e.codigo == 'correo_no_verificado') {
+        final email = e.datos?['email']?.toString() ??
+            _usernameController.text.trim();
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VerificarCorreoScreen(email: email),
+          ),
+        );
+        return;
+      }
 
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
@@ -176,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 28),
 
                           Text(
-                            'Mi Peaje',
+                            'ViaSmart',
                             textAlign: TextAlign.center,
                             style: textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.w800,
@@ -187,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 8),
 
                           Text(
-                            'Accede a tu cuenta de peajes',
+                            'Accede a tu cuenta ',
                             textAlign: TextAlign.center,
                             style: textTheme.bodyMedium,
                           ),

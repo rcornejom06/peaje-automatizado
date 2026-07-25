@@ -12,6 +12,10 @@ import 'features/pasos/pasos_screen.dart';
 import 'features/seguridad/seguridad_screen.dart';
 import 'features/seguridad/crear_aviso_robo_screen.dart';
 import 'features/auth/verificar_correo_screen.dart';
+import 'features/notificaciones/notificaciones_screen.dart';
+import 'features/pagos/mis_tarjetas_screen.dart';
+import 'features/seguridad/solicitar_reactivacion_screen.dart';
+import 'shared/widgets/auth_gate.dart';
 
 class PeajeUserApp extends StatelessWidget {
   const PeajeUserApp({super.key});
@@ -22,7 +26,7 @@ class PeajeUserApp extends StatelessWidget {
       title: 'Peaje Automatizado',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      initialRoute: '/login',
+      home: const AuthGate(),
       routes: {
         '/login': (_) => const LoginScreen(),
         '/registro': (_) => const RegisterScreen(),
@@ -35,6 +39,9 @@ class PeajeUserApp extends StatelessWidget {
         '/pasos': (_) => const PasosScreen(),
         '/seguridad': (_) => const SeguridadScreen(),
         '/crear-aviso-robo': (_) => const CrearAvisoRoboScreen(),
+        '/notificaciones': (context) => const NotificacionesScreen(),
+        '/mis-tarjetas': (context) => const MisTarjetasScreen(),
+        '/solicitar-reactivacion': (_) => const SolicitarReactivacionScreen(),
       },
     );
   }

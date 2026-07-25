@@ -17,7 +17,6 @@ function Auditoria() {
 
     const [filtros, setFiltros] = useState({
         fecha_inicio: "",
-        fecha_fin: "",
         modulo: "",
         estado: "",
         accion: "",
@@ -43,7 +42,7 @@ function Auditoria() {
 
             setPaginaActual(1);
             setResumen(resumenData);
-        } catch (error) {
+        } catch {
             setError("No se pudo cargar el historial de auditoría.");
         } finally {
             setCargando(false);
@@ -64,7 +63,6 @@ function Auditoria() {
     const limpiarFiltros = async () => {
         const filtrosLimpios = {
             fecha_inicio: "",
-            fecha_fin: "",
             modulo: "",
             estado: "",
             accion: "",
@@ -166,15 +164,7 @@ function Auditoria() {
                     />
                 </div>
 
-                <div className="form-group">
-                    <label>Fecha fin</label>
-                    <input
-                        type="date"
-                        name="fecha_fin"
-                        value={filtros.fecha_fin}
-                        onChange={handleChange}
-                    />
-                </div>
+
 
                 <div className="form-group">
                     <label>Módulo</label>

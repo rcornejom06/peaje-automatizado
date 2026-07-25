@@ -1,5 +1,6 @@
 import '../constants/api_config.dart';
 import 'api_service.dart';
+import 'push_notification_service.dart';
 import 'storage_service.dart';
 
 class AuthService {
@@ -30,6 +31,8 @@ class AuthService {
       accessToken: accessToken,
       refreshToken: refreshToken,
     );
+
+    await PushNotificationService().registrarTokenEnBackend();
   }
 
   Future<void> registrarUsuario({
@@ -40,6 +43,7 @@ class AuthService {
     required String lastName,
     required String cedula,
     required String telefono,
+    required bool aceptaTerminos,
   }) async {
     await _apiService.post(
       ApiConfig.registro,
@@ -52,6 +56,7 @@ class AuthService {
         'last_name': lastName,
         'cedula': cedula,
         'telefono': telefono,
+        'acepta_terminos': aceptaTerminos,
       },
     );
   }

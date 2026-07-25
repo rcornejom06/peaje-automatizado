@@ -84,6 +84,8 @@ class _ComprobantePasoScreenState extends State<ComprobantePasoScreen> {
         return 'Pagado';
       case 'membresia':
         return 'Pagado con membresía';
+        case 'exonerado':
+        return 'Exonerado';
       case 'pendiente':
         return 'Pendiente';
       case 'fallido':
@@ -99,6 +101,7 @@ class _ComprobantePasoScreenState extends State<ComprobantePasoScreen> {
     switch (estado) {
       case 'pagado':
       case 'membresia':
+      case 'exonerado':
         return colors.secondary;
       case 'fallido':
         return colors.error;

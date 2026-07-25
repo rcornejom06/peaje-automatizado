@@ -1,77 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../shared/widgets/mobile_app_header.dart';
+import 'application/perfil_providers.dart';
 import 'cambiar_password_screen.dart';
-import '../../core/constants/api_config.dart';
-import '../../core/services/api_service.dart';
+import 'data/perfil.dart';
 import 'editar_perfil_screen.dart';
 
-class PerfilScreen extends StatefulWidget {
+/// Pantalla "Mi perfil". El estado (carga / error / datos) vive en
+/// [perfilControllerProvider]; aquí solo se pinta según ese estado.
+class PerfilScreen extends ConsumerWidget {
   const PerfilScreen({super.key});
 
   @override
-  State<PerfilScreen> createState() => _PerfilScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perfilAsync = ref.watch(perfilControllerProvider);
 
-class _PerfilScreenState extends State<PerfilScreen> {
-  final ApiService _apiService = ApiService();
+    Future<void> refrescar() =>
+        ref.read(perfilControllerProvider.notifier).refrescar();
 
-  bool _cargando = true;
-  String _error = '';
-  Map<String, dynamic>? _perfil;
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarPerfil();
+    return Scaffold(
+      appBar: MobileAppHeader(
+        title: 'Mi perfil',
+        subtitle: 'Datos personales',
+        icon: Icons.person,
+        showBackButton: true,
+        showRefresh: true,
+        onRefresh: refrescar,
+        showNotifications: true,
+        showLogout: false,
+      ),
+      body: perfilAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => _ErrorView(
+          mensaje: error.toString().replaceFirst('Exception: ', ''),
+          onReintentar: refrescar,
+        ),
+        data: (perfil) => _ContenidoPerfil(
+          perfil: perfil,
+          onRefrescar: refrescar,
+          onEditar: () => _irAEditarPerfil(context, ref, perfil),
+          onCambiarPassword: () => _irACambiarPassword(context),
+        ),
+      ),
+    );
   }
 
-  Future<void> _cargarPerfil() async {
-    try {
-      setState(() {
-        _cargando = true;
-        _error = '';
-      });
-
-      final data = await _apiService.get(ApiConfig.miPerfil);
-
-      if (!mounted) return;
-
-      setState(() {
-        _perfil = Map<String, dynamic>.from(data);
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _cargando = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _irAEditarPerfil() async {
-    if (_perfil == null) return;
-
+  Future<void> _irAEditarPerfil(
+    BuildContext context,
+    WidgetRef ref,
+    Perfil perfil,
+  ) async {
     final resultado = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EditarPerfilScreen(
-          perfil: _perfil!,
-        ),
+        builder: (_) => EditarPerfilScreen(perfil: perfil),
       ),
     );
 
     if (resultado == true) {
-      await _cargarPerfil();
+      await ref.read(perfilControllerProvider.notifier).refrescar();
     }
   }
 
-  Future<void> _irACambiarPassword() async {
+  Future<void> _irACambiarPassword(BuildContext context) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -79,105 +71,108 @@ class _PerfilScreenState extends State<PerfilScreen> {
       ),
     );
   }
+}
 
-  String _texto(dynamic valor) {
-    if (valor == null || valor.toString().trim().isEmpty) {
-      return 'Sin dato';
-    }
+/// Muestra el valor o "Sin dato" cuando viene vacío.
+String _texto(String valor) => valor.trim().isEmpty ? 'Sin dato' : valor;
 
-    return valor.toString();
-  }
+class _ContenidoPerfil extends StatelessWidget {
+  const _ContenidoPerfil({
+    required this.perfil,
+    required this.onRefrescar,
+    required this.onEditar,
+    required this.onCambiarPassword,
+  });
 
-  dynamic _usuarioCampo(String campo) {
-    final usuario = _perfil?['usuario'];
+  final Perfil perfil;
+  final Future<void> Function() onRefrescar;
+  final VoidCallback onEditar;
+  final VoidCallback onCambiarPassword;
 
-    if (usuario is Map && usuario[campo] != null) {
-      return usuario[campo];
-    }
-
-    final usuarioDetalle = _perfil?['usuario_detalle'];
-
-    if (usuarioDetalle is Map && usuarioDetalle[campo] != null) {
-      return usuarioDetalle[campo];
-    }
-
-    return null;
-  }
-
-  String _username() {
-    return _texto(
-      _usuarioCampo('username') ??
-          _perfil?['usuario_username'] ??
-          _perfil?['username'],
-    );
-  }
-
-  String _nombre() {
-    return _texto(
-      _usuarioCampo('first_name') ??
-          _perfil?['first_name'] ??
-          _perfil?['nombre'],
-    );
-  }
-
-  String _apellido() {
-    return _texto(
-      _usuarioCampo('last_name') ??
-          _perfil?['last_name'] ??
-          _perfil?['apellido'],
-    );
-  }
-
-  String _correo() {
-    return _texto(
-      _usuarioCampo('email') ??
-          _perfil?['email'] ??
-          _perfil?['correo'],
-    );
-  }
-
-  Widget _dato({
-    required String titulo,
-    required String valor,
-    required IconData icono,
-  }) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: colors.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefrescar,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _HeaderPerfil(perfil: perfil),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: onEditar,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Editar datos personales'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: onCambiarPassword,
+                      icon: const Icon(Icons.lock_outline),
+                      label: const Text('Cambiar contraseña'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Información personal',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  _DatoCard(
+                    titulo: 'Nombre',
+                    valor: _texto(perfil.nombre),
+                    icono: Icons.badge,
+                  ),
+                  _DatoCard(
+                    titulo: 'Apellido',
+                    valor: _texto(perfil.apellido),
+                    icono: Icons.badge_outlined,
+                  ),
+                  _DatoCard(
+                    titulo: 'Correo',
+                    valor: _texto(perfil.correo),
+                    icono: Icons.email_outlined,
+                  ),
+                  _DatoCard(
+                    titulo: 'Cédula',
+                    valor: _texto(perfil.cedula),
+                    icono: Icons.credit_card,
+                  ),
+                  _DatoCard(
+                    titulo: 'Teléfono',
+                    valor: _texto(perfil.telefono),
+                    icono: Icons.phone_outlined,
+                  ),
+                ],
+              ),
+            ),
           ),
-          child: Icon(
-            icono,
-            color: colors.onPrimaryContainer,
-            size: 22,
-          ),
-        ),
-        title: Text(
-          titulo,
-          style: textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: colors.onSurface,
-          ),
-        ),
-        subtitle: Text(
-          valor,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
-        ),
+        ],
       ),
     );
   }
+}
 
-  Widget _headerPerfil() {
+class _HeaderPerfil extends StatelessWidget {
+  const _HeaderPerfil({required this.perfil});
+
+  final Perfil perfil;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -186,10 +181,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            colors.primary,
-            colors.secondary,
-          ],
+          colors: [colors.primary, colors.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -207,15 +199,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
           CircleAvatar(
             radius: 44,
             backgroundColor: colors.onPrimary,
-            child: Icon(
-              Icons.person,
-              size: 50,
-              color: colors.primary,
-            ),
+            child: Icon(Icons.person, size: 50, color: colors.primary),
           ),
           const SizedBox(height: 16),
           Text(
-            _username(),
+            _texto(perfil.username),
             textAlign: TextAlign.center,
             style: textTheme.headlineSmall?.copyWith(
               color: colors.onPrimary,
@@ -224,7 +212,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            _correo(),
+            _texto(perfil.correo),
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(
               color: colors.onPrimary.withAlpha(220),
@@ -234,107 +222,62 @@ class _PerfilScreenState extends State<PerfilScreen> {
       ),
     );
   }
+}
 
-  Widget _botonEditarPerfil() {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: ElevatedButton.icon(
-        onPressed: _perfil == null ? null : _irAEditarPerfil,
-        icon: const Icon(Icons.edit_outlined),
-        label: const Text('Editar datos personales'),
-      ),
-    );
-  }
+class _DatoCard extends StatelessWidget {
+  const _DatoCard({
+    required this.titulo,
+    required this.valor,
+    required this.icono,
+  });
 
-  Widget _botonCambiarPassword() {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: _irACambiarPassword,
-        icon: const Icon(Icons.lock_outline),
-        label: const Text('Cambiar contraseña'),
-      ),
-    );
-  }
+  final String titulo;
+  final String valor;
+  final IconData icono;
 
-  Widget _tituloSeccion(String titulo) {
-    return Text(
-      titulo,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icono, color: colors.onPrimaryContainer, size: 22),
+        ),
+        title: Text(
+          titulo,
+          style: textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w700,
+            color: colors.onSurface,
           ),
-    );
-  }
-
-  Widget _contenidoPerfil() {
-    return RefreshIndicator(
-      onRefresh: _cargarPerfil,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _headerPerfil(),
-
-                  const SizedBox(height: 18),
-
-                  _botonEditarPerfil(),
-
-                  const SizedBox(height: 10),
-
-                  _botonCambiarPassword(),
-
-                  const SizedBox(height: 24),
-
-                  _tituloSeccion('Información personal'),
-
-                  const SizedBox(height: 12),
-
-                  _dato(
-                    titulo: 'Nombre',
-                    valor: _nombre(),
-                    icono: Icons.badge,
-                  ),
-
-                  _dato(
-                    titulo: 'Apellido',
-                    valor: _apellido(),
-                    icono: Icons.badge_outlined,
-                  ),
-
-                  _dato(
-                    titulo: 'Correo',
-                    valor: _correo(),
-                    icono: Icons.email_outlined,
-                  ),
-
-                  _dato(
-                    titulo: 'Cédula',
-                    valor: _texto(_perfil?['cedula']),
-                    icono: Icons.credit_card,
-                  ),
-
-                  _dato(
-                    titulo: 'Teléfono',
-                    valor: _texto(_perfil?['telefono']),
-                    icono: Icons.phone_outlined,
-                  ),
-                ],
-              ),
-            ),
+        ),
+        subtitle: Text(
+          valor,
+          style: textTheme.bodyMedium?.copyWith(
+            color: colors.onSurfaceVariant,
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _errorView(BuildContext context) {
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.mensaje, required this.onReintentar});
+
+  final String mensaje;
+  final Future<void> Function() onReintentar;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -347,11 +290,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 52,
-                  color: colors.error,
-                ),
+                Icon(Icons.error_outline, size: 52, color: colors.error),
                 const SizedBox(height: 16),
                 Text(
                   'No se pudo cargar el perfil',
@@ -363,7 +302,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _error,
+                  mensaje,
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(
                     color: colors.onSurfaceVariant,
@@ -371,7 +310,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 ),
                 const SizedBox(height: 18),
                 OutlinedButton.icon(
-                  onPressed: _cargarPerfil,
+                  onPressed: onReintentar,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Intentar nuevamente'),
                 ),
@@ -380,28 +319,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-        actions: [
-          IconButton(
-            onPressed: _cargarPerfil,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: _cargando
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : _error.isNotEmpty
-              ? _errorView(context)
-              : _contenidoPerfil(),
     );
   }
 }

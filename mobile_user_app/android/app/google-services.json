@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "353640442443",
+    "project_id": "movil-app-8398e",
+    "storage_bucket": "movil-app-8398e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:353640442443:android:a73c4c8bdb85625e7afbce",
+        "android_client_info": {
+          "package_name": "com.example.mobile_user_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQF89C9YDFlgNtqpYN81Hl5FzBsizlHaI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

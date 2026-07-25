@@ -1,10 +1,30 @@
 from rest_framework import serializers
-from .models import Notificacion
+from .models import DispositivoPush, Notificacion
 
 
 class NotificacionSerializer(serializers.ModelSerializer):
-    usuario_username = serializers.CharField(source="usuario.username", read_only=True)
-
     class Meta:
         model = Notificacion
-        fields = "__all__"
+        fields = [
+            "id",
+            "usuario",
+            "alerta",
+            "titulo",
+            "mensaje",
+            "tipo",
+            "leida",
+            "fecha_hora",
+            "url_accion",
+            "tipo_accion",
+        ]
+        read_only_fields = [
+            "id",
+            "usuario",
+            "fecha_hora",
+        ]
+
+
+class DispositivoPushSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DispositivoPush
+        fields = ["token", "plataforma"]

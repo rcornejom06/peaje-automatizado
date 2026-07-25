@@ -3,9 +3,10 @@ import 'package:flutter/services.dart';
 
 import '../../core/utils/cedula_validator.dart';
 import '../../core/services/perfil_service.dart';
+import 'data/perfil.dart';
 
 class EditarPerfilScreen extends StatefulWidget {
-  final Map<String, dynamic> perfil;
+  final Perfil perfil;
 
   const EditarPerfilScreen({
     super.key,
@@ -56,22 +57,11 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   void initState() {
     super.initState();
 
-    final usuarioDetalle = widget.perfil['usuario_detalle'];
-    final usuario = widget.perfil['usuario'];
-
-    Map<String, dynamic> datosUsuario = {};
-
-    if (usuarioDetalle is Map<String, dynamic>) {
-      datosUsuario = usuarioDetalle;
-    } else if (usuario is Map<String, dynamic>) {
-      datosUsuario = usuario;
-    }
-
-    _nombreController.text = datosUsuario['first_name']?.toString() ?? '';
-    _apellidoController.text = datosUsuario['last_name']?.toString() ?? '';
-    _correoController.text = datosUsuario['email']?.toString() ?? '';
-    _telefonoController.text = widget.perfil['telefono']?.toString() ?? '';
-    _cedulaController.text = widget.perfil['cedula']?.toString() ?? '';
+    _nombreController.text = widget.perfil.nombre;
+    _apellidoController.text = widget.perfil.apellido;
+    _correoController.text = widget.perfil.correo;
+    _telefonoController.text = widget.perfil.telefono;
+    _cedulaController.text = widget.perfil.cedula;
   }
 
   @override

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../core/services/seguridad_service.dart';
 import '../../core/services/vehiculo_service.dart';
@@ -21,27 +23,57 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
   final _fechaDenunciaController = TextEditingController();
   final _lugarRoboController = TextEditingController();
   final _descripcionController = TextEditingController();
-  final _latitudController = TextEditingController();
-  final _longitudController = TextEditingController();
 
   bool _cargando = true;
   bool _guardando = false;
+  bool _confirmaDatosCorrectos = false;
+
   String _error = '';
 
   List<dynamic> _vehiculos = [];
   int? _vehiculoSeleccionado;
 
+  PlatformFile? _documentoRespaldoPdf;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarVehiculos();
+  }
+
+  @override
+  void dispose() {
+    _numeroDenunciaController.dispose();
+    _entidadDenunciaController.dispose();
+    _fechaDenunciaController.dispose();
+    _lugarRoboController.dispose();
+    _descripcionController.dispose();
+
+    super.dispose();
+  }
+
   Future<void> _cargarVehiculos() async {
     try {
+      setState(() {
+        _cargando = true;
+        _error = '';
+      });
+
       final data = await _vehiculoService.obtenerVehiculos();
 
       if (!mounted) return;
 
+      final vehiculosValidos = data.where((vehiculo) {
+        return int.tryParse(vehiculo['id']?.toString() ?? '') != null;
+      }).toList();
+
       setState(() {
-        _vehiculos = data;
+        _vehiculos = vehiculosValidos;
 
         if (_vehiculos.isNotEmpty) {
-          _vehiculoSeleccionado = _vehiculos.first['id'];
+          _vehiculoSeleccionado = int.tryParse(
+            _vehiculos.first['id'].toString(),
+          );
         }
       });
     } catch (e) {
@@ -69,8 +101,136 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
 
     if (fecha != null) {
       _fechaDenunciaController.text =
-          '${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+      '${fecha.year.toString().padLeft(4, '0')}-'
+          '${fecha.month.toString().padLeft(2, '0')}-'
+          '${fecha.day.toString().padLeft(2, '0')}';
     }
+  }
+
+  Future<void> _seleccionarPdf() async {
+    try {
+      final resultado = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false,
+        withData: kIsWeb,
+      );
+
+      if (resultado == null || resultado.files.isEmpty) {
+        return;
+      }
+
+      final archivo = resultado.files.first;
+
+      if (!archivo.name.toLowerCase().endsWith('.pdf')) {
+        setState(() {
+          _error = 'El documento de respaldo debe ser un archivo PDF.';
+        });
+        return;
+      }
+
+      if (archivo.size > 5 * 1024 * 1024) {
+        setState(() {
+          _error = 'El PDF de respaldo no debe superar los 5 MB.';
+        });
+        return;
+      }
+
+      if (kIsWeb) {
+        if (archivo.bytes == null || archivo.bytes!.isEmpty) {
+          setState(() {
+            _error = 'No se pudo leer el archivo PDF seleccionado.';
+          });
+          return;
+        }
+      } else {
+        if (archivo.path == null || archivo.path!.isEmpty) {
+          setState(() {
+            _error = 'No se pudo obtener la ruta del archivo seleccionado.';
+          });
+          return;
+        }
+      }
+
+      setState(() {
+        _documentoRespaldoPdf = archivo;
+        _error = '';
+      });
+    } catch (_) {
+      setState(() {
+        _error = 'No se pudo seleccionar el PDF.';
+      });
+    }
+  }
+
+  void _quitarPdf() {
+    setState(() {
+      _documentoRespaldoPdf = null;
+    });
+  }
+
+  String _vehiculoNombre(dynamic vehiculo) {
+    final placa = vehiculo['placa']?.toString() ?? 'Sin placa';
+    final marca = vehiculo['marca']?.toString() ?? '';
+    final modelo = vehiculo['modelo']?.toString() ?? '';
+
+    final detalle = '$marca $modelo'.trim();
+
+    if (detalle.isEmpty) {
+      return placa;
+    }
+
+    return '$placa - $detalle';
+  }
+
+  String _vehiculoSeleccionadoNombre() {
+    try {
+      final vehiculo = _vehiculos.firstWhere(
+            (item) => item['id'].toString() == _vehiculoSeleccionado.toString(),
+      );
+
+      return _vehiculoNombre(vehiculo);
+    } catch (_) {
+      return 'Vehículo seleccionado';
+    }
+  }
+
+  Future<bool> _confirmarCreacionAviso() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirmar aviso de robo'),
+          content: SingleChildScrollView(
+            child: Text(
+              'Antes de crear el aviso, verifica que la información sea correcta:\n\n'
+                  'Vehículo: ${_vehiculoSeleccionadoNombre()}\n'
+                  'Número de denuncia: ${_numeroDenunciaController.text
+                  .trim()}\n'
+                  'Entidad: ${_entidadDenunciaController.text.trim()}\n'
+                  'Fecha: ${_fechaDenunciaController.text.trim()}\n'
+                  'Lugar: ${_lugarRoboController.text.trim()}\n\n'
+                  'Este aviso marcará el vehículo como reportado por robo y podrá generar alertas de seguridad cuando sea detectado en un peaje.\n\n'
+                  '¿Confirmas que los datos proporcionados son correctos?',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Revisar datos'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, true),
+              icon: const Icon(Icons.verified_user_outlined),
+              label: const Text('Sí, crear aviso'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmar == true;
   }
 
   Future<void> _guardar() async {
@@ -82,6 +242,45 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
       setState(() {
         _error = 'Debe seleccionar un vehículo.';
       });
+      return;
+    }
+
+    if (_documentoRespaldoPdf == null) {
+      setState(() {
+        _error = 'Debe adjuntar el documento PDF de respaldo de la denuncia.';
+      });
+      return;
+    }
+
+    if (kIsWeb) {
+      if (_documentoRespaldoPdf!.bytes == null ||
+          _documentoRespaldoPdf!.bytes!.isEmpty) {
+        setState(() {
+          _error = 'No se pudo leer el PDF seleccionado.';
+        });
+        return;
+      }
+    } else {
+      if (_documentoRespaldoPdf!.path == null ||
+          _documentoRespaldoPdf!.path!.isEmpty) {
+        setState(() {
+          _error = 'No se pudo obtener la ruta del PDF seleccionado.';
+        });
+        return;
+      }
+    }
+
+    if (!_confirmaDatosCorrectos) {
+      setState(() {
+        _error =
+        'Debes confirmar que la información proporcionada en la denuncia es correcta.';
+      });
+      return;
+    }
+
+    final confirmado = await _confirmarCreacionAviso();
+
+    if (!confirmado) {
       return;
     }
 
@@ -98,8 +297,9 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
         fechaDenuncia: _fechaDenunciaController.text.trim(),
         lugarRobo: _lugarRoboController.text.trim(),
         descripcion: _descripcionController.text.trim(),
-        latitudRobo: _latitudController.text.trim(),
-        longitudRobo: _longitudController.text.trim(),
+        documentoRespaldoPath: kIsWeb ? null : _documentoRespaldoPdf!.path,
+        documentoRespaldoBytes: kIsWeb ? _documentoRespaldoPdf!.bytes : null,
+        documentoRespaldoNombre: _documentoRespaldoPdf!.name,
       );
 
       if (!mounted) return;
@@ -126,30 +326,14 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _cargarVehiculos();
-  }
+  String? _validarTextoObligatorio(String? value) {
+    if (value == null || value
+        .trim()
+        .isEmpty) {
+      return 'Este campo es obligatorio';
+    }
 
-  @override
-  void dispose() {
-    _numeroDenunciaController.dispose();
-    _entidadDenunciaController.dispose();
-    _fechaDenunciaController.dispose();
-    _lugarRoboController.dispose();
-    _descripcionController.dispose();
-    _latitudController.dispose();
-    _longitudController.dispose();
-    super.dispose();
-  }
-
-  String _vehiculoNombre(dynamic vehiculo) {
-    final placa = vehiculo['placa']?.toString() ?? 'Sin placa';
-    final marca = vehiculo['marca']?.toString() ?? '';
-    final modelo = vehiculo['modelo']?.toString() ?? '';
-
-    return '$placa - $marca $modelo';
+    return null;
   }
 
   Widget _campoTexto({
@@ -173,14 +357,7 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
         keyboardType: keyboardType,
         textInputAction: textInputAction,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        validator: validator ??
-            (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Este campo es obligatorio';
-              }
-
-              return null;
-            },
+        validator: validator ?? _validarTextoObligatorio,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),
@@ -194,7 +371,9 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
       return const SizedBox.shrink();
     }
 
-    final colors = Theme.of(context).colorScheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
 
     return Container(
       width: double.infinity,
@@ -216,10 +395,14 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
           Expanded(
             child: Text(
               _error,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.onErrorContainer,
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: Theme
+                  .of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                color: colors.onErrorContainer,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -228,8 +411,12 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
   }
 
   Widget _sinVehiculosView(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Center(
       child: Padding(
@@ -255,10 +442,21 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Primero debe registrar un vehículo para crear un aviso de robo.',
+                  'Primero debes registrar un vehículo para crear un aviso de robo.',
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(
                     color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/registrar-vehiculo');
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Registrar vehículo'),
                   ),
                 ),
               ],
@@ -270,8 +468,12 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
   }
 
   Widget _header(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
 
     return Column(
       children: [
@@ -298,7 +500,7 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Completa la información de la denuncia para generar el aviso.',
+          'Completa la información de la denuncia y adjunta el PDF oficial.',
           textAlign: TextAlign.center,
           style: textTheme.bodyMedium?.copyWith(
             color: colors.onSurfaceVariant,
@@ -308,9 +510,174 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
     );
   }
 
+  Widget _selectorPdf(BuildContext context) {
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
+
+    final tieneArchivo = _documentoRespaldoPdf != null;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: tieneArchivo ? colors.primary : colors.outlineVariant,
+        ),
+        color: tieneArchivo
+            ? colors.primaryContainer.withAlpha(70)
+            : colors.surfaceContainerHighest.withAlpha(70),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Documento de respaldo',
+            style: textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Adjunta la denuncia oficial en formato PDF. Tamaño máximo: 5 MB.',
+            style: textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _guardando ? null : _seleccionarPdf,
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: Text(
+                    tieneArchivo
+                        ? 'Cambiar PDF seleccionado'
+                        : 'Adjuntar denuncia PDF',
+                  ),
+                ),
+              ),
+              if (tieneArchivo) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _guardando ? null : _quitarPdf,
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Quitar PDF',
+                ),
+              ],
+            ],
+          ),
+          if (tieneArchivo) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: colors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _documentoRespaldoPdf!.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _confirmacionDatos(BuildContext context) {
+    final colors = Theme
+        .of(context)
+        .colorScheme;
+    final textTheme = Theme
+        .of(context)
+        .textTheme;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withAlpha(70),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color:
+          _confirmaDatosCorrectos ? colors.primary : colors.outlineVariant,
+        ),
+      ),
+      child: CheckboxListTile(
+        value: _confirmaDatosCorrectos,
+        onChanged: _guardando
+            ? null
+            : (value) {
+          setState(() {
+            _confirmaDatosCorrectos = value ?? false;
+
+            if (_confirmaDatosCorrectos) {
+              _error = '';
+            }
+          });
+        },
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        title: Text(
+          'Confirmo que la información proporcionada en la denuncia es correcta.',
+          style: textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          'Entiendo que este aviso marcará mi vehículo como reportado por robo y podrá generar alertas de seguridad al ser detectado.',
+          style: textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+            height: 1.35,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<DropdownMenuItem<int>> _vehiculoItems() {
+    return _vehiculos
+        .map((vehiculo) {
+      final id = int.tryParse(vehiculo['id']?.toString() ?? '');
+
+      if (id == null) {
+        return null;
+      }
+
+      return DropdownMenuItem<int>(
+        value: id,
+        child: Text(
+          _vehiculoNombre(vehiculo),
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    })
+        .whereType<DropdownMenuItem<int>>()
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = Theme
+        .of(context)
+        .colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -318,164 +685,138 @@ class _CrearAvisoRoboScreenState extends State<CrearAvisoRoboScreen> {
       ),
       body: _cargando
           ? const Center(
-              child: CircularProgressIndicator(),
-            )
+        child: CircularProgressIndicator(),
+      )
           : _vehiculos.isEmpty
-              ? _sinVehiculosView(context)
-              : SafeArea(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 560),
-                        child: Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(22),
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                children: [
-                                  _header(context),
+          ? _sinVehiculosView(context)
+          : SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        _header(context),
 
-                                  const SizedBox(height: 26),
+                        const SizedBox(height: 26),
 
-                                  DropdownButtonFormField<int>(
-                                    value: _vehiculoSeleccionado,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Vehículo',
-                                      prefixIcon: Icon(Icons.directions_car),
-                                    ),
-                                    items: _vehiculos.map((vehiculo) {
-                                      return DropdownMenuItem<int>(
-                                        value: vehiculo['id'],
-                                        child: Text(
-                                          _vehiculoNombre(vehiculo),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      );
-                                    }).toList(),
-                                    onChanged: _guardando
-                                        ? null
-                                        : (value) {
-                                            setState(() {
-                                              _vehiculoSeleccionado = value;
-                                            });
-                                          },
-                                    validator: (value) {
-                                      if (value == null) {
-                                        return 'Seleccione un vehículo';
-                                      }
+                        DropdownButtonFormField<int>(
+                          value: _vehiculoSeleccionado,
+                          decoration: const InputDecoration(
+                            labelText: 'Vehículo',
+                            prefixIcon: Icon(Icons.directions_car),
+                          ),
+                          items: _vehiculoItems(),
+                          onChanged: _guardando
+                              ? null
+                              : (value) {
+                            setState(() {
+                              _vehiculoSeleccionado = value;
+                              _error = '';
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null) {
+                              return 'Seleccione un vehículo';
+                            }
 
-                                      return null;
-                                    },
-                                  ),
+                            return null;
+                          },
+                        ),
 
-                                  const SizedBox(height: 14),
+                        const SizedBox(height: 14),
 
-                                  _campoTexto(
-                                    controller: _numeroDenunciaController,
-                                    label: 'Número de denuncia',
-                                    icon: Icons.confirmation_number,
-                                  ),
+                        _campoTexto(
+                          controller: _numeroDenunciaController,
+                          label: 'Número de denuncia',
+                          icon: Icons.confirmation_number,
+                        ),
 
-                                  _campoTexto(
-                                    controller: _entidadDenunciaController,
-                                    label: 'Entidad de denuncia',
-                                    icon: Icons.account_balance,
-                                  ),
+                        _campoTexto(
+                          controller: _entidadDenunciaController,
+                          label: 'Entidad de denuncia',
+                          icon: Icons.account_balance,
+                        ),
 
-                                  _campoTexto(
-                                    controller: _fechaDenunciaController,
-                                    label: 'Fecha de denuncia',
-                                    icon: Icons.calendar_month,
-                                    soloLectura: true,
-                                    onTap: _seleccionarFecha,
-                                  ),
+                        _campoTexto(
+                          controller: _fechaDenunciaController,
+                          label: 'Fecha de denuncia',
+                          icon: Icons.calendar_month,
+                          soloLectura: true,
+                          onTap: _seleccionarFecha,
+                        ),
 
-                                  _campoTexto(
-                                    controller: _lugarRoboController,
-                                    label: 'Lugar del robo',
-                                    icon: Icons.location_on,
-                                  ),
+                        _campoTexto(
+                          controller: _lugarRoboController,
+                          label: 'Lugar del robo',
+                          icon: Icons.location_on,
+                        ),
 
-                                  _campoTexto(
-                                    controller: _descripcionController,
-                                    label: 'Descripción',
-                                    icon: Icons.description,
-                                    maxLines: 3,
-                                  ),
+                        _campoTexto(
+                          controller: _descripcionController,
+                          label: 'Descripción',
+                          icon: Icons.description,
+                          maxLines: 3,
+                          textInputAction: TextInputAction.done,
+                        ),
 
-                                  _campoTexto(
-                                    controller: _latitudController,
-                                    label: 'Latitud del robo (opcional)',
-                                    icon: Icons.map,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                      signed: true,
-                                    ),
-                                    validator: (_) => null,
-                                  ),
+                        _selectorPdf(context),
 
-                                  _campoTexto(
-                                    controller: _longitudController,
-                                    label: 'Longitud del robo (opcional)',
-                                    icon: Icons.map_outlined,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                      signed: true,
-                                    ),
-                                    textInputAction: TextInputAction.done,
-                                    validator: (_) => null,
-                                  ),
+                        _confirmacionDatos(context),
 
-                                  _bloqueError(context),
+                        _bloqueError(context),
 
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 52,
-                                    child: ElevatedButton.icon(
-                                      onPressed: _guardando ? null : _guardar,
-                                      icon: _guardando
-                                          ? SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: colors.onPrimary,
-                                              ),
-                                            )
-                                          : const Icon(
-                                              Icons.warning_amber_rounded,
-                                            ),
-                                      label: Text(
-                                        _guardando
-                                            ? 'Guardando...'
-                                            : 'Crear aviso',
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 12),
-
-                                  TextButton(
-                                    onPressed: _guardando
-                                        ? null
-                                        : () {
-                                            Navigator.pop(context);
-                                          },
-                                    child: const Text('Cancelar'),
-                                  ),
-                                ],
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed:
+                            _guardando ? null : _guardar,
+                            icon: _guardando
+                                ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colors.onPrimary,
                               ),
+                            )
+                                : const Icon(
+                              Icons.warning_amber_rounded,
+                            ),
+                            label: Text(
+                              _guardando
+                                  ? 'Guardando...'
+                                  : 'Crear aviso',
                             ),
                           ),
                         ),
-                      ),
+
+                        const SizedBox(height: 12),
+
+                        TextButton(
+                          onPressed: _guardando
+                              ? null
+                              : () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Cancelar'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

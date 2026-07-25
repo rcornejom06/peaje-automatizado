@@ -1,8 +1,6 @@
-
 from decouple import config
-from pathlib import Path
 from datetime import timedelta
-
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,7 +33,6 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'corsheaders',
 
-    #Local apps
     # Local apps
     "apps.usuarios.apps.UsuariosConfig",
     "apps.vehiculos.apps.VehiculosConfig",
@@ -89,16 +86,31 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("POSTGRES_DB", default="peaje_db"),
-        "USER": config("POSTGRES_USER", default="peaje_admin"),
-        "PASSWORD": config("POSTGRES_PASSWORD", default="peaje_password"),
-        "HOST": config("POSTGRES_HOST", default="localhost"),
-        "PORT": config("POSTGRES_PORT", default="5432"),
+# Si existe DATABASE_URL (Render la crea automaticamente al conectar una
+# base de datos Postgres), se usa esa. Si no, se arma con las variables
+# POSTGRES_* sueltas (como en tu docker-compose local).
+DATABASE_URL = config("DATABASE_URL", default="")
+
+if DATABASE_URL:
+    import dj_database_url
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=config("DATABASE_SSL_REQUIRE", default=True, cast=bool),
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("POSTGRES_DB", default="peaje_db"),
+            "USER": config("POSTGRES_USER", default="peaje_admin"),
+            "PASSWORD": config("POSTGRES_PASSWORD", default="peaje_password"),
+            "HOST": config("POSTGRES_HOST", default="localhost"),
+            "PORT": config("POSTGRES_PORT", default="5432"),
+        }
+    }
 
 
 # Password validation
@@ -153,3 +165,41 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Firebase Cloud Messaging (notificaciones push a la app móvil)
+# Descarga la clave desde Firebase Console -> Configuración del proyecto ->
+# Cuentas de servicio -> Generar nueva clave privada. NUNCA subir este
+# archivo a git; se referencia por ruta y se puede sobreescribir con la
+# variable de entorno FIREBASE_CREDENTIALS_PATH en producción.
+FIREBASE_CREDENTIALS_PATH = config(
+    "FIREBASE_CREDENTIALS_PATH",
+    default=str(BASE_DIR / "firebase-service-account.json"),
+)
+# En Render (o cualquier entorno sin filesystem persistente para secretos)
+# se puede pegar el JSON completo de la cuenta de servicio en esta variable
+# de entorno en vez de depender de un archivo en disco. apps/notificaciones/
+# firebase.py revisa esta variable primero.
+FIREBASE_CREDENTIALS_JSON = config("FIREBASE_CREDENTIALS_JSON", default="")
+
+# Cloudinary (almacenamiento de media persistente: fotos de placas
+# capturadas, documentos de vehiculos y de denuncias de seguridad).
+# Necesario en Render porque su filesystem es efimero: cualquier archivo
+# guardado en MEDIA_ROOT se pierde en el proximo reinicio/deploy si no se
+# usa un storage externo. Se activa solo si CLOUDINARY_URL esta definida.
+CLOUDINARY_URL_VALUE = config("CLOUDINARY_URL", default="")
+
+# Estaticos siempre via whitenoise con manifest comprimido (mejor cache).
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+if CLOUDINARY_URL_VALUE:
+    INSTALLED_APPS += ["cloudinary_storage", "cloudinary"]
+    STORAGES["default"] = {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    }

@@ -1,11 +1,11 @@
 from django.db import models
-
+from django.conf import settings
 
 class AvisoVehiculoRobado(models.Model):
     class Estado(models.TextChoices):
         ACTIVO = "activo", "Activo"
         DETECTADO = "detectado", "Detectado"
-        ##DERIVADO_AUTORIDAD = "derivado_autoridad", "Derivado a autoridad"
+        RECUPERADO = "recuperado", "Recuperado"
         CERRADO = "cerrado", "Cerrado"
         CANCELADO = "cancelado", "Cancelado"
 
@@ -33,6 +33,30 @@ class AvisoVehiculoRobado(models.Model):
     def __str__(self):
         return f"Aviso robo - {self.vehiculo.placa} - {self.estado}"
 
+class SolicitudReactivacionVehiculo(models.Model):
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        APROBADA = "aprobada", "Aprobada"
+        RECHAZADA = "rechazada", "Rechazada"
+
+    aviso = models.ForeignKey(AvisoVehiculoRobado,on_delete=models.CASCADE,related_name="solicitudes_reactivacion")
+    vehiculo = models.ForeignKey("vehiculos.Vehiculo",on_delete=models.CASCADE,related_name="solicitudes_reactivacion")
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="solicitudes_reactivacion_vehiculo")
+    motivo = models.TextField()
+    documento_respaldo = models.FileField(upload_to="seguridad/reactivaciones/",null=True,blank=True)
+    estado = models.CharField(max_length=20,choices=Estado.choices,default=Estado.PENDIENTE)
+    respuesta_admin = models.TextField(blank=True, null=True)
+    revisado_por = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name="solicitudes_reactivacion_revisadas")
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    fecha_revision = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Solicitud de reactivación de vehículo"
+        verbose_name_plural = "Solicitudes de reactivación de vehículos"
+        ordering = ["-fecha_solicitud"]
+
+    def __str__(self):
+        return f"Solicitud reactivación {self.vehiculo.placa} - {self.estado}"
 
 class AlertaSeguridad(models.Model):
     class Estado(models.TextChoices):

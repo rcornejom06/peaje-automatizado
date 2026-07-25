@@ -14,7 +14,8 @@ function ReconocimientoPlacas() {
     const [cargandoComprobante, setCargandoComprobante] = useState(false);
     const [errorComprobante, setErrorComprobante] = useState("");
 
-    const cameraServerUrl = "http://localhost:5001";
+    const cameraServerUrl =
+        import.meta.env.VITE_CAMERA_SERVER_URL || "http://localhost:5001";
     const cameraFeedUrl = `${cameraServerUrl}/video_feed`;
 
     const cargarDetecciones = async () => {
@@ -33,7 +34,7 @@ function ReconocimientoPlacas() {
 
             setHistorial(dataHistorial.detecciones || []);
             setErrorServidor("");
-        } catch (error) {
+        } catch {
             setErrorServidor("No se pudo conectar con el servidor de cámara.");
         }
     };
@@ -71,7 +72,7 @@ function ReconocimientoPlacas() {
 
             const data = await obtenerComprobantePaso(pasoId);
             setComprobanteSeleccionado(data);
-        } catch (error) {
+        } catch {
             setErrorComprobante("No se pudo cargar el comprobante del paso.");
             setComprobanteSeleccionado(null);
         } finally {
@@ -110,11 +111,12 @@ function ReconocimientoPlacas() {
         if (estado === "membresia") return "Pagado con Membresía";
         if (estado === "pendiente") return "Pendiente";
         if (estado === "fallido") return "Fallido";
+        if (estado === "exonerado") return "Exonerado";
         return estado || "Sin estado";
     };
 
     const obtenerClaseEstadoPago = (estadoPago) => {
-        if (estadoPago === "Pagado" || estadoPago === "Pagado con membresia") {
+        if (["pagado", "membresia", "exonerado"].includes(estadoPago)) {
             return "success";
         }
 
@@ -147,33 +149,26 @@ function ReconocimientoPlacas() {
             : "--";
     };
 
-    const obtenerTarifaNumerica = (deteccion) => {
-        return deteccion?.django?.tarifa_aplicada || 0;
-    };
+
 
     const obtenerVehiculoRegistrado = (deteccion) => {
-        if (deteccion?.django?.deteccion === true) {
-            return "Sí";
+        const vehiculoEncontrado =
+            deteccion?.django?.vehiculo_encontrado ??
+            deteccion?.vehiculo_encontrado ??
+            deteccion?.django?.deteccion ??
+            deteccion?.deteccion;
+
+        if (vehiculoEncontrado === true) {
+            return "Registrado";
         }
 
-        if (deteccion?.django?.deteccion === false) {
-            return "No";
+        if (vehiculoEncontrado === false) {
+            return "No registrado";
         }
 
         return "--";
     };
 
-    const obtenerVehiculoTexto = (deteccion) => {
-        if (deteccion?.django?.vehiculo_encontrado === true) {
-            return "Vehículo registrado";
-        }
-
-        if (deteccion?.django?.vehiculo_encontrado === false) {
-            return "No registrado";
-        }
-
-        return "Sin información";
-    };
 
     const obtenerDuplicado = (deteccion) => {
         if (deteccion?.django?.duplicado === true) {
@@ -187,17 +182,6 @@ function ReconocimientoPlacas() {
         return "--";
     };
 
-    const obtenerIdPase = (deteccion) => {
-        return deteccion?.django?.paso_id || "Sin ID";
-    };
-
-    const obtenerPlaca = (deteccion) => {
-        return deteccion?.placa || deteccion?.django?.placa_detectada || "Sin placa";
-    };
-
-    const obtenerCamara = (deteccion) => {
-        return deteccion?.django?.camara || "Sin cámara";
-    };
 
     const obtenerEstadoPago = (deteccion) => {
         return (
@@ -229,14 +213,6 @@ function ReconocimientoPlacas() {
         return estado;
     };
 
-    const obtenerObservacion = (deteccion) => {
-        return (
-            deteccion?.django?.pago?.mensaje ||
-            deteccion?.django?.seguridad?.mensaje ||
-            deteccion?.django?.mensaje ||
-            "Sin observaciones."
-        );
-    };
 
     return (
         <div className="lpr-page">
@@ -346,7 +322,7 @@ function ReconocimientoPlacas() {
                                             obtenerEstadoPago(ultimaDeteccion)
                                         )}
                                     >
-                                        {obtenerEstadoPago(ultimaDeteccion)}
+                                        {textoEstadoPago(obtenerEstadoPago(ultimaDeteccion))}
                                     </strong>
                                 </div>
 
@@ -472,7 +448,7 @@ function ReconocimientoPlacas() {
                                         <td>{item.placa}</td>
                                         <td>{obtenerPeajeDeteccion(item)}</td>
                                         <td>{item.confianza}%</td>
-                                        <td>{obtenerEstadoPago(item)}</td>
+                                        <td>{textoEstadoPago(obtenerEstadoPago(item))}</td>
                                         <td>
                         <span
                             className={

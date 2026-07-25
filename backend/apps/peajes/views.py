@@ -6,8 +6,11 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
-from .models import Peaje, Camara, PasoPeaje
-from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer
+from .models import Peaje, Camara, PasoPeaje, TarifaPeajeCategoria, ViaConcesionada
+from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer, TarifaPeajeCategoriaSerializer, \
+    ViaConcesionadaSerializer
+from ..notificaciones.models import Notificacion
+from ..notificaciones.services import crear_notificacion
 from ..usuarios.permissions import obtener_rol_usuario
 from ..vehiculos.models import Vehiculo
 from ..pagos.models import Transaccion, Billetera
@@ -97,12 +100,129 @@ def generar_frames_camara(captura):
         captura.release()
 
 
+class ViaConcesionadaViewSet(viewsets.ModelViewSet):
+    serializer_class = ViaConcesionadaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = ViaConcesionada.objects.all().order_by("nombre")
+
+        estado = self.request.query_params.get("estado")
+
+        if estado == "activa":
+            queryset = queryset.filter(estado=True)
+        elif estado == "inactiva":
+            queryset = queryset.filter(estado=False)
+
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede crear vías concesionadas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede actualizar vías concesionadas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede actualizar vías concesionadas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede eliminar vías concesionadas."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().destroy(request, *args, **kwargs)
+
+
+class TarifaPeajeCategoriaViewSet(viewsets.ModelViewSet):
+    serializer_class = TarifaPeajeCategoriaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = TarifaPeajeCategoria.objects.select_related(
+            "peaje",
+            "categoria"
+        ).all().order_by(
+            "peaje__nombre",
+            "categoria__numero_ejes",
+            "valor"
+        )
+
+        peaje_id = self.request.query_params.get("peaje")
+
+        if peaje_id:
+            queryset = queryset.filter(peaje_id=peaje_id)
+
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede crear tarifas por peaje."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede actualizar tarifas por peaje."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede actualizar tarifas por peaje."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede eliminar tarifas por peaje."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().destroy(request, *args, **kwargs)
+
+
 class PeajeViewSet(viewsets.ModelViewSet):
     serializer_class = PeajeSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Peaje.objects.all().order_by("nombre")
+        return Peaje.objects.select_related(
+            "via_concesionada"
+        ).prefetch_related(
+            "tarifas_categoria__categoria"
+        ).all().order_by(
+            "nombre"
+        )
 
     def create(self, request, *args, **kwargs):
         if obtener_rol_usuario(self.request.user) != "administrador":
@@ -136,12 +256,6 @@ class CamaraViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Camara.objects.all().order_by("codigo")
 
-    @action(
-        detail=True,
-        methods=["get"],
-        url_path="stream",
-        permission_classes=[AllowAny]
-    )
     @action(
         detail=True,
         methods=["get"],
@@ -226,11 +340,64 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             vehiculo__usuario=self.request.user
         ).order_by("-fecha_hora")
 
+    def obtener_tarifa_peaje_categoria(self, peaje, categoria):
+        if not peaje or not categoria:
+            return None
+
+        tarifa = TarifaPeajeCategoria.objects.filter(
+            peaje=peaje,
+            categoria=categoria,
+            estado=True,
+        ).first()
+
+        if not tarifa:
+            return None
+
+        return tarifa.valor
+
+    def obtener_paso_pago_previo_misma_via(self, vehiculo, peaje):
+        if not vehiculo or not peaje:
+            return None
+
+        via = getattr(peaje, "via_concesionada", None)
+
+        if not via:
+            return None
+
+        if not via.estado:
+            return None
+
+        if not via.cobro_unico_por_trayecto:
+            return None
+
+        limite_tiempo = timezone.now() - timedelta(
+            minutes=via.tiempo_validez_minutos
+        )
+
+        paso_previo = PasoPeaje.objects.select_related(
+            "peaje",
+            "vehiculo",
+        ).filter(
+            vehiculo=vehiculo,
+            peaje__via_concesionada=via,
+            fecha_hora__gte=limite_tiempo,
+            estado_pago__in=[
+                PasoPeaje.EstadoPago.PAGADO,
+                PasoPeaje.EstadoPago.MEMBRESIA,
+            ],
+        ).exclude(
+            peaje=peaje
+        ).order_by(
+            "-fecha_hora"
+        ).first()
+
+        return paso_previo
+
     @transaction.atomic
     def procesar_pago_automatico(self, paso, vehiculo, tarifa_aplicada):
 
         if not vehiculo:
-            paso.estado_pago = "pendiente"
+            paso.estado_pago = PasoPeaje.EstadoPago.PENDIENTE
             paso.observacion = (
                 f"{paso.observacion or ''} Vehículo no registrado o no aprobado en el sistema."
             )
@@ -239,14 +406,31 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             return {
                 "estado_pago": paso.estado_pago,
                 "metodo": "sin_vehiculo",
-                "mensaje": "Vehículo no registrado o no aprobado. Paso queda pendiente."
+                "mensaje": "Vehículo no registrado o no aprobado. Paso queda pendiente.",
             }
 
         usuario = vehiculo.usuario
         categoria = vehiculo.categoria
 
+        if tarifa_aplicada <= Decimal("0.00"):
+            paso.estado_pago = PasoPeaje.EstadoPago.PENDIENTE
+            paso.observacion = (
+                f"{paso.observacion or ''} No existe una tarifa configurada "
+                f"para este peaje y la categoría del vehículo."
+            )
+            paso.save(update_fields=["estado_pago", "observacion"])
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "sin_tarifa_configurada",
+                "mensaje": "No existe tarifa configurada para este peaje y categoría.",
+                "categoria": categoria.nombre if categoria else None,
+                "numero_ejes": categoria.numero_ejes if categoria else None,
+                "aplica_membresia": False,
+            }
+
         if not categoria:
-            paso.estado_pago = "pendiente"
+            paso.estado_pago = PasoPeaje.EstadoPago.PENDIENTE
             paso.observacion = (
                 f"{paso.observacion or ''} Vehículo sin categoría asignada."
             )
@@ -255,7 +439,40 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             return {
                 "estado_pago": paso.estado_pago,
                 "metodo": "sin_categoria",
-                "mensaje": "El vehículo no tiene categoría. Paso queda pendiente."
+                "mensaje": "El vehículo no tiene categoría. Paso queda pendiente.",
+            }
+
+        paso_previo_misma_via = self.obtener_paso_pago_previo_misma_via(
+            vehiculo=vehiculo,
+            peaje=paso.peaje,
+        )
+
+        if paso_previo_misma_via:
+            paso.estado_pago = PasoPeaje.EstadoPago.EXONERADO
+            paso.tarifa_aplicada = Decimal("0.00")
+            paso.observacion = (
+                f"{paso.observacion or ''} "
+                f"Paso exonerado por pago previo en la misma vía concesionada. "
+                f"Peaje anterior: {paso_previo_misma_via.peaje.nombre}. "
+                f"Paso anterior ID: {paso_previo_misma_via.id}."
+            )
+            paso.save(
+                update_fields=[
+                    "estado_pago",
+                    "tarifa_aplicada",
+                    "observacion",
+                ]
+            )
+
+            return {
+                "estado_pago": paso.estado_pago,
+                "metodo": "exonerado_via_concesionada",
+                "mensaje": "Paso exonerado por pago previo en la misma vía concesionada.",
+                "paso_previo_id": paso_previo_misma_via.id,
+                "peaje_previo": paso_previo_misma_via.peaje.nombre,
+                "categoria": categoria.nombre if categoria else None,
+                "numero_ejes": categoria.numero_ejes if categoria else None,
+                "aplica_membresia": False,
             }
 
         aplica_membresia = categoria.aplica_membresia
@@ -268,9 +485,17 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             ).order_by("-fecha_inicio").first()
 
             if membresia:
+                billetera, _ = Billetera.objects.select_for_update().get_or_create(
+                    usuario=usuario,
+                    defaults={
+                        "saldo": Decimal("0.00"),
+                        "estado": Billetera.Estado.ACTIVA,
+                    },
+                )
+
                 membresia.consumir_pase()
 
-                paso.estado_pago = "membresia"
+                paso.estado_pago = PasoPeaje.EstadoPago.MEMBRESIA
                 paso.membresia_utilizada = membresia
                 paso.observacion = (
                     f"{paso.observacion or ''} Pago cubierto con membresía."
@@ -284,14 +509,25 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 )
 
                 Transaccion.objects.create(
-                    billetera=getattr(usuario, "billetera", None),
+                    billetera=billetera,
                     paso_peaje=paso,
                     membresia=membresia,
                     monto=Decimal("0.00"),
                     tipo_transaccion=Transaccion.Tipo.USO_MEMBRESIA,
                     metodo_pago="membresia",
                     referencia_pago=f"MEMBRESIA-{membresia.id}-PASO-{paso.id}",
-                    estado="aprobada",
+                    estado=Transaccion.Estado.APROBADA,
+                )
+
+                crear_notificacion(
+                    usuario=usuario,
+                    titulo="Pase de membresía utilizado",
+                    mensaje=(
+                        f"Se utilizó un pase de tu membresía para el vehículo "
+                        f"{vehiculo.placa}. Pases restantes: {membresia.pases_restantes}."
+                    ),
+                    tipo=Notificacion.Tipo.PAGO,
+                    tipo_accion="pasos",
                 )
 
                 return {
@@ -308,7 +544,7 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         try:
             billetera = Billetera.objects.select_for_update().get(usuario=usuario)
         except Billetera.DoesNotExist:
-            paso.estado_pago = "pendiente"
+            paso.estado_pago = PasoPeaje.EstadoPago.PENDIENTE
             paso.observacion = (
                 f"{paso.observacion or ''} Usuario sin billetera activa."
             )
@@ -317,11 +553,11 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             return {
                 "estado_pago": paso.estado_pago,
                 "metodo": "sin_billetera",
-                "mensaje": "El usuario no tiene billetera. Paso queda pendiente."
+                "mensaje": "El usuario no tiene billetera. Paso queda pendiente.",
             }
 
         if billetera.estado != Billetera.Estado.ACTIVA:
-            paso.estado_pago = "pendiente"
+            paso.estado_pago = PasoPeaje.EstadoPago.PENDIENTE
             paso.observacion = (
                 f"{paso.observacion or ''} La billetera no está activa."
             )
@@ -336,9 +572,9 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
 
         if billetera.saldo >= tarifa_aplicada:
             billetera.saldo -= tarifa_aplicada
-            billetera.save(update_fields=["saldo"])
+            billetera.save(update_fields=["saldo", "fecha_actualizacion"])
 
-            paso.estado_pago = "pagado"
+            paso.estado_pago = PasoPeaje.EstadoPago.PAGADO
 
             if not aplica_membresia:
                 paso.observacion = (
@@ -358,7 +594,18 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
                 metodo_pago="billetera",
                 referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}",
-                estado="aprobada",
+                estado=Transaccion.Estado.APROBADA,
+            )
+
+            crear_notificacion(
+                usuario=usuario,
+                titulo="Pago de peaje realizado",
+                mensaje=(
+                    f"Se debitó ${tarifa_aplicada} de tu billetera por el paso "
+                    f"del vehículo {vehiculo.placa} en {paso.peaje.nombre}."
+                ),
+                tipo=Notificacion.Tipo.PAGO,
+                tipo_accion="pasos",
             )
 
             return {
@@ -371,7 +618,7 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 "aplica_membresia": aplica_membresia,
             }
 
-        paso.estado_pago = "pendiente"
+        paso.estado_pago = PasoPeaje.EstadoPago.PENDIENTE
         paso.observacion = (
             f"{paso.observacion or ''} Saldo insuficiente en billetera."
         )
@@ -384,7 +631,18 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             tipo_transaccion=Transaccion.Tipo.PAGO_PEAJE,
             metodo_pago="billetera",
             referencia_pago=f"BILLETERA-{billetera.id}-PASO-{paso.id}-SALDO-INSUFICIENTE",
-            estado="fallida",
+            estado=Transaccion.Estado.FALLIDA,
+        )
+
+        crear_notificacion(
+            usuario=usuario,
+            titulo="Pago de peaje pendiente",
+            mensaje=(
+                f"No se pudo debitar el pago del vehículo {vehiculo.placa} "
+                f"por saldo insuficiente. Valor pendiente: ${tarifa_aplicada}."
+            ),
+            tipo=Notificacion.Tipo.PAGO,
+            tipo_accion="pasos",
         )
 
         return {
@@ -416,6 +674,8 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             metodo_pago = "Billetera virtual"
         elif paso.estado_pago == "membresia":
             metodo_pago = "Membresía"
+        elif paso.estado_pago == "exonerado":
+            metodo_pago = "Exonerado por vía concesionada"
         elif paso.estado_pago == "pendiente":
             metodo_pago = "Pendiente de pago"
         elif paso.estado_pago == "fallido":
@@ -551,6 +811,22 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
             fecha_hora=timezone.now()
         )
 
+        try:
+            Notificacion.objects.create(
+                usuario=vehiculo.usuario,
+                alerta=alerta,
+                titulo="Vehículo reportado detectado",
+                mensaje=(
+                    f"Tu vehículo con placa {vehiculo.placa} fue detectado en "
+                    f"{peaje.nombre if peaje else 'un peaje registrado'}."
+                ),
+                tipo=Notificacion.Tipo.ALERTA,
+                url_accion=url_maps,
+                tipo_accion="mapa",
+            )
+        except Exception:
+            pass
+
         aviso.estado = "detectado"
         aviso.save()
 
@@ -583,13 +859,13 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         url_path="detectar-placa"
     )
     def detectar_placa(self, request):
-        placa_detectada = request.data.get("placa_detectada")
+        placa_detectada = request.data.get("placa_detectada", "").strip().upper()
         camara_id = request.data.get("camara_id")
         confianza = request.data.get("confianza", 0)
 
         if not placa_detectada:
             return Response(
-                {"error": "Debe enviar la placa_detectada."},
+                {"error": "No se recibio una placa valida."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -617,6 +893,9 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
 
         peaje = camara.peaje
 
+        # Evitar duplicados recientes.
+        # Si la misma placa fue detectada hace menos de 2 minutos en la misma cámara,
+        # no se crea otro paso, no se cobra y no se debe mostrar comprobante nuevamente.
         limite_tiempo = timezone.now() - timedelta(minutes=2)
 
         paso_reciente = PasoPeaje.objects.filter(
@@ -628,9 +907,18 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         if paso_reciente:
             return Response(
                 {
-                    "mensaje": "Placa detectada recientemente. No se registra duplicado.",
+                    "mensaje": "Placa detectada recientemente. No se registra duplicado, no se cobra y no se genera nuevo comprobante.",
                     "duplicado": True,
-                    "paso_id": paso_reciente.id,
+
+                    # IMPORTANTE:
+                    # No enviamos paso_id como comprobante disponible.
+                    # Así el frontend no abre el comprobante otra vez.
+                    "paso_id": None,
+                    "paso_original_id": paso_reciente.id,
+
+                    "mostrar_comprobante": False,
+                    "comprobante_generado": False,
+
                     "placa_detectada": placa_detectada,
                     "fecha_hora": paso_reciente.fecha_hora,
                     "estado_pago": paso_reciente.estado_pago,
@@ -640,10 +928,17 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                     "peaje": peaje.nombre if peaje else None,
                     "camara": camara.codigo,
 
+                    "pago": {
+                        "procesado": False,
+                        "motivo": "Detección duplicada reciente. Ya existe un paso registrado.",
+                        "paso_original_id": paso_reciente.id,
+                        "cobro_realizado": False,
+                    },
+
                     "seguridad": {
                         "estado_seguridad": paso_reciente.estado_seguridad,
-                        "alerta_generada": paso_reciente.estado_seguridad == "alerta",
-                        "mensaje": "Registro duplicado. Se devuelve el paso reciente."
+                        "alerta_generada": False,
+                        "mensaje": "Registro duplicado. No se generó un nuevo paso."
                     }
                 },
                 status=status.HTTP_200_OK
@@ -660,16 +955,23 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
         )
 
         if vehiculo_aprobado and vehiculo.categoria:
-            tarifa_aplicada = vehiculo.categoria.tarifa
-        elif vehiculo_aprobado and peaje and peaje.tarifa:
-            tarifa_aplicada = peaje.tarifa
+            tarifa_peaje_categoria = self.obtener_tarifa_peaje_categoria(
+                peaje=peaje,
+                categoria=vehiculo.categoria,
+            )
+
+            tarifa_aplicada = tarifa_peaje_categoria or Decimal("0.00")
         else:
             tarifa_aplicada = Decimal("0.00")
 
         observacion = f"Detección automática LPR. Confianza OCR: {confianza}%"
 
         if vehiculo and not vehiculo_aprobado:
-            observacion += f" Vehículo no aprobado para cobro. Estado revisión: {vehiculo.estado_revision}."
+            observacion += (
+                f" Vehículo no aprobado para cobro. "
+                f"Estado vehículo: {vehiculo.estado}. "
+                f"Estado revisión: {vehiculo.estado_revision}."
+            )
         elif not vehiculo:
             observacion += " Vehículo no registrado en el sistema."
 
@@ -718,6 +1020,11 @@ class PasoPeajeViewSet(viewsets.ModelViewSet):
                 "mensaje": "Paso de peaje registrado desde LPR.",
                 "duplicado": False,
                 "paso_id": paso.id,
+                "paso_original_id": None,
+
+                "mostrar_comprobante": True,
+                "comprobante_generado": True,
+
                 "placa_detectada": placa_detectada,
                 "vehiculo_encontrado": vehiculo is not None,
                 "estado_revision": vehiculo.estado_revision if vehiculo else None,

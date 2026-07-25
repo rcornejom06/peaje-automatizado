@@ -56,8 +56,6 @@ function Reportes() {
             setAlertas(alertasData);
             setVehiculosDetectados(vehiculosData);
             setUsoMembresias(usoMembresiasData);
-        } catch (error) {
-            setError("No se pudieron cargar los reportes.");
         } finally {
             setCargando(false);
         }
@@ -262,15 +260,6 @@ function Reportes() {
                     />
                 </div>
 
-                <div className="form-group">
-                    <label>Fecha fin</label>
-                    <input
-                        type="date"
-                        name="fecha_fin"
-                        value={filtros.fecha_fin}
-                        onChange={handleFiltroChange}
-                    />
-                </div>
 
                 <div className="filtros-actions">
                     <button className="btn-primary" onClick={() => cargarReportes()}>
@@ -284,6 +273,23 @@ function Reportes() {
             </div>
 
             {cargando && <p>Cargando reportes...</p>}
+
+            {resumen && (
+                <div className="stats-grid resumen-general-grid">
+                    <div className="stat-card">
+                        <span>Total pasos</span>
+                        <strong>{resumen.total_pasos ?? 0}</strong>
+                    </div>
+                    <div className="stat-card success">
+                        <span>Pasos pagados</span>
+                        <strong>{resumen.pasos_pagados ?? 0}</strong>
+                    </div>
+                    <div className="stat-card danger">
+                        <span>Alertas</span>
+                        <strong>{resumen.pasos_alerta ?? resumen.total_alertas ?? 0}</strong>
+                    </div>
+                </div>
+            )}
 
             <div className="tabs">
 
@@ -703,7 +709,11 @@ function Reportes() {
                                         <td>{item.estado}</td>
                                         <td>{item.pases_restantes}</td>
                                         <td>{item.fecha_inicio}</td>
-                                        <td>{item.fecha_fin}</td>
+                                        <td>
+                                            {item.pases_restantes > 0
+                                                ? `Agotamiento de pases (${item.pases_restantes} restantes)`
+                                                : "Pases agotados"}
+                                        </td>
                                     </tr>
                                 ))
                             ) : (

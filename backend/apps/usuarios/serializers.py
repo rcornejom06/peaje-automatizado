@@ -19,19 +19,53 @@ class MiTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        perfil = getattr(self.user, 'perfil', None)
+        perfil = getattr(self.user, "perfil", None)
 
-        if perfil and not perfil.correo_verificado:
+        if not perfil:
             raise AuthenticationFailed(
-                'Debe verificar su correo electrónico antes de iniciar sesión.',
-                code='correo_no_verificado'
+                {
+                    "code": "perfil_no_encontrado",
+                    "message": "El usuario no tiene perfil asociado.",
+                }
             )
 
-        if perfil and not perfil.estado:
+        if not perfil.estado:
             raise AuthenticationFailed(
-                'Su cuenta está inactiva. Contacte al administrador.',
-                code='cuenta_inactiva'
+                {
+                    "code": "cuenta_inactiva",
+                    "message": "Su cuenta está inactiva. Contacte al administrador.",
+                    "email": self.user.email,
+                }
             )
+
+        if not perfil.correo_verificado:
+            raise AuthenticationFailed(
+                {
+                    "code": "correo_no_verificado",
+                    "message": "Debe verificar su correo electrónico antes de iniciar sesión.",
+                    "email": self.user.email,
+                }
+            )
+
+        data["usuario"] = {
+            "id": self.user.id,
+            "username": self.user.username,
+            "email": self.user.email,
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
+            "is_staff": self.user.is_staff,
+            "is_superuser": self.user.is_superuser,
+        }
+
+        data["perfil"] = {
+            "id": perfil.id,
+            "rol": perfil.rol,
+            "estado": perfil.estado,
+            "correo_verificado": perfil.correo_verificado,
+            "requiere_cambio_password": perfil.requiere_cambio_password,
+        }
+
+        data["requiere_cambio_password"] = perfil.requiere_cambio_password
 
         return data
 
@@ -71,18 +105,33 @@ class RegistroUsuarioSerializer(serializers.Serializer):
     telefono = serializers.CharField(max_length=20, required=False, allow_blank=True)
     cedula = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
+    # Campo obligatorio para aceptar términos y condiciones
+    acepta_terminos = serializers.BooleanField(write_only=True)
+
     def validate_username(self, value):
+        value = value.strip()
+
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Ya existe un usuario con ese username.")
+
         return value
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
+        value = value.strip().lower()
+
+        if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("Ya existe un usuario con ese correo.")
+
         return value
 
     def validate_cedula(self, value):
         value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError("La cédula es obligatoria.")
+
+        if not value.isdigit():
+            raise serializers.ValidationError("La cédula solo debe contener números.")
 
         if not validar_cedula_ecuatoriana(value):
             raise serializers.ValidationError(
@@ -91,10 +140,62 @@ class RegistroUsuarioSerializer(serializers.Serializer):
 
         return value
 
+    def validate_telefono(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError("El teléfono es obligatorio.")
+
+        if not value.isdigit():
+            raise serializers.ValidationError("El teléfono solo debe contener números.")
+
+        if len(value) != 10:
+            raise serializers.ValidationError("El teléfono debe tener 10 dígitos.")
+
+        if not value.startswith("09"):
+            raise serializers.ValidationError("El celular debe iniciar con 09.")
+
+        return value
+
+    def validate_first_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError("El nombre es obligatorio.")
+
+        if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$", value):
+            raise serializers.ValidationError("El nombre solo debe contener letras.")
+
+        return value
+
+    def validate_last_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError("El apellido es obligatorio.")
+
+        if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$", value):
+            raise serializers.ValidationError("El apellido solo debe contener letras.")
+
+        return value
+
+    def validate(self, attrs):
+        acepta_terminos = attrs.get("acepta_terminos")
+
+        if acepta_terminos is not True:
+            raise serializers.ValidationError({
+                "acepta_terminos": "Debe aceptar los términos y condiciones para crear la cuenta."
+            })
+
+        return attrs
+
     def create(self, validated_data):
         telefono = validated_data.pop("telefono", "")
         cedula = validated_data.pop("cedula", "")
         password = validated_data.pop("password")
+
+        # Se elimina del validated_data para no enviarlo al modelo User
+        validated_data.pop("acepta_terminos", None)
 
         with transaction.atomic():
             user = User.objects.create_user(
@@ -107,7 +208,7 @@ class RegistroUsuarioSerializer(serializers.Serializer):
             perfil.telefono = telefono
             perfil.cedula = cedula
             perfil.rol = PerfilUsuario.Rol.USUARIO
-            perfil.estado = False
+            perfil.estado = True
             perfil.correo_verificado = False
             perfil.codigo_verificacion = f"{secrets.randbelow(1000000):06d}"
             perfil.codigo_expira = timezone.now() + timedelta(minutes=10)
@@ -262,3 +363,271 @@ class CambiarPasswordSerializer(serializers.Serializer):
             })
 
         return attrs
+
+
+class SolicitarResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+
+        user = User.objects.filter(email__iexact=value).first()
+
+        if not user:
+            raise serializers.ValidationError(
+                "No existe un usuario registrado con ese correo."
+            )
+
+        self.user = user
+        return value
+
+    def save(self):
+        perfil, _ = PerfilUsuario.objects.get_or_create(usuario=self.user)
+
+        codigo = f"{secrets.randbelow(1000000):06d}"
+
+        perfil.codigo_verificacion = codigo
+        perfil.codigo_expira = timezone.now() + timedelta(minutes=10)
+        perfil.requiere_cambio_password = True
+        perfil.save(update_fields=[
+            "codigo_verificacion",
+            "codigo_expira",
+            "requiere_cambio_password",
+            "fecha_actualizacion",
+        ])
+
+        return {
+            "usuario": self.user,
+            "perfil": perfil,
+            "codigo": codigo,
+        }
+
+
+class ConfirmarResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    codigo = serializers.CharField(max_length=6)
+    nueva_password = serializers.CharField(write_only=True, min_length=8)
+    confirmar_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        required=False,
+        allow_blank=True
+    )
+
+    def validate(self, attrs):
+        email = attrs.get("email", "").strip().lower()
+        codigo = attrs.get("codigo", "").strip()
+        nueva_password = attrs.get("nueva_password")
+        confirmar_password = attrs.get("confirmar_password", "")
+
+        user = User.objects.filter(email__iexact=email).first()
+
+        if not user:
+            raise serializers.ValidationError({
+                "email": "No existe un usuario registrado con ese correo."
+            })
+
+        perfil = getattr(user, "perfil", None)
+
+        if not perfil:
+            raise serializers.ValidationError({
+                "email": "El usuario no tiene un perfil asociado."
+            })
+
+        if not perfil.codigo_verificacion:
+            raise serializers.ValidationError({
+                "codigo": "No existe un código de recuperación activo."
+            })
+
+        if perfil.codigo_verificacion != codigo:
+            raise serializers.ValidationError({
+                "codigo": "El código ingresado no es correcto."
+            })
+
+        if perfil.codigo_expira and timezone.now() > perfil.codigo_expira:
+            raise serializers.ValidationError({
+                "codigo": "El código de recuperación ha expirado."
+            })
+
+        if confirmar_password and nueva_password != confirmar_password:
+            raise serializers.ValidationError({
+                "confirmar_password": "Las contraseñas no coinciden."
+            })
+
+        try:
+            validate_password(nueva_password, user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({
+                "nueva_password": list(e.messages)
+            })
+
+        self.user = user
+        self.perfil = perfil
+
+        return attrs
+
+    def save(self):
+        nueva_password = self.validated_data["nueva_password"]
+
+        self.user.set_password(nueva_password)
+        self.user.save(update_fields=["password"])
+
+        self.perfil.codigo_verificacion = None
+        self.perfil.codigo_expira = None
+        self.perfil.requiere_cambio_password = False
+        self.perfil.save(update_fields=[
+            "codigo_verificacion",
+            "codigo_expira",
+            "requiere_cambio_password",
+            "fecha_actualizacion",
+        ])
+
+        return self.user
+
+
+class CrearOperadorSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    first_name = serializers.CharField(
+        max_length=150,
+        required=False,
+        allow_blank=True
+    )
+    last_name = serializers.CharField(
+        max_length=150,
+        required=False,
+        allow_blank=True
+    )
+    telefono = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True
+    )
+    cedula = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True
+    )
+
+    def validate_username(self, value):
+        value = value.strip()
+
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError(
+                "Ya existe un usuario con ese username."
+            )
+
+        return value
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "Ya existe un usuario con ese correo."
+            )
+
+        return value
+
+    def validate_first_name(self, value):
+        value = value.strip()
+
+        if not value:
+            return value
+
+        if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$", value):
+            raise serializers.ValidationError(
+                "El nombre solo debe contener letras."
+            )
+
+        return value
+
+    def validate_last_name(self, value):
+        value = value.strip()
+
+        if not value:
+            return value
+
+        if not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$", value):
+            raise serializers.ValidationError(
+                "El apellido solo debe contener letras."
+            )
+
+        return value
+
+    def validate_telefono(self, value):
+        value = value.strip()
+
+        if not value:
+            return value
+
+        if not value.isdigit():
+            raise serializers.ValidationError(
+                "El teléfono solo debe contener números."
+            )
+
+        if len(value) != 10:
+            raise serializers.ValidationError(
+                "El teléfono debe tener 10 dígitos."
+            )
+
+        if not value.startswith("09"):
+            raise serializers.ValidationError(
+                "El celular debe iniciar con 09."
+            )
+
+        return value
+
+    def validate_cedula(self, value):
+        value = value.strip()
+
+        if not value:
+            return value
+
+        if not value.isdigit():
+            raise serializers.ValidationError(
+                "La cédula solo debe contener números."
+            )
+
+        if not validar_cedula_ecuatoriana(value):
+            raise serializers.ValidationError(
+                "La cédula ingresada no es válida para Ecuador."
+            )
+
+        return value
+
+    def create(self, validated_data):
+        telefono = validated_data.pop("telefono", "")
+        cedula = validated_data.pop("cedula", "")
+        password = validated_data.pop("password")
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                password=password,
+                is_active=True,
+                **validated_data
+            )
+
+            perfil = user.perfil
+            perfil.telefono = telefono
+            perfil.cedula = cedula
+            perfil.rol = PerfilUsuario.Rol.OPERADOR
+            perfil.estado = True
+            perfil.correo_verificado = False
+            perfil.codigo_verificacion = f"{secrets.randbelow(1000000):06d}"
+            perfil.codigo_expira = timezone.now() + timedelta(minutes=10)
+            perfil.requiere_cambio_password = True
+            perfil.save(update_fields=[
+                "telefono",
+                "cedula",
+                "rol",
+                "estado",
+                "correo_verificado",
+                "codigo_verificacion",
+                "codigo_expira",
+                "requiere_cambio_password",
+                "fecha_actualizacion",
+            ])
+
+        return user

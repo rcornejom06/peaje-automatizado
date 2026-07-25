@@ -1,7 +1,8 @@
-import {useState} from "react";
+import {useMemo, useState} from "react";
 import {NavLink, Outlet, useLocation, useNavigate} from "react-router-dom";
-import {logout} from "../auth/authService";
+import {getStoredProfile, logout} from "../auth/authService";
 import "../layouts/styles/AdminLayout.css";
+import NotificationBell from "../components/NotificationBell/NotificationBell.jsx";
 
 const menuItems = [
     {
@@ -73,6 +74,15 @@ function AdminLayout() {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const perfilAdmin = useMemo(() => getStoredProfile(), []);
+    const tituloActual = pageTitles[location.pathname] || "Panel administrativo";
+    const nombreAdmin =
+        perfilAdmin?.usuario_username ||
+        perfilAdmin?.usuario?.username ||
+        perfilAdmin?.username ||
+        "Administrador";
+    const rolAdmin = perfilAdmin?.rol || perfilAdmin?.perfil?.rol || "VíaSmart";
+
     const [sidebarOculto, setSidebarOculto] = useState(false);
     const [sidebarMovilAbierto, setSidebarMovilAbierto] = useState(false);
 
@@ -95,8 +105,6 @@ function AdminLayout() {
 
         setSidebarOculto((actual) => !actual);
     };
-
-    const tituloActual = pageTitles[location.pathname] || "Panel administrativo";
 
     return (
         <div
@@ -132,6 +140,9 @@ function AdminLayout() {
                         ×
                     </button>
                 </div>
+                <div className="admin-floating-notification">
+                    <NotificationBell/>
+                </div>
 
                 <nav className="sidebar-nav">
                     {menuItems.map((item) => (
@@ -155,8 +166,8 @@ function AdminLayout() {
                         <div className="sidebar-user-avatar">A</div>
 
                         <div className="sidebar-user-info">
-                            <strong>Administrador</strong>
-                            <span>VíaSmart</span>
+                            <strong>{nombreAdmin}</strong>
+                            <span>{rolAdmin}</span>
                         </div>
                     </div>
 
@@ -171,6 +182,9 @@ function AdminLayout() {
 
             <main className="main-content">
                 <section className="content">
+                    <div className="admin-current-page" aria-label="Página actual">
+                        {tituloActual}
+                    </div>
                     <Outlet/>
                 </section>
             </main>

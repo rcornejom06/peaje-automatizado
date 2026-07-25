@@ -11,6 +11,6 @@ export const crearPlanMembresia = async (data) => {
 };
 
 export const obtenerMembresias = async () => {
-  const response = await api.get("/membresias/membresias/");
+  const response = await api.get("/membresias/");
   return response.data;
 };

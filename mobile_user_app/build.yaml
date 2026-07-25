@@ -1,0 +1,34 @@
+# build.yaml
+#
+# Por qué existe este archivo:
+# A partir de envied_generator >= 1.3.5 el generador dejó de leer el archivo
+# `.env` con dart:io y ahora lo lee a través del sistema de "assets" de
+# build_runner (buildStep.canRead). build_runner SOLO puede leer archivos que
+# estén dentro de la lista `sources`. El `.env` de la raíz NO está en la lista
+# por defecto, así que la generación falla con:
+#   "Environment variable not found for field `developEnv`."
+# (fallan justo los campos de env.dart que no tienen `defaultValue`).
+#
+# La lista de abajo replica los `sources` por defecto de build_runner y SOLO
+# añade `.env`. No quitar entradas: si se recorta, build_runner dejaría de
+# procesar esos directorios (p. ej. codegen en test/).
+targets:
+  $default:
+    sources:
+      - assets/**
+      - benchmark/**
+      - bin/**
+      - CHANGELOG*
+      - example/**
+      - lib/**
+      - test/**
+      - integration_test/**
+      - tool/**
+      - web/**
+      - node/**
+      - LICENSE*
+      - pubspec.yaml
+      - pubspec.lock
+      - README*
+      - $package$
+      - .env
