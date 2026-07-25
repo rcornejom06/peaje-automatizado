@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# FVM Version Cache
+.fvm/
+
+# Envied / codegen (env.g.dart se regenera con `make build-env`)
+**/*.g.dart
+.env
+.env.backup

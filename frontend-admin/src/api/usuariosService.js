@@ -27,3 +27,19 @@ export const actualizarMiPerfil = async (datos) => {
 
     return response.data;
 };
+export const actualizarPerfilAdmin = async (perfilId, data) => {
+    const response = await api.patch(`/usuarios/perfiles/${perfilId}/`, data);
+    return response.data;
+};
+
+export const activarUsuario = async (perfilId) => {
+    return await actualizarPerfilAdmin(perfilId, {
+        estado: true,
+    });
+};
+
+export const desactivarUsuario = async (perfilId) => {
+    return await actualizarPerfilAdmin(perfilId, {
+        estado: false,
+    });
+};

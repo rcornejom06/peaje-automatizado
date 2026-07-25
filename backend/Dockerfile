@@ -14,8 +14,16 @@ COPY requirements/dev.txt /app/requirements/dev.txt
 COPY requirements/prod.txt /app/requirements/prod.txt
 
 RUN pip install --upgrade pip \
-    && pip install -r /app/requirements/dev.txt
+    && pip install -r /app/requirements/prod.txt
 
 COPY . /app/
 
+# Por defecto usa settings de produccion. Render puede sobreescribir esto
+# con su propia variable de entorno DJANGO_SETTINGS_MODULE si hiciera falta.
+ENV DJANGO_SETTINGS_MODULE=config.settings.prod
+
 EXPOSE 8000
+
+CMD python manage.py migrate --noinput \
+    && python manage.py collectstatic --noinput \
+    && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3

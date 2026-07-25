@@ -1,7 +1,10 @@
+import '../config/app_config.dart';
+
 class ApiConfig {
-  //static const String baseUrl = 'http://localhost:8000/api';
-  static const String baseUrl = 'http://172.20.10.2:8000/api';
-  //static const String baseUrl = 'http://192.168.1.117:8000/api';
+  /// URL base del API según el entorno activo (dev/prod), definido por el
+  /// entrypoint (main_dev/main_prod) y leído desde `.env` vía envied.
+  /// Ver [AppConfig].
+  static String get baseUrl => AppConfig.apiBaseUrl;
 
   static const String token = '/auth/token/';
   static const String tokenRefresh = '/auth/token/refresh/';

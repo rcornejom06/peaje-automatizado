@@ -6,7 +6,7 @@ import '../../features/auth/login_screen.dart';
 import '../../features/home/home_screen.dart';
 
 /// Decide la pantalla inicial de la app según si ya existe una sesión
-/// guardada localmente (token en SharedPreferences), en lugar de forzar
+/// guardada localmente (token en almacenamiento seguro), en lugar de forzar
 /// siempre el login al reabrir la app.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});

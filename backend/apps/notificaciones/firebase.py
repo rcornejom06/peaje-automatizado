@@ -1,3 +1,4 @@
+import json
 import os
 
 import firebase_admin
@@ -9,10 +10,18 @@ _intento_inicializacion_fallido = False
 
 
 def _obtener_app():
-    """Inicializa Firebase Admin una sola vez (perezosamente) usando la
-    clave de cuenta de servicio configurada en settings.FIREBASE_CREDENTIALS_PATH.
-    Si no existe el archivo (por ejemplo en desarrollo, antes de configurarlo),
-    devuelve None en vez de reventar el resto de la app."""
+    """Inicializa Firebase Admin una sola vez (perezosamente).
+
+    Busca la credencial en dos lugares, en este orden:
+      1. settings.FIREBASE_CREDENTIALS_JSON: el JSON completo de la cuenta
+         de servicio pegado como variable de entorno (usar en Render/Railway/
+         cualquier entorno sin filesystem persistente para secretos).
+      2. settings.FIREBASE_CREDENTIALS_PATH: ruta a un archivo .json en disco
+         (uso local/Docker Compose, como hasta ahora).
+
+    Si ninguna de las dos esta disponible o falla, devuelve None en vez de
+    reventar el resto de la app.
+    """
     global _app, _intento_inicializacion_fallido
 
     if _app is not None:
@@ -21,18 +30,24 @@ def _obtener_app():
     if _intento_inicializacion_fallido:
         return None
 
+    cred_json = getattr(settings, "FIREBASE_CREDENTIALS_JSON", None)
     cred_path = getattr(settings, "FIREBASE_CREDENTIALS_PATH", None)
-
-    if not cred_path or not os.path.exists(cred_path):
-        _intento_inicializacion_fallido = True
-        return None
 
     try:
         if firebase_admin._apps:
             _app = firebase_admin.get_app()
-        else:
+            return _app
+
+        if cred_json:
+            cred_dict = json.loads(cred_json)
+            cred = credentials.Certificate(cred_dict)
+        elif cred_path and os.path.exists(cred_path):
             cred = credentials.Certificate(cred_path)
-            _app = firebase_admin.initialize_app(cred)
+        else:
+            _intento_inicializacion_fallido = True
+            return None
+
+        _app = firebase_admin.initialize_app(cred)
     except Exception:
         _intento_inicializacion_fallido = True
         return None

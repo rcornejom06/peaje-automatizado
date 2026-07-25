@@ -16,7 +16,7 @@ backend/db.sqlite3
 *.sqlite3
 media/
 staticfiles/
-
+firebase-service-account.json
 # Entornos virtuales
 venv/
 env/

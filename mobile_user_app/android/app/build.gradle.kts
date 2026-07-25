@@ -28,6 +28,19 @@ android {
         versionName = flutter.versionName
     }
 
+    // Flavors dev/prod. NO cambian el applicationId, así el google-services.json
+    // (package com.example.mobile_user_app) sigue coincidiendo -> Firebase OK.
+    // La diferencia real dev/prod la da el entrypoint (main_dev / main_prod).
+    flavorDimensions += "env"
+    productFlavors {
+        create("dev") {
+            dimension = "env"
+        }
+        create("prod") {
+            dimension = "env"
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")

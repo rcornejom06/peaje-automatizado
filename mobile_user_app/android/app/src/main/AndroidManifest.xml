@@ -41,6 +41,11 @@
             android:resource="@mipmap/ic_launcher" />
     </application>
 
+    <!-- Requerido para TODA la red (API REST + Firebase). Debe ir en el manifest
+         'main' para que también exista en release: Flutter solo inyecta INTERNET
+         en los manifests de debug/profile, no en el de producción. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Necesario en Android 13+ para poder mostrar notificaciones -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />

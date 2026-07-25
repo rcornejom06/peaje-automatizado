@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   actualizarMiPerfil,
+  activarUsuario,
   crearOperador,
+  desactivarUsuario,
   obtenerMiPerfil,
   obtenerPerfiles,
 } from "../../api/usuariosService.js";
@@ -13,10 +15,12 @@ function Usuarios() {
 
   const [mostrarFormularioOperador, setMostrarFormularioOperador] =
     useState(false);
+  const [mostrarFormularioPerfil, setMostrarFormularioPerfil] = useState(false);
 
   const [cargando, setCargando] = useState(true);
   const [guardandoOperador, setGuardandoOperador] = useState(false);
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [procesandoUsuarioId, setProcesandoUsuarioId] = useState(null);
 
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
@@ -67,6 +71,10 @@ function Usuarios() {
 
     if (data.mensaje) {
       return data.mensaje;
+    }
+
+    if (data.message) {
+      return data.message;
     }
 
     const primeraClave = Object.keys(data)[0];
@@ -229,11 +237,58 @@ function Usuarios() {
       });
 
       setMensaje("Tu perfil fue actualizado correctamente.");
+      setMostrarFormularioPerfil(false);
       await cargarDatos();
     } catch (error) {
       setError(extraerMensajeError(error));
     } finally {
       setGuardandoPerfil(false);
+    }
+  };
+
+  const handleCambiarEstadoUsuario = async (perfil) => {
+    if (!esAdministrador()) {
+      setError("No tienes permisos para cambiar el estado de usuarios.");
+      return;
+    }
+
+    const esMiPerfil = perfil?.id === miPerfil?.id;
+
+    if (esMiPerfil) {
+      setError("No puedes desactivar tu propio perfil.");
+      return;
+    }
+
+    const usuario = perfil?.usuario_detalle;
+    const nombre = nombreUsuario(perfil);
+    const estaActivo = perfil?.estado === true;
+
+    const confirmar = window.confirm(
+      estaActivo
+        ? `¿Deseas desactivar al usuario ${nombre}?`
+        : `¿Deseas activar al usuario ${nombre}?`
+    );
+
+    if (!confirmar) return;
+
+    setError("");
+    setMensaje("");
+    setProcesandoUsuarioId(perfil.id);
+
+    try {
+      if (estaActivo) {
+        await desactivarUsuario(perfil.id);
+        setMensaje(`Usuario ${nombre} desactivado correctamente.`);
+      } else {
+        await activarUsuario(perfil.id);
+        setMensaje(`Usuario ${nombre} activado correctamente.`);
+      }
+
+      await cargarDatos();
+    } catch (error) {
+      setError(extraerMensajeError(error));
+    } finally {
+      setProcesandoUsuarioId(null);
     }
   };
 
@@ -251,6 +306,10 @@ function Usuarios() {
     return perfil?.usuario_detalle?.email || "Sin correo";
   };
 
+  const usernameUsuario = (perfil) => {
+    return perfil?.usuario_detalle?.username || "sin_usuario";
+  };
+
   const formatearFecha = (fecha) => {
     if (!fecha) return "Sin fecha";
 
@@ -265,6 +324,153 @@ function Usuarios() {
     }
   };
 
+  const textoRol = (rol) => {
+    if (rol === "administrador") return "Administrador";
+    if (rol === "operador") return "Operador";
+    if (rol === "usuario") return "Usuario";
+    return rol || "Sin rol";
+  };
+
+  const renderMiPerfil = () => {
+    const usuario = miPerfil?.usuario_detalle || {};
+    const nombre = nombreUsuario(miPerfil);
+
+    return (
+      <section className="usuarios-card">
+        <div className="usuarios-card-header usuarios-profile-header">
+          <div>
+            <h3>Mi perfil</h3>
+            <p>Consulta y actualiza la información de tu cuenta.</p>
+          </div>
+
+          <div className="usuarios-profile-actions">
+            <span className="usuarios-role-badge">
+              {textoRol(miPerfil?.rol)}
+            </span>
+
+            <button
+              type="button"
+              className="usuarios-btn-primary"
+              onClick={() =>
+                setMostrarFormularioPerfil((actual) => !actual)
+              }
+            >
+              {mostrarFormularioPerfil ? "Cancelar edición" : "Editar perfil"}
+            </button>
+          </div>
+        </div>
+
+        {!mostrarFormularioPerfil && (
+          <div className="usuarios-profile-summary">
+            <div className="usuarios-profile-avatar">
+              {nombre.charAt(0).toUpperCase()}
+            </div>
+
+            <div className="usuarios-profile-info">
+              <strong>{nombre}</strong>
+              <span>@{usuario.username || "sin_usuario"}</span>
+              <span>{usuario.email || "Sin correo"}</span>
+            </div>
+
+            <div className="usuarios-profile-data">
+              <span>
+                <strong>Teléfono:</strong> {miPerfil?.telefono || "Sin teléfono"}
+              </span>
+              <span>
+                <strong>Cédula:</strong> {miPerfil?.cedula || "Sin cédula"}
+              </span>
+              <span>
+                <strong>Estado:</strong>{" "}
+                {miPerfil?.estado ? "Activo" : "Inactivo"}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {mostrarFormularioPerfil && (
+          <form className="usuarios-form" onSubmit={handleActualizarPerfil}>
+            <div className="usuarios-grid">
+              <div className="usuarios-field">
+                <label>Nombres</label>
+                <input
+                  type="text"
+                  name="first_name"
+                  value={formPerfil.first_name}
+                  onChange={handleChangePerfil}
+                  placeholder="Tus nombres"
+                />
+              </div>
+
+              <div className="usuarios-field">
+                <label>Apellidos</label>
+                <input
+                  type="text"
+                  name="last_name"
+                  value={formPerfil.last_name}
+                  onChange={handleChangePerfil}
+                  placeholder="Tus apellidos"
+                />
+              </div>
+
+              <div className="usuarios-field">
+                <label>Correo</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formPerfil.email}
+                  onChange={handleChangePerfil}
+                  placeholder="correo@ejemplo.com"
+                />
+              </div>
+
+              <div className="usuarios-field">
+                <label>Teléfono</label>
+                <input
+                  type="text"
+                  name="telefono"
+                  value={formPerfil.telefono}
+                  onChange={handleChangePerfil}
+                  placeholder="0999999999"
+                  maxLength="10"
+                />
+              </div>
+
+              <div className="usuarios-field">
+                <label>Cédula</label>
+                <input
+                  type="text"
+                  name="cedula"
+                  value={formPerfil.cedula}
+                  onChange={handleChangePerfil}
+                  placeholder="0102030405"
+                  maxLength="10"
+                />
+              </div>
+            </div>
+
+            <div className="usuarios-form-actions">
+              <button
+                type="button"
+                className="usuarios-btn-secondary"
+                onClick={() => setMostrarFormularioPerfil(false)}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                className="usuarios-btn-primary"
+                disabled={guardandoPerfil}
+              >
+                {guardandoPerfil ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
+    );
+  };
+
   return (
     <div className="usuarios-page">
       <section className="usuarios-hero">
@@ -272,8 +478,8 @@ function Usuarios() {
           <span className="usuarios-kicker">VíaSmart</span>
           <h2>Gestión de usuarios</h2>
           <p>
-            Administra operadores del sistema y actualiza la información de tu
-            perfil personal.
+            Administra operadores, usuarios del sistema y actualiza la
+            información de tu perfil personal.
           </p>
         </div>
 
@@ -421,98 +627,14 @@ function Usuarios() {
                     className="usuarios-btn-primary"
                     disabled={guardandoOperador}
                   >
-                    {guardandoOperador
-                      ? "Creando..."
-                      : "Crear operador"}
+                    {guardandoOperador ? "Creando..." : "Crear operador"}
                   </button>
                 </div>
               </form>
             </section>
           )}
 
-          <section className="usuarios-card">
-            <div className="usuarios-card-header">
-              <div>
-                <h3>Mi perfil</h3>
-                <p>Actualiza tu información personal de la cuenta.</p>
-              </div>
-
-              <span className="usuarios-role-badge">
-                {miPerfil?.rol || "usuario"}
-              </span>
-            </div>
-
-            <form className="usuarios-form" onSubmit={handleActualizarPerfil}>
-              <div className="usuarios-grid">
-                <div className="usuarios-field">
-                  <label>Nombres</label>
-                  <input
-                    type="text"
-                    name="first_name"
-                    value={formPerfil.first_name}
-                    onChange={handleChangePerfil}
-                    placeholder="Tus nombres"
-                  />
-                </div>
-
-                <div className="usuarios-field">
-                  <label>Apellidos</label>
-                  <input
-                    type="text"
-                    name="last_name"
-                    value={formPerfil.last_name}
-                    onChange={handleChangePerfil}
-                    placeholder="Tus apellidos"
-                  />
-                </div>
-
-                <div className="usuarios-field">
-                  <label>Correo</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formPerfil.email}
-                    onChange={handleChangePerfil}
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-
-                <div className="usuarios-field">
-                  <label>Teléfono</label>
-                  <input
-                    type="text"
-                    name="telefono"
-                    value={formPerfil.telefono}
-                    onChange={handleChangePerfil}
-                    placeholder="0999999999"
-                    maxLength="10"
-                  />
-                </div>
-
-                <div className="usuarios-field">
-                  <label>Cédula</label>
-                  <input
-                    type="text"
-                    name="cedula"
-                    value={formPerfil.cedula}
-                    onChange={handleChangePerfil}
-                    placeholder="0102030405"
-                    maxLength="10"
-                  />
-                </div>
-              </div>
-
-              <div className="usuarios-form-actions">
-                <button
-                  type="submit"
-                  className="usuarios-btn-primary"
-                  disabled={guardandoPerfil}
-                >
-                  {guardandoPerfil ? "Guardando..." : "Guardar mi perfil"}
-                </button>
-              </div>
-            </form>
-          </section>
+          {renderMiPerfil()}
 
           <section className="usuarios-card">
             <div className="usuarios-card-header">
@@ -534,60 +656,98 @@ function Usuarios() {
                     <th>Teléfono</th>
                     <th>Estado</th>
                     <th>Creación</th>
+                    {esAdministrador() && <th>Acciones</th>}
                   </tr>
                 </thead>
 
                 <tbody>
                   {perfiles.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="usuarios-empty">
+                      <td
+                        colSpan={esAdministrador() ? 7 : 6}
+                        className="usuarios-empty"
+                      >
                         No hay usuarios registrados.
                       </td>
                     </tr>
                   ) : (
-                    perfiles.map((perfil) => (
-                      <tr key={perfil.id}>
-                        <td>
-                          <div className="usuarios-user-cell">
-                            <div className="usuarios-avatar">
-                              {nombreUsuario(perfil).charAt(0).toUpperCase()}
+                    perfiles.map((perfil) => {
+                      const esMiPerfil = perfil?.id === miPerfil?.id;
+                      const estaActivo = perfil?.estado === true;
+                      const procesando =
+                        procesandoUsuarioId === perfil?.id;
+
+                      return (
+                        <tr key={perfil.id}>
+                          <td>
+                            <div className="usuarios-user-cell">
+                              <div className="usuarios-avatar">
+                                {nombreUsuario(perfil)
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </div>
+
+                              <div>
+                                <strong>{nombreUsuario(perfil)}</strong>
+                                <span>@{usernameUsuario(perfil)}</span>
+                              </div>
                             </div>
+                          </td>
 
-                            <div>
-                              <strong>{nombreUsuario(perfil)}</strong>
-                              <span>
-                                @{perfil?.usuario_detalle?.username ||
-                                  "sin_usuario"}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
+                          <td>{correoUsuario(perfil)}</td>
 
-                        <td>{correoUsuario(perfil)}</td>
+                          <td>
+                            <span className={`usuarios-tag ${perfil.rol}`}>
+                              {textoRol(perfil.rol)}
+                            </span>
+                          </td>
 
-                        <td>
-                          <span className={`usuarios-tag ${perfil.rol}`}>
-                            {perfil.rol}
-                          </span>
-                        </td>
+                          <td>{perfil.telefono || "Sin teléfono"}</td>
 
-                        <td>{perfil.telefono || "Sin teléfono"}</td>
+                          <td>
+                            <span
+                              className={
+                                estaActivo
+                                  ? "usuarios-status active"
+                                  : "usuarios-status inactive"
+                              }
+                            >
+                              {estaActivo ? "Activo" : "Inactivo"}
+                            </span>
+                          </td>
 
-                        <td>
-                          <span
-                            className={
-                              perfil.estado
-                                ? "usuarios-status active"
-                                : "usuarios-status inactive"
-                            }
-                          >
-                            {perfil.estado ? "Activo" : "Inactivo"}
-                          </span>
-                        </td>
+                          <td>{formatearFecha(perfil.fecha_creacion)}</td>
 
-                        <td>{formatearFecha(perfil.fecha_creacion)}</td>
-                      </tr>
-                    ))
+                          {esAdministrador() && (
+                            <td>
+                              <button
+                                type="button"
+                                className={
+                                  estaActivo
+                                    ? "usuarios-btn-danger"
+                                    : "usuarios-btn-success"
+                                }
+                                disabled={procesando || esMiPerfil}
+                                onClick={() =>
+                                  handleCambiarEstadoUsuario(perfil)
+                                }
+                                title={
+                                  esMiPerfil
+                                    ? "No puedes desactivar tu propio perfil"
+                                    : ""
+                                }
+                              >
+                                {procesando
+                                  ? "Procesando..."
+                                  : estaActivo
+                                  ? "Desactivar"
+                                  : "Activar"}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
