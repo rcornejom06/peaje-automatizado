@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import "../Styles/ReconocimientoPlacas.css";
 import {QRCodeCanvas} from "qrcode.react";
 import {obtenerComprobantePaso} from "../../api/comprobantesService.js";
@@ -13,6 +13,14 @@ function ReconocimientoPlacas() {
     const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState(null);
     const [cargandoComprobante, setCargandoComprobante] = useState(false);
     const [errorComprobante, setErrorComprobante] = useState("");
+
+    // Webcam del navegador como fuente adicional (no reemplaza la camara USB).
+    const [usarWebcamNavegador, setUsarWebcamNavegador] = useState(false);
+    const [errorWebcam, setErrorWebcam] = useState("");
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const streamRef = useRef(null);
+    const intervaloEnvioRef = useRef(null);
 
     const cameraServerUrl =
         import.meta.env.VITE_CAMERA_SERVER_URL || "http://localhost:5001";
@@ -48,6 +56,91 @@ function ReconocimientoPlacas() {
 
         return () => clearInterval(intervalo);
     }, []);
+
+    // Enciende/apaga la webcam del navegador cuando se activa el toggle.
+    // No toca el stream MJPEG de la camara USB (/video_feed sigue igual).
+    useEffect(() => {
+        if (!usarWebcamNavegador) {
+            detenerWebcam();
+            return;
+        }
+
+        iniciarWebcam();
+
+        return () => detenerWebcam();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [usarWebcamNavegador]);
+
+    const iniciarWebcam = async () => {
+        try {
+            setErrorWebcam("");
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {facingMode: "environment"},
+            });
+
+            streamRef.current = stream;
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+
+            intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 1500);
+        } catch {
+            setErrorWebcam(
+                "No se pudo acceder a la camara del navegador. Verifica los permisos del sitio."
+            );
+            setUsarWebcamNavegador(false);
+        }
+    };
+
+    const detenerWebcam = () => {
+        if (intervaloEnvioRef.current) {
+            clearInterval(intervaloEnvioRef.current);
+            intervaloEnvioRef.current = null;
+        }
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+    };
+
+    const enviarFrameAlServidor = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+
+        if (!video || !canvas || video.videoWidth === 0) return;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const contexto = canvas.getContext("2d");
+        contexto.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(
+            async (blob) => {
+                if (!blob) return;
+
+                const formData = new FormData();
+                formData.append("frame", blob, "frame.jpg");
+
+                try {
+                    await fetch(`${cameraServerUrl}/procesar_frame_navegador`, {
+                        method: "POST",
+                        body: formData,
+                    });
+                    // No hace falta leer la respuesta aqui: cargarDetecciones()
+                    // (polling cada 1.5s) ya recoge la deteccion desde
+                    // /last_detection en cuanto el backend la registre.
+                } catch {
+                    // Silencioso: el proximo intervalo lo intenta de nuevo.
+                }
+            },
+            "image/jpeg",
+            0.85
+        );
+    };
 
     const abrirDetalle = async (deteccion) => {
         if (!deteccion) return;
@@ -279,13 +372,41 @@ function ReconocimientoPlacas() {
                         <div className="video-frame">
                             <div className="detection-label">DETECCIÓN LPR</div>
 
-                            <img
-                                src={cameraFeedUrl}
-                                alt="Cámara en vivo"
-                                className="live-camera"
-                                onLoad={() => setEstadoCamara("activa")}
-                                onError={() => setEstadoCamara("error")}
-                            />
+                            {usarWebcamNavegador ? (
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    muted
+                                    playsInline
+                                    className="live-camera"
+                                />
+                            ) : (
+                                <img
+                                    src={cameraFeedUrl}
+                                    alt="Cámara en vivo"
+                                    className="live-camera"
+                                    onLoad={() => setEstadoCamara("activa")}
+                                    onError={() => setEstadoCamara("error")}
+                                />
+                            )}
+
+                            {/* Canvas oculto: solo se usa para capturar
+                                fotogramas de <video> y enviarlos al backend */}
+                            <canvas ref={canvasRef} style={{display: "none"}} />
+
+                            <button
+                                type="button"
+                                className="btn-toggle-webcam"
+                                onClick={() => setUsarWebcamNavegador((actual) => !actual)}
+                            >
+                                {usarWebcamNavegador
+                                    ? "Volver a cámara USB"
+                                    : "Usar cámara del navegador"}
+                            </button>
+
+                            {errorWebcam && (
+                                <div className="server-warning">{errorWebcam}</div>
+                            )}
                         </div>
 
                         <div className="plate-info">
