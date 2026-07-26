@@ -85,7 +85,7 @@ function ReconocimientoPlacas() {
                 videoRef.current.srcObject = stream;
             }
 
-            intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 1500);
+            intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 2000);
         } catch {
             setErrorWebcam(
                 "No se pudo acceder a la camara del navegador. Verifica los permisos del sitio."
