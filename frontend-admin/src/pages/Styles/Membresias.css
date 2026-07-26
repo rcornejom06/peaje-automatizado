@@ -560,6 +560,27 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Version con texto de Editar/Eliminar dentro de la tabla de planes: las
+   clases base de arriba son cuadradas (34x34px, pensadas para íconos solos),
+   así que aquí se sobreescribe el tamaño solo dentro de la tabla, sin tocar
+   el estilo base por si se usan como íconos en otro lugar. */
+.membresias-table-card .table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.membresias-table-card .btn-editar,
+.membresias-table-card .btn-eliminar {
+  width: auto;
+  height: auto;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 /* =========================
    RESPONSIVE
 ========================= */
