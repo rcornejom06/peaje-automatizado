@@ -1177,7 +1177,7 @@ def procesar_frame_navegador():
 
     ahora = time.time()
 
-    if ahora - ultimo_ocr_navegador < 1.0:
+    if ahora - ultimo_ocr_navegador < 2.0:
         return jsonify({
             "detectado": False,
             "mensaje": "Esperando intervalo minimo entre lecturas."
