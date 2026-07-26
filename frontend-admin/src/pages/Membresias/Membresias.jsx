@@ -2,6 +2,8 @@ import {useEffect, useState} from "react";
 import {
     obtenerPlanesMembresia,
     crearPlanMembresia,
+    actualizarPlanMembresia,
+    eliminarPlanMembresia,
     obtenerMembresias,
 } from "../../api/membresiaService.js";
 import "../Styles/Membresias.css";
@@ -16,6 +18,7 @@ function Membresias() {
     const [error, setError] = useState("");
     const [mensaje, setMensaje] = useState("");
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
+    const [planEditando, setPlanEditando] = useState(null); // null = creando, id = editando
 
     const [formulario, setFormulario] = useState({
         nombre: "",
@@ -79,26 +82,90 @@ function Membresias() {
             descuento_porcentaje: "0.00",
             estado: "activo",
         });
+        setPlanEditando(null);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const iniciarEdicion = (plan) => {
+        setFormulario({
+            nombre: plan.nombre || "",
+            descripcion: plan.descripcion || "",
+            precio: plan.precio ?? "0.00",
+            pases_incluidos: plan.pases_incluidos ?? 30,
+            descuento_porcentaje: plan.descuento_porcentaje ?? "0.00",
+            estado: plan.estado || "activo",
+        });
+        setPlanEditando(plan.id);
+        setMostrarFormulario(true);
+        setError("");
+        setMensaje("");
+    };
+
+    const cancelarFormulario = () => {
+        limpiarFormulario();
+        setMostrarFormulario(false);
+    };
+
+    const eliminarPlan = async (plan) => {
+        const confirmar = window.confirm(
+            `¿Eliminar el plan "${plan.nombre}"? Esta acción no se puede deshacer.`
+        );
+
+        if (!confirmar) return;
 
         try {
             setError("");
             setMensaje("");
 
-            await crearPlanMembresia(formulario);
+            await eliminarPlanMembresia(plan.id);
 
-            setMensaje("Plan de membresía creado correctamente.");
+            setMensaje("Plan de membresía eliminado correctamente.");
+            await cargarDatos();
+        } catch (err) {
+            if (err.response?.status === 403) {
+                setError("No tiene permisos para eliminar planes de membresía.");
+            } else {
+                setError(
+                    err.response?.data?.error ||
+                    err.response?.data?.detail ||
+                    "No se pudo eliminar el plan."
+                );
+            }
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        const editando = planEditando !== null;
+
+        try {
+            setError("");
+            setMensaje("");
+
+            if (editando) {
+                await actualizarPlanMembresia(planEditando, formulario);
+                setMensaje("Plan de membresía actualizado correctamente.");
+            } else {
+                await crearPlanMembresia(formulario);
+                setMensaje("Plan de membresía creado correctamente.");
+            }
+
             limpiarFormulario();
             setMostrarFormulario(false);
             await cargarDatos();
-        } catch {
-            if (error.response?.status === 403) {
-                setError("No tiene permisos para crear planes de membresía.");
+        } catch (err) {
+            if (err.response?.status === 403) {
+                setError(
+                    editando
+                        ? "No tiene permisos para editar planes de membresía."
+                        : "No tiene permisos para crear planes de membresía."
+                );
             } else {
-                setError("No se pudo crear el plan. Verifique los datos ingresados.");
+                setError(
+                    err.response?.data?.error ||
+                    err.response?.data?.detail ||
+                    "No se pudo guardar el plan. Verifique los datos ingresados."
+                );
             }
         }
     };
@@ -125,7 +192,7 @@ function Membresias() {
                 <>
                 <button
                     className="module-header-primary"
-                    onClick={mostrarFormulario ? () => setMostrarFormulario(false) : () => setMostrarFormulario(true)}
+                    onClick={mostrarFormulario ? cancelarFormulario : () => setMostrarFormulario(true)}
                 >
                     {mostrarFormulario ? "Cancelar" : "+ Nuevo plan"}
                 </button>
@@ -161,7 +228,7 @@ function Membresias() {
 
             {tab === "planes" && mostrarFormulario && (
                 <div className="form-card">
-                    <h3>Crear plan de membresía</h3>
+                    <h3>{planEditando !== null ? "Editar plan de membresía" : "Crear plan de membresía"}</h3>
 
                     <form onSubmit={handleSubmit} className="membresia-form">
                         <div className="form-group">
@@ -235,7 +302,7 @@ function Membresias() {
 
                         <div className="form-buttons">
                             <button type="submit" className="btn-primary">
-                                Guardar plan
+                                {planEditando !== null ? "Guardar cambios" : "Guardar plan"}
                             </button>
                         </div>
                     </form>
@@ -253,6 +320,7 @@ function Membresias() {
                             <th>Pases</th>
                             <th>Descuento</th>
                             <th>Estado</th>
+                            <th>Acciones</th>
                         </tr>
                         </thead>
 
@@ -273,6 +341,22 @@ function Membresias() {
                       <span className={`estado ${plan.estado}`}>
                         {plan.estado}
                       </span>
+                                    </td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            className="btn-editar"
+                                            onClick={() => iniciarEdicion(plan)}
+                                        >
+                                            Editar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn-eliminar"
+                                            onClick={() => eliminarPlan(plan)}
+                                        >
+                                            Eliminar
+                                        </button>
                                     </td>
                                 </tr>
                             ))
