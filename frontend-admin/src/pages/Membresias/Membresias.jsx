@@ -314,7 +314,6 @@ function Membresias() {
                     <table>
                         <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Nombre</th>
                             <th>Precio</th>
                             <th>Pases</th>
@@ -328,7 +327,6 @@ function Membresias() {
                         {planes.length > 0 ? (
                             planes.map((plan) => (
                                 <tr key={plan.id}>
-                                    <td>{plan.id}</td>
                                     <td>
                                         <strong>{plan.nombre}</strong>
                                         <br/>
@@ -343,26 +341,28 @@ function Membresias() {
                       </span>
                                     </td>
                                     <td>
-                                        <button
-                                            type="button"
-                                            className="btn-editar"
-                                            onClick={() => iniciarEdicion(plan)}
-                                        >
-                                            Editar
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn-eliminar"
-                                            onClick={() => eliminarPlan(plan)}
-                                        >
-                                            Eliminar
-                                        </button>
+                                        <div className="table-actions">
+                                            <button
+                                                type="button"
+                                                className="btn-editar"
+                                                onClick={() => iniciarEdicion(plan)}
+                                            >
+                                                Editar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn-eliminar"
+                                                onClick={() => eliminarPlan(plan)}
+                                            >
+                                                Eliminar
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="7">No existen planes de membresía.</td>
+                                <td colSpan="6">No existen planes de membresía.</td>
                             </tr>
                         )}
                         </tbody>
@@ -375,7 +375,6 @@ function Membresias() {
                     <table>
                         <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Usuario</th>
                             <th>Plan</th>
                             <th>Inicio</th>
@@ -389,7 +388,6 @@ function Membresias() {
                         {membresias.length > 0 ? (
                             membresias.map((membresia) => (
                                 <tr key={membresia.id}>
-                                    <td>{membresia.id}</td>
                                     <td>
                                         {membresia.usuario_username ||
                                             membresia.usuario ||
@@ -411,7 +409,7 @@ function Membresias() {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="7">No existen membresías adquiridas.</td>
+                                <td colSpan="6">No existen membresías adquiridas.</td>
                             </tr>
                         )}
                         </tbody>
