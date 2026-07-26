@@ -195,47 +195,70 @@ def enviar_deteccion_a_django(placa, confianza):
     global DJANGO_TOKEN_ACCESS
 
     try:
+        # Si Flask está desplegado con gunicorn en Render,
+        # el bloque if __name__ == "__main__" no se ejecuta.
+        # Por eso obtenemos el token aquí si todavía no existe.
         if not DJANGO_TOKEN_ACCESS:
-            logger.warning("❌ No hay token JWT disponible.")
-            return {
-                "enviado": False,
-                "error": "Token JWT no disponible"
-            }
+            logger.warning("⚠️ No hay token JWT. Intentando obtener token antes de enviar detección...")
+
+            if not reintentar_obtener_token(intentos=2, espera=1):
+                logger.error("❌ No se pudo obtener token JWT para enviar detección a Django.")
+                return {
+                    "enviado": False,
+                    "error": "Token JWT no disponible"
+                }
 
         payload = {
+            "placa": placa,
             "placa_detectada": placa,
             "camara_id": DJANGO_CAMARA_ID,
-            "confianza": confianza
+            "confianza": confianza,
         }
 
         headers = {
             "Authorization": f"Bearer {DJANGO_TOKEN_ACCESS}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
+
+        logger.info(f"📤 Enviando detección a Django: {payload}")
+        logger.info(f"📡 URL Django API: {DJANGO_API_URL}")
 
         respuesta = requests.post(
             DJANGO_API_URL,
             json=payload,
             headers=headers,
-            timeout=8
+            timeout=12,
         )
 
         if respuesta.status_code == 401:
-            logger.warning("⚠️  Token expirado, intentando refrescar...")
+            logger.warning("⚠️ Token expirado o inválido. Intentando refrescar...")
 
             if refrescar_token_jwt():
                 headers["Authorization"] = f"Bearer {DJANGO_TOKEN_ACCESS}"
+
                 respuesta = requests.post(
                     DJANGO_API_URL,
                     json=payload,
                     headers=headers,
-                    timeout=8
+                    timeout=12,
                 )
             else:
-                return {
-                    "enviado": False,
-                    "error": "No se pudo refrescar el token"
-                }
+                logger.warning("⚠️ No se pudo refrescar token. Intentando obtener uno nuevo...")
+
+                if reintentar_obtener_token(intentos=2, espera=1):
+                    headers["Authorization"] = f"Bearer {DJANGO_TOKEN_ACCESS}"
+
+                    respuesta = requests.post(
+                        DJANGO_API_URL,
+                        json=payload,
+                        headers=headers,
+                        timeout=12,
+                    )
+                else:
+                    return {
+                        "enviado": False,
+                        "error": "No se pudo refrescar ni obtener token JWT"
+                    }
 
         try:
             data = respuesta.json()
@@ -245,35 +268,37 @@ def enviar_deteccion_a_django(placa, confianza):
             }
 
         if respuesta.status_code in [200, 201]:
-            logger.info(f"✅ Detección enviada a Django: {placa}")
+            logger.info(f"✅ Detección enviada correctamente a Django: {placa}")
+            logger.info(f"✅ Respuesta Django: {data}")
+
             return {
                 "enviado": True,
                 "status_code": respuesta.status_code,
-                "data": data
+                "data": data,
             }
 
         logger.warning(
-            f"⚠️  Django respondió con {respuesta.status_code}: {data}"
+            f"⚠️ Django respondió con {respuesta.status_code}: {data}"
         )
 
         return {
             "enviado": False,
             "status_code": respuesta.status_code,
-            "data": data
+            "data": data,
         }
 
     except requests.exceptions.ConnectionError:
         logger.error("❌ No se pudo conectar con Django")
         return {
             "enviado": False,
-            "error": "No se pudo conectar con Django"
+            "error": "No se pudo conectar con Django",
         }
 
     except Exception as e:
-        logger.error(f"❌ Error enviando detección: {e}")
+        logger.error(f"❌ Error enviando detección a Django: {e}")
         return {
             "enviado": False,
-            "error": str(e)
+            "error": str(e),
         }
 
 # ==========================================================
