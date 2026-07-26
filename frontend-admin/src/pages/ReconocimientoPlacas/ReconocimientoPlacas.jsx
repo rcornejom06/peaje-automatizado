@@ -14,7 +14,7 @@ function ReconocimientoPlacas() {
     const [cargandoComprobante, setCargandoComprobante] = useState(false);
     const [errorComprobante, setErrorComprobante] = useState("");
 
-    // Webcam del navegador como fuente adicional (no reemplaza la camara USB).
+    // Webcam del navegador como fuente adicional (no reemplaza la cámara USB).
     const [usarWebcamNavegador, setUsarWebcamNavegador] = useState(false);
     const [errorWebcam, setErrorWebcam] = useState("");
     const videoRef = useRef(null);
@@ -58,7 +58,7 @@ function ReconocimientoPlacas() {
     }, []);
 
     // Enciende/apaga la webcam del navegador cuando se activa el toggle.
-    // No toca el stream MJPEG de la camara USB (/video_feed sigue igual).
+    // No toca el stream MJPEG de la cámara USB (/video_feed sigue igual).
     useEffect(() => {
         if (!usarWebcamNavegador) {
             detenerWebcam();
@@ -88,7 +88,7 @@ function ReconocimientoPlacas() {
             intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 2000);
         } catch {
             setErrorWebcam(
-                "No se pudo acceder a la camara del navegador. Verifica los permisos del sitio."
+                "No se pudo acceder a la cámara del navegador. Verifica los permisos del sitio."
             );
             setUsarWebcamNavegador(false);
         }
@@ -130,11 +130,11 @@ function ReconocimientoPlacas() {
                         method: "POST",
                         body: formData,
                     });
-                    // No hace falta leer la respuesta aqui: cargarDetecciones()
-                    // (polling cada 1.5s) ya recoge la deteccion desde
+                    // No hace falta leer la respuesta aquí: cargarDetecciones()
+                    // (polling cada 1.5s) ya recoge la detección desde
                     // /last_detection en cuanto el backend la registre.
                 } catch {
-                    // Silencioso: el proximo intervalo lo intenta de nuevo.
+                    // Silencioso: el próximo intervalo lo intenta de nuevo.
                 }
             },
             "image/jpeg",
@@ -372,6 +372,15 @@ function ReconocimientoPlacas() {
                         <div className="video-frame">
                             <div className="detection-label">DETECCIÓN LPR</div>
 
+                            <button
+                                type="button"
+                                className={`btn-toggle-webcam${usarWebcamNavegador ? " activo" : ""}`}
+                                onClick={() => setUsarWebcamNavegador((actual) => !actual)}
+                            >
+                                <span className="btn-toggle-webcam__dot" />
+                                {usarWebcamNavegador ? "Cámara USB" : "Cámara del navegador"}
+                            </button>
+
                             {usarWebcamNavegador ? (
                                 <video
                                     ref={videoRef}
@@ -390,22 +399,12 @@ function ReconocimientoPlacas() {
                                 />
                             )}
 
-                            {/* Canvas oculto: solo se usa para capturar
-                                fotogramas de <video> y enviarlos al backend */}
+                            {/* Canvas oculto: solo captura fotogramas del
+                                <video> para enviarlos al backend */}
                             <canvas ref={canvasRef} style={{display: "none"}} />
 
-                            <button
-                                type="button"
-                                className="btn-toggle-webcam"
-                                onClick={() => setUsarWebcamNavegador((actual) => !actual)}
-                            >
-                                {usarWebcamNavegador
-                                    ? "Volver a cámara USB"
-                                    : "Usar cámara del navegador"}
-                            </button>
-
                             {errorWebcam && (
-                                <div className="server-warning">{errorWebcam}</div>
+                                <div className="webcam-error-overlay">{errorWebcam}</div>
                             )}
                         </div>
 
@@ -526,8 +525,6 @@ function ReconocimientoPlacas() {
                             </>
                         )}
                     </div>
-
-                    <button className="btn-gallery">Ver Galería Completa</button>
                 </section>
             </div>
 
