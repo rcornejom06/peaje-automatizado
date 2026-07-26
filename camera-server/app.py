@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import pytesseract
 from dotenv import load_dotenv
-from flask import Flask, Response, jsonify, send_from_directory
+from flask import Flask, Response, jsonify, send_from_directory, request
 
 # ==========================================================
 # CONFIGURACIÓN GENERAL
@@ -22,7 +22,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Users\Roger.Cornejo\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+# En Windows (desarrollo local) Tesseract no suele estar en el PATH, asi que
+# se apunta al .exe directamente. En Linux (Render/Docker), tesseract-ocr se
+# instala via apt y pytesseract lo encuentra solo en el PATH del sistema
+# (/usr/bin/tesseract) sin necesidad de configurar nada. TESSERACT_CMD permite
+# forzar una ruta especifica en cualquier sistema si hiciera falta.
+_tesseract_cmd_env = os.environ.get("TESSERACT_CMD")
+
+if _tesseract_cmd_env:
+    pytesseract.pytesseract.tesseract_cmd = _tesseract_cmd_env
+elif platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = (
+        r"C:\Users\Roger.Cornejo\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+    )
+# En Linux no se asigna nada: pytesseract usa "tesseract" del PATH.
 
 DJANGO_TOKEN_ACCESS = None
 DJANGO_TOKEN_REFRESH = None
@@ -64,6 +77,12 @@ lpr_lock = Lock()
 # Variables para procesamiento asincrónico de OCR
 frame_a_procesar = None
 procesamiento_lock = Lock()
+
+# Debounce independiente para frames enviados desde la webcam del
+# navegador (no comparte estado con el hilo de la camara USB, para
+# no interferir entre ambas fuentes si se usan a la vez).
+ultimo_ocr_navegador = 0
+ultimo_registro_navegador = 0
 
 
 def obtener_token_jwt():
@@ -1123,6 +1142,85 @@ def listar_debug_placas():
 @app.route("/debug_placas/<path:nombre_archivo>")
 def ver_debug_placa(nombre_archivo):
     return send_from_directory(CARPETA_DEBUG_PLACAS, nombre_archivo)
+
+@app.route("/procesar_frame_navegador", methods=["POST"])
+def procesar_frame_navegador():
+    """
+    Recibe un fotograma suelto capturado desde la webcam del navegador
+    (getUserMedia + canvas.toBlob en el frontend) y lo procesa con el
+    mismo pipeline de deteccion/OCR que ya usa la camara USB.
+    No reemplaza /video_feed ni el hilo de captura USB: es una fuente
+    adicional e independiente.
+    """
+    global ultimo_ocr_navegador, ultimo_registro_navegador
+
+    if "frame" not in request.files:
+        return jsonify({
+            "error": "No se envio ningun archivo de imagen (campo 'frame')."
+        }), 400
+
+    archivo = request.files["frame"]
+    datos = archivo.read()
+
+    if not datos:
+        return jsonify({"error": "El archivo de imagen esta vacio."}), 400
+
+    try:
+        np_arr = np.frombuffer(datos, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    except Exception as e:
+        logger.error(f"Error decodificando frame del navegador: {e}")
+        return jsonify({"error": "No se pudo decodificar la imagen recibida."}), 400
+
+    if frame is None:
+        return jsonify({"error": "No se pudo decodificar la imagen recibida."}), 400
+
+    ahora = time.time()
+
+    if ahora - ultimo_ocr_navegador < 1.0:
+        return jsonify({
+            "detectado": False,
+            "mensaje": "Esperando intervalo minimo entre lecturas."
+        })
+
+    ultimo_ocr_navegador = ahora
+
+    region = detectar_region_placa(frame)
+
+    if not region:
+        return jsonify({
+            "detectado": False,
+            "mensaje": "No se detecto ninguna region de placa."
+        })
+
+    with lpr_lock:
+        texto_placa = leer_placa_ocr(frame, region)
+
+    if not texto_placa or not placa_valida(texto_placa):
+        return jsonify({
+            "detectado": False,
+            "mensaje": "No se pudo leer una placa valida."
+        })
+
+    confianza = calcular_confianza_placa(texto_placa)
+    registrado = False
+
+    if ahora - ultimo_registro_navegador >= 3.0:
+        registrar_deteccion(
+            placa=texto_placa,
+            confianza=confianza,
+            tipo="ocr_webcam_navegador"
+        )
+        ultimo_registro_navegador = ahora
+        registrado = True
+
+    return jsonify({
+        "detectado": True,
+        "placa": texto_placa,
+        "confianza": confianza,
+        "registrado": registrado
+    })
+
 
 @app.route("/config")
 def config():
