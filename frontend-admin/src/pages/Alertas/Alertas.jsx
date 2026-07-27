@@ -129,25 +129,34 @@ function Alertas() {
   };
 
   const obtenerPlaca = (alerta) => {
-    return (
-      alerta?.vehiculo_placa ||
-      alerta?.aviso_detalle?.vehiculo_placa ||
-      alerta?.placa ||
-      alerta?.vehiculo?.placa ||
-      alerta?.vehiculo ||
-      "Sin dato"
-    );
-  };
+  return (
+    alerta?.vehiculo_placa ||
+    alerta?.aviso_detalle?.vehiculo_placa ||
+    alerta?.placa ||
+    alerta?.vehiculo?.placa ||
+    "Sin dato"
+  );
+};
 
   const obtenerVehiculo = (alerta) => {
-    return (
-      alerta?.vehiculo_marca ||
-      alerta?.vehiculo_modelo?.marca ||
-      alerta?.vehiculo_modelo ||
-      alerta?.aviso_modelo?.vehiculo_marca ||
-      "Sin dato"
-    );
-  };
+  const marca =
+    alerta?.vehiculo_marca ||
+    alerta?.vehiculo?.marca ||
+    alerta?.aviso_detalle?.vehiculo_marca ||
+    alerta?.aviso?.vehiculo?.marca ||
+    "";
+
+  const modelo =
+    alerta?.vehiculo_modelo ||
+    alerta?.vehiculo?.modelo ||
+    alerta?.aviso_detalle?.vehiculo_modelo ||
+    alerta?.aviso?.vehiculo?.modelo ||
+    "";
+
+  const textoVehiculo = `${marca} ${modelo}`.trim();
+
+  return textoVehiculo || "Sin dato";
+};
 
   const obtenerPeaje = (alerta) => {
     return (
