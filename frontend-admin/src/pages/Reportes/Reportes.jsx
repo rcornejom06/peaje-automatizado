@@ -12,14 +12,26 @@ import "../Styles/Reportes.css";
 import ModuleHeader from "../../components/ModuleHeader/ModuleHeader";
 
 
+// Fecha local (no UTC) en formato YYYY-MM-DD, para que el filtro por
+// defecto sea "hoy" segun la hora del navegador del usuario, no la de UTC.
+const obtenerFechaHoyLocal = () => {
+    const ahora = new Date();
+    const offsetMs = ahora.getTimezoneOffset() * 60000;
+    const local = new Date(ahora.getTime() - offsetMs);
+    return local.toISOString().slice(0, 10);
+};
+
 function Reportes() {
     const [tab, setTab] = useState("recaudacion");
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState("");
 
+    // Un solo campo de fecha (no un rango): fecha_inicio y fecha_fin
+    // siempre se mandan iguales, para filtrar "ese dia" exactamente.
+    // Arranca en el dia de hoy en vez de mostrar todo el historial.
     const [filtros, setFiltros] = useState({
-        fecha_inicio: "",
-        fecha_fin: "",
+        fecha_inicio: obtenerFechaHoyLocal(),
+        fecha_fin: obtenerFechaHoyLocal(),
     });
 
     const [resumen, setResumen] = useState(null);
@@ -70,6 +82,18 @@ function Reportes() {
             ...filtros,
             [e.target.name]: e.target.value,
         });
+    };
+
+    // El input de fecha unico actualiza fecha_inicio y fecha_fin al mismo
+    // valor, para que el backend filtre exactamente ese dia.
+    const handleFechaChange = (e) => {
+        const nuevaFecha = e.target.value;
+
+        setFiltros((actual) => ({
+            ...actual,
+            fecha_inicio: nuevaFecha,
+            fecha_fin: nuevaFecha,
+        }));
     };
 
     const limpiarFiltros = async () => {
@@ -960,12 +984,12 @@ function Reportes() {
 
             <div className="filtros-card">
                 <div className="form-group">
-                    <label>Fecha inicio</label>
+                    <label>Fecha</label>
                     <input
                         type="date"
-                        name="fecha_inicio"
+                        name="fecha"
                         value={filtros.fecha_inicio}
-                        onChange={handleFiltroChange}
+                        onChange={handleFechaChange}
                     />
                 </div>
 
