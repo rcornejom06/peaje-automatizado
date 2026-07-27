@@ -207,7 +207,10 @@ function Dashboard() {
                         Aplicar
                     </button>
 
-                    <button className="dashboard-refresh" onClick={limpiarFecha}>
+                    <button
+                        className="dashboard-refresh btn-ver-todo"
+                        onClick={limpiarFecha}
+                    >
                         Ver todo
                     </button>
                 </div>
