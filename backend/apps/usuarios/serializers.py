@@ -17,6 +17,17 @@ User = get_user_model()
 
 class MiTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
+       
+        login_ingresado = (attrs.get(self.username_field) or "").strip()
+
+        if "@" in login_ingresado:
+            usuario_por_correo = User.objects.filter(
+                email__iexact=login_ingresado
+            ).first()
+
+            if usuario_por_correo:
+                attrs[self.username_field] = usuario_por_correo.username
+
         data = super().validate(attrs)
 
         perfil = getattr(self.user, "perfil", None)
