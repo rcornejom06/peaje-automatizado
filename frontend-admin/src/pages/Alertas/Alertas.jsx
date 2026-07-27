@@ -138,26 +138,6 @@ function Alertas() {
   );
 };
 
-  const obtenerVehiculo = (alerta) => {
-  const marca =
-    alerta?.vehiculo_marca ||
-    alerta?.vehiculo?.marca ||
-    alerta?.aviso_detalle?.vehiculo_marca ||
-    alerta?.aviso?.vehiculo?.marca ||
-    "";
-
-  const modelo =
-    alerta?.vehiculo_modelo ||
-    alerta?.vehiculo?.modelo ||
-    alerta?.aviso_detalle?.vehiculo_modelo ||
-    alerta?.aviso?.vehiculo?.modelo ||
-    "";
-
-  const textoVehiculo = `${marca} ${modelo}`.trim();
-
-  return textoVehiculo || "Sin dato";
-};
-
   const obtenerPeaje = (alerta) => {
     return (
       alerta?.peaje_nombre ||
@@ -371,7 +351,6 @@ function Alertas() {
           <thead>
             <tr>
               <th>Placa</th>
-              <th>Vehículo</th>
               <th>Peaje</th>
               <th>Tipo</th>
               <th>Estado</th>
@@ -396,8 +375,6 @@ function Alertas() {
                         {obtenerPlaca(alerta)}
                       </strong>
                     </td>
-
-                    <td>{obtenerVehiculo(alerta)}</td>
 
                     <td>{obtenerPeaje(alerta)}</td>
 
