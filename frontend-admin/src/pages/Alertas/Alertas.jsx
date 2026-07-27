@@ -141,10 +141,10 @@ function Alertas() {
 
   const obtenerVehiculo = (alerta) => {
     return (
-      alerta?.vehiculo_nombre ||
-      alerta?.vehiculo_detalle?.nombre ||
-      alerta?.vehiculo_detalle ||
-      alerta?.aviso_detalle?.vehiculo_placa ||
+      alerta?.vehiculo_marca ||
+      alerta?.vehiculo_modelo?.marca ||
+      alerta?.vehiculo_modelo ||
+      alerta?.aviso_modelo?.vehiculo_marca ||
       "Sin dato"
     );
   };
