@@ -145,7 +145,7 @@ function Alertas() {
       alerta?.vehiculo_detalle?.nombre ||
       alerta?.vehiculo_detalle ||
       alerta?.aviso_detalle?.vehiculo_placa ||
-      obtenerPlaca(alerta)
+      "Sin dato"
     );
   };
 
