@@ -668,4 +668,45 @@
   .dashboard-table-card td {
     padding: 13px 14px;
   }
+  /* Filtro de fecha del Dashboard — agregar al final de Dashboard.css */
+
+.dashboard-filtro-fecha {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dashboard-filtro-fecha label {
+    font-size: 13px;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.dashboard-filtro-fecha input[type="date"] {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.dashboard-filtro-fecha input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+@media (max-width: 700px) {
+    .dashboard-filtro-fecha {
+        width: 100%;
+    }
+
+    .dashboard-filtro-fecha input[type="date"] {
+        flex: 1;
+        min-width: 0;
+    }
+
 }
