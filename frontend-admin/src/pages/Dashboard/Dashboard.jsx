@@ -25,6 +25,15 @@ import "../Styles/Dashboard.css";
 
 const chartColors = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"];
 
+// Fecha local (no UTC) en formato YYYY-MM-DD, para que el filtro por
+// defecto sea "hoy" segun la hora del navegador del usuario, no la de UTC.
+const obtenerFechaHoyLocal = () => {
+    const ahora = new Date();
+    const offsetMs = ahora.getTimezoneOffset() * 60000;
+    const local = new Date(ahora.getTime() - offsetMs);
+    return local.toISOString().slice(0, 10);
+};
+
 function Dashboard() {
     const [resumen, setResumen] = useState(null);
     const [recaudacion, setRecaudacion] = useState(null);
@@ -32,15 +41,23 @@ function Dashboard() {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
 
-    const cargarDatos = async () => {
+    // Un solo campo de fecha (no un rango): fecha_inicio y fecha_fin
+    // siempre se mandan iguales, para filtrar "ese dia" exactamente.
+    // Arranca en el dia de hoy en vez de mostrar todo el historial.
+    const [filtros, setFiltros] = useState({
+        fecha_inicio: obtenerFechaHoyLocal(),
+        fecha_fin: obtenerFechaHoyLocal(),
+    });
+
+    const cargarDatos = async (filtrosActuales = filtros) => {
         try {
             setCargando(true);
             setError("");
 
             const [resumenData, recaudacionData, alertasData] = await Promise.all([
-                obtenerResumen(),
-                obtenerRecaudacion(),
-                obtenerAlertas(),
+                obtenerResumen(filtrosActuales),
+                obtenerRecaudacion(filtrosActuales),
+                obtenerAlertas(filtrosActuales),
             ]);
 
             setResumen(resumenData);
@@ -54,8 +71,27 @@ function Dashboard() {
         }
     };
 
+    // El input de fecha unico actualiza fecha_inicio y fecha_fin al mismo
+    // valor, para que el backend filtre exactamente ese dia.
+    const handleFechaChange = (e) => {
+        const nuevaFecha = e.target.value;
+
+        setFiltros((actual) => ({
+            ...actual,
+            fecha_inicio: nuevaFecha,
+            fecha_fin: nuevaFecha,
+        }));
+    };
+
+    const limpiarFecha = async () => {
+        const filtrosLimpios = {fecha_inicio: "", fecha_fin: ""};
+        setFiltros(filtrosLimpios);
+        await cargarDatos(filtrosLimpios);
+    };
+
     useEffect(() => {
         cargarDatos();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const datosRecaudacion = useMemo(() => {
@@ -135,7 +171,7 @@ function Dashboard() {
                 <div className="dashboard-error-card">
                     <h2>Dashboard</h2>
                     <div className="dashboard-error">{error}</div>
-                    <button className="dashboard-retry" onClick={cargarDatos}>
+                    <button className="dashboard-retry" onClick={() => cargarDatos()}>
                         Reintentar
                     </button>
                 </div>
@@ -155,9 +191,26 @@ function Dashboard() {
                     </p>
                 </div>
 
-                <button className="dashboard-refresh" onClick={cargarDatos}>
-                    Actualizar datos
-                </button>
+                <div className="dashboard-filtro-fecha">
+                    <label htmlFor="dashboard-fecha">Fecha</label>
+                    <input
+                        id="dashboard-fecha"
+                        type="date"
+                        value={filtros.fecha_inicio}
+                        onChange={handleFechaChange}
+                    />
+
+                    <button
+                        className="dashboard-refresh"
+                        onClick={() => cargarDatos()}
+                    >
+                        Aplicar
+                    </button>
+
+                    <button className="dashboard-refresh" onClick={limpiarFecha}>
+                        Ver todo
+                    </button>
+                </div>
             </div>
 
             <div className="stats-grid">
