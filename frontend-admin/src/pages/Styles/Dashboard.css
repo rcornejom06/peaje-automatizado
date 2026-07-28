@@ -154,8 +154,14 @@
 .dashboard-filtro-fecha {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.dashboard-filtro-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .dashboard-filtro-fecha label {
@@ -164,6 +170,11 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #dbeafe;
+  margin-left: 4px;
+}
+
+.dashboard-filtro-fecha label:first-of-type {
+  margin-left: 0;
 }
 
 .dashboard-filtro-fecha input[type="date"] {
@@ -673,9 +684,15 @@
     width: 100%;
   }
 
+  .dashboard-filtro-campo {
+    flex: 1;
+    min-width: 130px;
+  }
+
   .dashboard-filtro-fecha input[type="date"] {
     flex: 1;
     min-width: 0;
+    width: 100%;
   }
 
   .stats-grid {
