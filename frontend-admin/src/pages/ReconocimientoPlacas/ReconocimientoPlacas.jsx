@@ -332,6 +332,37 @@ function ReconocimientoPlacas() {
         return estado;
     };
 
+    const generarJsonComprobanteQr = (comprobante) => {
+    if (!comprobante) {
+        return "{}";
+    }
+
+    return JSON.stringify(
+        {
+            sistema: "VíaSmart",
+            tipo_documento: "Comprobante de peaje",
+            ticket: comprobante.ticket || "",
+            placa: comprobante.placa || "",
+            peaje: comprobante.peaje || "",
+            empresa: comprobante.empresa || "",
+            documento: comprobante.documento || "",
+            carril: comprobante.carril || "",
+            categoria: comprobante.categoria || "",
+            cliente: comprobante.tipo_cliente || "",
+            forma_pago: comprobante.metodo_pago || "",
+            vehiculo: comprobante.vehiculo || "",
+            usuario: comprobante.usuario || "",
+            fecha_hora: comprobante.fecha_hora || "",
+            estado_pago: comprobante.estado_pago || "",
+            estado_seguridad: comprobante.estado_seguridad || "",
+            valor: comprobante.valor || 0,
+            observacion: comprobante.observacion || "",
+        },
+        null,
+        2
+    );
+};
+
 
     return (
         <div className="lpr-page">
@@ -728,11 +759,11 @@ function ReconocimientoPlacas() {
 
                                 <div className="thermal-qr">
                                     <QRCodeCanvas
-                                        value={comprobanteSeleccionado.codigo_qr || comprobanteSeleccionado.ticket}
-                                        size={150}
+                                        value={generarJsonComprobanteQr(comprobanteSeleccionado)}
+                                        size={180}
                                         level="M"
                                         includeMargin
-                                    />
+                                        />
                                 </div>
 
                                 <div className="thermal-footer">
