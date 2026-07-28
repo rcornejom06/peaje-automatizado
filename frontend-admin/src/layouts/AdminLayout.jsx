@@ -1,4 +1,4 @@
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {NavLink, Outlet, useLocation, useNavigate} from "react-router-dom";
 import {getStoredProfile, logout} from "../auth/authService";
 import "../layouts/styles/AdminLayout.css";
@@ -85,6 +85,7 @@ function AdminLayout() {
 
     const [sidebarOculto, setSidebarOculto] = useState(false);
     const [sidebarMovilAbierto, setSidebarMovilAbierto] = useState(false);
+    const [modalAbierto, setModalAbierto] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -106,6 +107,37 @@ function AdminLayout() {
         setSidebarOculto((actual) => !actual);
     };
 
+    useEffect(() => {
+        const selectoresModal = [
+            ".modal-overlay",
+            ".receipt-overlay",
+            ".modal-backdrop",
+            ".vehiculo-modal-overlay",
+            ".membresia-modal-overlay",
+            ".reactivacion-modal-overlay",
+            "[role='dialog']",
+        ];
+        const verificarModalAbierto = () => {
+            const existeModal = selectoresModal.some((selector) =>
+                document.querySelector(selector)
+                                                    );
+            setModalAbierto(existeModal);
+        };
+
+    verificarModalAbierto();
+
+    const observer = new MutationObserver(verificarModalAbierto);
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["class", "style"],
+    });
+
+    return () => observer.disconnect();
+}, []);
+
     return (
         <div
             className={`admin-layout ${sidebarOculto ? "sidebar-collapsed" : ""} ${
@@ -113,7 +145,7 @@ function AdminLayout() {
             }`}
         >
             <button
-                className="mobile-menu-button"
+                className={`mobile-menu-button ${modalAbierto ? "menu-button-hidden" : ""}`}
                 type="button"
                 onClick={handleMenuButton}
                 aria-label={sidebarOculto ? "Expandir menú" : "Contraer menú"}
