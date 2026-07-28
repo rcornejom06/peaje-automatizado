@@ -180,14 +180,40 @@ function ReconocimientoPlacas() {
     };
 
     const formatearFecha = (fecha) => {
-        if (!fecha) return "Sin fecha";
+    if (!fecha) return "Sin fecha";
 
-        try {
-            return new Date(fecha).toLocaleString();
-        } catch {
-            return fecha;
+    try {
+        let fechaNormalizada = fecha;
+
+        // Si Flask manda: "2026-07-28 15:30:00"
+        // lo convertimos a formato ISO.
+        if (typeof fechaNormalizada === "string") {
+            fechaNormalizada = fechaNormalizada.replace(" ", "T");
+
+            // Si no viene con zona horaria, asumimos que viene en UTC desde el servidor.
+            if (
+                !fechaNormalizada.endsWith("Z") &&
+                !fechaNormalizada.includes("+") &&
+                !fechaNormalizada.match(/-\d{2}:\d{2}$/)
+            ) {
+                fechaNormalizada = `${fechaNormalizada}Z`;
+            }
         }
-    };
+
+        return new Date(fechaNormalizada).toLocaleString("es-EC", {
+            timeZone: "America/Guayaquil",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+        });
+    } catch {
+        return fecha;
+    }
+};
 
     const formatearDinero = (valor) => {
         const numero = Number(valor || 0);
@@ -427,7 +453,11 @@ function ReconocimientoPlacas() {
                             <div className="info-grid">
                                 <div>
                                     <span>Fecha / Hora</span>
-                                    <strong>{ultimaDeteccion?.fecha_hora || "--"}</strong>
+                                    <strong>
+                                        {ultimaDeteccion?.fecha_hora
+                                        ? formatearFecha(ultimaDeteccion.fecha_hora)
+                                        : "--"}
+                                    </strong>
                                 </div>
 
                                 <div>
@@ -513,7 +543,7 @@ function ReconocimientoPlacas() {
                                 .map((item, index) => (
                                     <div className="recent-detection" key={index}>
                                         <strong>{item.placa}</strong>
-                                        <span>{item.fecha_hora}</span>
+                                        <span>{formatearFecha(item.fecha_hora)}</span>
                                     </div>
                                 ))
                         ) : (
@@ -562,7 +592,7 @@ function ReconocimientoPlacas() {
                                 .reverse()
                                 .map((item, index) => (
                                     <tr key={index}>
-                                        <td>{item.fecha_hora}</td>
+                                        <td>{formatearFecha(item.fecha_hora)}</td>
                                         <td>{item.placa}</td>
                                         <td>{obtenerPeajeDeteccion(item)}</td>
                                         <td>{item.confianza}%</td>
