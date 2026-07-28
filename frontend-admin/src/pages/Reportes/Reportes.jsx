@@ -84,18 +84,6 @@ function Reportes() {
         });
     };
 
-    // El input de fecha unico actualiza fecha_inicio y fecha_fin al mismo
-    // valor, para que el backend filtre exactamente ese dia.
-    const handleFechaChange = (e) => {
-        const nuevaFecha = e.target.value;
-
-        setFiltros((actual) => ({
-            ...actual,
-            fecha_inicio: nuevaFecha,
-            fecha_fin: nuevaFecha,
-        }));
-    };
-
     const limpiarFiltros = async () => {
         const filtrosLimpios = {
             fecha_inicio: "",
@@ -984,12 +972,22 @@ function Reportes() {
 
             <div className="filtros-card">
                 <div className="form-group">
-                    <label>Fecha</label>
+                    <label>Desde</label>
                     <input
                         type="date"
-                        name="fecha"
+                        name="fecha_inicio"
                         value={filtros.fecha_inicio}
-                        onChange={handleFechaChange}
+                        onChange={handleFiltroChange}
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>Hasta</label>
+                    <input
+                        type="date"
+                        name="fecha_fin"
+                        value={filtros.fecha_fin}
+                        onChange={handleFiltroChange}
                     />
                 </div>
 
