@@ -71,15 +71,10 @@ function Dashboard() {
         }
     };
 
-    // El input de fecha unico actualiza fecha_inicio y fecha_fin al mismo
-    // valor, para que el backend filtre exactamente ese dia.
-    const handleFechaChange = (e) => {
-        const nuevaFecha = e.target.value;
-
+    const handleFiltroChange = (e) => {
         setFiltros((actual) => ({
             ...actual,
-            fecha_inicio: nuevaFecha,
-            fecha_fin: nuevaFecha,
+            [e.target.name]: e.target.value,
         }));
     };
 
@@ -192,13 +187,27 @@ function Dashboard() {
                 </div>
 
                 <div className="dashboard-filtro-fecha">
-                    <label htmlFor="dashboard-fecha">Fecha</label>
-                    <input
-                        id="dashboard-fecha"
-                        type="date"
-                        value={filtros.fecha_inicio}
-                        onChange={handleFechaChange}
-                    />
+                    <div className="dashboard-filtro-campo">
+                        <label htmlFor="dashboard-fecha-desde">Desde</label>
+                        <input
+                            id="dashboard-fecha-desde"
+                            type="date"
+                            name="fecha_inicio"
+                            value={filtros.fecha_inicio}
+                            onChange={handleFiltroChange}
+                        />
+                    </div>
+
+                    <div className="dashboard-filtro-campo">
+                        <label htmlFor="dashboard-fecha-hasta">Hasta</label>
+                        <input
+                            id="dashboard-fecha-hasta"
+                            type="date"
+                            name="fecha_fin"
+                            value={filtros.fecha_fin}
+                            onChange={handleFiltroChange}
+                        />
+                    </div>
 
                     <button
                         className="dashboard-refresh"
