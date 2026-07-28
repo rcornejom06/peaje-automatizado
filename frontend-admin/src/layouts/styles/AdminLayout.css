@@ -668,3 +668,9 @@
   color: var(--text-muted, #64748b);
   letter-spacing: 0.02em;
 }
+.mobile-menu-button.menu-button-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: scale(0.92);
+}
