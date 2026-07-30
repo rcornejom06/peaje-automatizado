@@ -45,6 +45,19 @@ function ReconocimientoPlacas() {
         ].join("|");
     };
 
+    // Igual que crearClaveDeteccion, pero sin el paso_id: sirve para
+    // identificar "la misma detección" antes y después de que Django la
+    // enriquezca (antes de eso todavía no tiene paso_id asignado).
+    const crearClaveSinPaso = (deteccion) => {
+        if (!deteccion) return "";
+        return [
+            deteccion?.placa || "",
+            deteccion?.fecha_hora || "",
+            deteccion?.confianza || "",
+            deteccion?.tipo || "",
+        ].join("|");
+    };
+
     const cargarDetecciones = async () => {
         try {
     
@@ -78,7 +91,34 @@ function ReconocimientoPlacas() {
             return !clavesDeteccionesInicialesRef.current.has(clave);
         });
 
-        setHistorial(historialNuevo);
+        // La última detección (dataUltima) llega de inmediato desde
+        // /last_detection, pero /detections (historialNuevo) solo la
+        // incluye una vez que Django terminó de procesarla (peaje,
+        // tarifa, etc.), lo cual demora un poco más. Para que el
+        // historial no se quede "atrás" respecto a la última captura,
+        // la agregamos aquí mismo apenas llega, y se reemplaza sola en
+        // cuanto /detections trae la versión completa (misma placa,
+        // fecha_hora, confianza y tipo).
+        let historialConUltima = historialNuevo;
+
+        if (
+            dataUltima.detectado &&
+            dataUltima.deteccion &&
+            !clavesDeteccionesInicialesRef.current.has(
+                crearClaveDeteccion(dataUltima.deteccion)
+            )
+        ) {
+            const claveUltimaSinPaso = crearClaveSinPaso(dataUltima.deteccion);
+            const yaEstaEnHistorial = historialNuevo.some(
+                (item) => crearClaveSinPaso(item) === claveUltimaSinPaso
+            );
+
+            if (!yaEstaEnHistorial) {
+                historialConUltima = [...historialNuevo, dataUltima.deteccion];
+            }
+        }
+
+        setHistorial(historialConUltima);
 
         if (dataUltima.detectado && dataUltima.deteccion) {
             const claveUltima = crearClaveDeteccion(dataUltima.deteccion);
@@ -355,7 +395,7 @@ function ReconocimientoPlacas() {
     };
 
     const obtenerPeajeDeteccion = (deteccion) => {
-        return deteccion?.django?.peaje || "Durán Tambo";
+        return deteccion?.django?.peaje || "Cargando peaje...";
     };
 
     const obtenerTarifaDeteccion = (deteccion) => {
