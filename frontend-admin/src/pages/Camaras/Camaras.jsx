@@ -6,6 +6,36 @@ import ModuleHeader from "../../components/ModuleHeader/ModuleHeader";
 
 const fechaActual = () => new Date().toISOString().slice(0, 10);
 
+// Patrones de validación por tipo de dato
+const REGEX_CODIGO_CAMARA = /^[A-Z0-9-]{3,20}$/;
+const REGEX_UBICACION = /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9.,#-]+(?: [A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9.,#-]+)*$/;
+const REGEX_TIPO_CAMARA = /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9]+(?: [A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9]+)*$/;
+const REGEX_INDICE_USB = /^\d+$/;
+const REGEX_STREAM_URL = /^[A-Za-z0-9:/._\-?=&@%#~+]+$/;
+
+// Filtra caracteres mientras el usuario escribe (evita espacios y símbolos no permitidos)
+const filtrarCodigoCamara = (valor) =>
+    String(valor)
+        .toUpperCase()
+        .replace(/[^A-Z0-9-]/g, "");
+
+const filtrarUbicacion = (valor) =>
+    String(valor)
+        .replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9.,#-\s]/g, "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/^\s+/, "");
+
+const filtrarTipoCamara = (valor) =>
+    String(valor)
+        .replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9\s]/g, "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/^\s+/, "");
+
+const filtrarIndiceUsb = (valor) => String(valor).replace(/[^0-9]/g, "");
+
+const filtrarStreamUrl = (valor) =>
+    String(valor).replace(/[^A-Za-z0-9:/._\-?=&@%#~+]/g, "");
+
 const normalizarLista = (data) => {
     if (Array.isArray(data)) return data;
     if (Array.isArray(data?.results)) return data.results;
@@ -68,15 +98,41 @@ function Camaras() {
     const handleChange = (e) => {
         const {name, type, checked, value} = e.target;
 
+        let valorLimpio = value;
+
+        switch (name) {
+            case "codigo":
+                valorLimpio = filtrarCodigoCamara(value);
+                break;
+            case "ubicacion":
+                valorLimpio = filtrarUbicacion(value);
+                break;
+            case "tipo_camara":
+                valorLimpio = filtrarTipoCamara(value);
+                break;
+            default:
+                valorLimpio = value;
+        }
+
         setFormulario((actual) => {
+            let valorCampo = type === "checkbox" ? checked : valorLimpio;
+
+            if (name === "stream_url") {
+                valorCampo =
+                    actual.tipo_fuente === "usb"
+                        ? filtrarIndiceUsb(value)
+                        : filtrarStreamUrl(value);
+            }
+
             const nuevoFormulario = {
                 ...actual,
-                [name]: type === "checkbox" ? checked : value,
+                [name]: valorCampo,
             };
 
             if (name === "tipo_fuente") {
                 if (value === "usb") {
-                    nuevoFormulario.stream_url = actual.stream_url || "0";
+                    nuevoFormulario.stream_url =
+                        filtrarIndiceUsb(actual.stream_url) || "0";
                 } else if (actual.stream_url === "0") {
                     nuevoFormulario.stream_url = "";
                 }
@@ -119,19 +175,56 @@ function Camaras() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!formulario.codigo.trim()) {
+            setError("Ingrese el código de la cámara.");
+            return;
+        }
+
+        if (!REGEX_CODIGO_CAMARA.test(formulario.codigo.trim().toUpperCase())) {
+            setError("El código debe tener entre 3 y 20 letras, números o guiones, sin espacios.");
+            return;
+        }
+
         if (!formulario.peaje) {
             setError("Debe seleccionar el peaje donde estará instalada la cámara.");
             return;
         }
 
-        if (formulario.tipo_fuente === "usb" && Number.isNaN(Number(formulario.stream_url))) {
-            setError("Para una cámara USB, el índice debe ser numérico. Ejemplo: 0, 1 o 2.");
+        if (!formulario.ubicacion.trim()) {
+            setError("Ingrese la ubicación de la cámara.");
             return;
         }
 
-        if (formulario.tipo_fuente !== "usb" && !formulario.stream_url.trim()) {
-            setError("Debe ingresar la URL o ruta de la fuente de video.");
+        if (!REGEX_UBICACION.test(formulario.ubicacion.trim())) {
+            setError("La ubicación contiene caracteres no permitidos.");
             return;
+        }
+
+        if (!formulario.tipo_camara.trim()) {
+            setError("Ingrese el tipo de cámara.");
+            return;
+        }
+
+        if (!REGEX_TIPO_CAMARA.test(formulario.tipo_camara.trim())) {
+            setError("El tipo de cámara solo puede contener letras, números y espacios.");
+            return;
+        }
+
+        if (formulario.tipo_fuente === "usb") {
+            if (!REGEX_INDICE_USB.test(formulario.stream_url.trim())) {
+                setError("Para una cámara USB, el índice debe ser numérico. Ejemplo: 0, 1 o 2.");
+                return;
+            }
+        } else {
+            if (!formulario.stream_url.trim()) {
+                setError("Debe ingresar la URL o ruta de la fuente de video.");
+                return;
+            }
+
+            if (!REGEX_STREAM_URL.test(formulario.stream_url.trim())) {
+                setError("La URL o ruta de video contiene caracteres no permitidos (sin espacios).");
+                return;
+            }
         }
 
         try {
@@ -220,6 +313,7 @@ function Camaras() {
                                 value={formulario.codigo}
                                 onChange={handleChange}
                                 placeholder="Ej: CAM-USB-01"
+                                maxLength={20}
                                 required
                             />
                         </div>
@@ -249,6 +343,7 @@ function Camaras() {
                                 value={formulario.ubicacion}
                                 onChange={handleChange}
                                 placeholder="Ej: Carril 1"
+                                maxLength={100}
                                 required
                             />
                         </div>
@@ -261,6 +356,7 @@ function Camaras() {
                                 value={formulario.tipo_camara}
                                 onChange={handleChange}
                                 placeholder="ANPR"
+                                maxLength={50}
                                 required
                             />
                         </div>
@@ -288,9 +384,11 @@ function Camaras() {
                             <input
                                 type="text"
                                 name="stream_url"
+                                inputMode={formulario.tipo_fuente === "usb" ? "numeric" : "text"}
                                 value={formulario.stream_url}
                                 onChange={handleChange}
                                 placeholder={formulario.tipo_fuente === "usb" ? "0" : "rtsp://..."}
+                                maxLength={formulario.tipo_fuente === "usb" ? 2 : 300}
                                 required={formulario.tipo_fuente !== "usb"}
                             />
                         </div>
