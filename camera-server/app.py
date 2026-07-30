@@ -863,22 +863,41 @@ def leer_placa_ocr(frame, region):
             "--oem 3 --psm 11 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
         ]
 
+        # Aplanado en una sola lista de tareas (version, imagen, config) para
+        # poder cortar con un solo "break" en cuanto haya consenso, en vez de
+        # tener que correr siempre las 12 combinaciones (4 versiones x 3
+        # configs), que es lo que hacia esto lento (~1.7s por fotograma).
+        tareas = [
+            (nombre_version, imagen, config)
+            for nombre_version, imagen in versiones
+            for config in configs
+        ]
+
         candidatos = []
 
-        for nombre_version, imagen in versiones:
-            for config in configs:
-                texto = pytesseract.image_to_string(imagen, config=config)
-                texto_limpio = limpiar_texto_placa(texto)
-                texto_corregido = corregir_errores_comunes_ocr(texto_limpio)
+        for nombre_version, imagen, config in tareas:
+            texto = pytesseract.image_to_string(imagen, config=config)
+            texto_limpio = limpiar_texto_placa(texto)
+            texto_corregido = corregir_errores_comunes_ocr(texto_limpio)
 
-                if texto_limpio:
-                    logger.info(
-                        f"OCR [{nombre_version}] bruto: {repr(texto)} | "
-                        f"limpio: {texto_limpio} | corregido: {texto_corregido}"
-                    )
+            if texto_limpio:
+                logger.info(
+                    f"OCR [{nombre_version}] bruto: {repr(texto)} | "
+                    f"limpio: {texto_limpio} | corregido: {texto_corregido}"
+                )
 
-                if placa_valida(texto_corregido):
-                    candidatos.append(texto_corregido)
+            if placa_valida(texto_corregido):
+                candidatos.append(texto_corregido)
+
+                # Salida temprana: en cuanto 2 lecturas independientes
+                # coinciden exactamente en la misma placa, ya hay consenso
+                # suficiente (misma logica de "segunda opinion" que ya
+                # tenias, solo que ahora no sigue preguntando una vez que
+                # ya hay acuerdo). Esto es lo que realmente acelera el
+                # reconocimiento, mucho mas que bajar el intervalo entre
+                # capturas.
+                if candidatos.count(texto_corregido) >= 2:
+                    break
 
         if not candidatos:
             return ""
@@ -1202,7 +1221,10 @@ def procesar_frame_navegador():
 
     ahora = time.time()
 
-    if ahora - ultimo_ocr_navegador < 2.0:
+    # Intervalo entre lecturas de OCR: antes 2.0s, reducido a 0.8s para que
+    # el reconocimiento se sienta mucho mas fluido. Si tu equipo es lento y
+    # esto satura el servidor (se acumulan peticiones), sube este numero.
+    if ahora - ultimo_ocr_navegador < 0.8:
         return jsonify({
             "detectado": False,
             "mensaje": "Esperando intervalo minimo entre lecturas."
@@ -1224,7 +1246,11 @@ def procesar_frame_navegador():
     if not texto_placa or not placa_valida(texto_placa):
         return jsonify({
             "detectado": False,
-            "mensaje": "No se pudo leer una placa valida."
+            "mensaje": "No se pudo leer una placa valida.",
+            # Se manda la region igual, aunque no se haya podido leer texto
+            # todavia: asi el frontend puede dibujar el rectangulo de
+            # "escaneando..." igual que ya hace el stream de la camara USB.
+            "region": region,
         })
 
     confianza = calcular_confianza_placa(texto_placa)
@@ -1243,7 +1269,8 @@ def procesar_frame_navegador():
         "detectado": True,
         "placa": texto_placa,
         "confianza": confianza,
-        "registrado": registrado
+        "registrado": registrado,
+        "region": region,
     })
 
 
