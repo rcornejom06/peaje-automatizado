@@ -11,6 +11,56 @@ import {
 import ModuleHeader from "../../components/ModuleHeader/ModuleHeader";
 import "../Styles/Peajes.css";
 
+// Patrones de validación por tipo de dato
+const REGEX_SOLO_LETRAS = /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+(?: [A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+)*$/;
+const REGEX_UBICACION = /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9.,#-]+(?: [A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9.,#-]+)*$/;
+const REGEX_COORDENADA = /^-?\d{1,3}(\.\d{1,7})?$/;
+const REGEX_CODIGO = /^[A-Z0-9]{2,15}$/;
+const REGEX_ENTERO = /^\d+$/;
+
+// Filtra caracteres mientras el usuario escribe (evita espacios y símbolos no permitidos)
+const filtrarSoloLetras = (valor) =>
+  String(valor)
+    .replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ\s]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^\s+/, "");
+
+const filtrarUbicacion = (valor) =>
+  String(valor)
+    .replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9.,#-\s]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^\s+/, "");
+
+const filtrarDescripcion = (valor) =>
+  String(valor)
+    .replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9.,-\s]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^\s+/, "");
+
+const filtrarEntero = (valor) => String(valor).replace(/[^0-9]/g, "");
+
+const filtrarCoordenada = (valor) => {
+  let limpio = String(valor).replace(/[^0-9.-]/g, "");
+  // Solo un signo negativo permitido, y únicamente al inicio
+  limpio = limpio.charAt(0) === "-" ? "-" + limpio.slice(1).replace(/-/g, "") : limpio.replace(/-/g, "");
+  // Solo un punto decimal permitido
+  const partesSigno = limpio.startsWith("-") ? limpio.slice(1) : limpio;
+  const partes = partesSigno.split(".");
+  const cuerpo = partes.length > 1 ? `${partes[0]}.${partes.slice(1).join("")}` : partesSigno;
+  return limpio.startsWith("-") ? `-${cuerpo}` : cuerpo;
+};
+
+const filtrarCodigo = (valor) =>
+  String(valor)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+const filtrarTarifa = (valor) => {
+  const limpio = String(valor).replace(/[^0-9.]/g, "");
+  const partes = limpio.split(".");
+  return partes.length > 1 ? `${partes[0]}.${partes.slice(1).join("")}` : limpio;
+};
+
 function Peajes() {
   const [peajes, setPeajes] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -227,25 +277,73 @@ function Peajes() {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    let valorLimpio = value;
+
+    switch (name) {
+      case "nombre":
+      case "ciudad":
+        valorLimpio = filtrarSoloLetras(value);
+        break;
+      case "ubicacion":
+        valorLimpio = filtrarUbicacion(value);
+        break;
+      case "latitud":
+      case "longitud":
+        valorLimpio = filtrarCoordenada(value);
+        break;
+      case "orden_en_via":
+        valorLimpio = filtrarEntero(value);
+        break;
+      default:
+        valorLimpio = value;
+    }
+
     setFormulario({
       ...formulario,
-      [e.target.name]: e.target.value,
+      [name]: valorLimpio,
     });
   };
 
   const handleTarifaChange = (categoriaId, valor) => {
     setTarifasCategoria({
       ...tarifasCategoria,
-      [categoriaId]: valor,
+      [categoriaId]: filtrarTarifa(valor),
     });
   };
 
   const validarFormularioPeaje = () => {
     if (!formulario.nombre.trim()) return "Ingrese el nombre del peaje.";
+    if (!REGEX_SOLO_LETRAS.test(formulario.nombre.trim())) {
+      return "El nombre del peaje solo puede contener letras y espacios (sin números ni caracteres especiales).";
+    }
+
     if (!formulario.ciudad.trim()) return "Ingrese la ciudad del peaje.";
+    if (!REGEX_SOLO_LETRAS.test(formulario.ciudad.trim())) {
+      return "La ciudad solo puede contener letras y espacios (sin números ni caracteres especiales).";
+    }
+
     if (!formulario.ubicacion.trim()) return "Ingrese la ubicación del peaje.";
+    if (!REGEX_UBICACION.test(formulario.ubicacion.trim())) {
+      return "La ubicación contiene caracteres no permitidos.";
+    }
+
     if (!formulario.latitud.trim()) return "Ingrese la latitud del peaje.";
+    if (!REGEX_COORDENADA.test(formulario.latitud.trim())) {
+      return "La latitud debe ser un valor numérico válido, sin espacios ni letras (ej: -2.1345000).";
+    }
+
     if (!formulario.longitud.trim()) return "Ingrese la longitud del peaje.";
+    if (!REGEX_COORDENADA.test(formulario.longitud.trim())) {
+      return "La longitud debe ser un valor numérico válido, sin espacios ni letras (ej: -79.5948000).";
+    }
+
+    if (
+      formulario.orden_en_via.trim() !== "" &&
+      !REGEX_ENTERO.test(formulario.orden_en_via.trim())
+    ) {
+      return "El orden en la vía debe ser un número entero, sin espacios ni caracteres especiales.";
+    }
 
     const orden = Number(formulario.orden_en_via || 0);
 
@@ -388,9 +486,36 @@ function Peajes() {
   const handleViaChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    if (type === "checkbox") {
+      setFormularioVia({
+        ...formularioVia,
+        [name]: checked,
+      });
+      return;
+    }
+
+    let valorLimpio = value;
+
+    switch (name) {
+      case "nombre":
+        valorLimpio = filtrarSoloLetras(value);
+        break;
+      case "codigo":
+        valorLimpio = filtrarCodigo(value);
+        break;
+      case "descripcion":
+        valorLimpio = filtrarDescripcion(value);
+        break;
+      case "tiempo_validez_minutos":
+        valorLimpio = filtrarEntero(value);
+        break;
+      default:
+        valorLimpio = value;
+    }
+
     setFormularioVia({
       ...formularioVia,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: valorLimpio,
     });
   };
 
@@ -399,8 +524,20 @@ function Peajes() {
       return "Ingrese el nombre de la vía concesionada.";
     }
 
+    if (!REGEX_SOLO_LETRAS.test(formularioVia.nombre.trim())) {
+      return "El nombre de la vía solo puede contener letras y espacios (sin números ni caracteres especiales).";
+    }
+
     if (!formularioVia.codigo.trim()) {
       return "Ingrese el código de la vía concesionada.";
+    }
+
+    if (!REGEX_CODIGO.test(formularioVia.codigo.trim().toUpperCase())) {
+      return "El código debe tener entre 2 y 15 letras o números, sin espacios ni caracteres especiales.";
+    }
+
+    if (!REGEX_ENTERO.test(String(formularioVia.tiempo_validez_minutos).trim())) {
+      return "El tiempo de validez debe ser un número entero, sin espacios ni caracteres especiales.";
     }
 
     const tiempo = Number(formularioVia.tiempo_validez_minutos);
@@ -590,6 +727,7 @@ function Peajes() {
                   value={formulario.nombre}
                   onChange={handleChange}
                   placeholder="Ej: Peaje Milagro"
+                  maxLength={100}
                   required
                 />
               </div>
@@ -602,6 +740,7 @@ function Peajes() {
                   value={formulario.ciudad}
                   onChange={handleChange}
                   placeholder="Ej: Milagro"
+                  maxLength={60}
                   required
                 />
               </div>
@@ -614,6 +753,7 @@ function Peajes() {
                   value={formulario.ubicacion}
                   onChange={handleChange}
                   placeholder="Ej: Vía Milagro - Guayaquil"
+                  maxLength={150}
                   required
                 />
               </div>
@@ -623,9 +763,11 @@ function Peajes() {
                 <input
                   type="text"
                   name="latitud"
+                  inputMode="decimal"
                   value={formulario.latitud}
                   onChange={handleChange}
                   placeholder="-2.1345000"
+                  maxLength={11}
                   required
                 />
               </div>
@@ -635,9 +777,11 @@ function Peajes() {
                 <input
                   type="text"
                   name="longitud"
+                  inputMode="decimal"
                   value={formulario.longitud}
                   onChange={handleChange}
                   placeholder="-79.5948000"
+                  maxLength={11}
                   required
                 />
               </div>
@@ -676,12 +820,14 @@ function Peajes() {
               <div className="form-group">
                 <label>Orden en la vía</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   name="orden_en_via"
                   min="0"
                   value={formulario.orden_en_via}
                   onChange={handleChange}
                   placeholder="Ej: 1"
+                  maxLength={5}
                 />
               </div>
 
@@ -789,7 +935,8 @@ function Peajes() {
                   name="nombre"
                   value={formularioVia.nombre}
                   onChange={handleViaChange}
-                  placeholder="Ej: Guayaquil - Salinas"
+                  placeholder="Ej: Guayaquil Salinas"
+                  maxLength={100}
                   required
                 />
               </div>
@@ -801,7 +948,8 @@ function Peajes() {
                   name="codigo"
                   value={formularioVia.codigo}
                   onChange={handleViaChange}
-                  placeholder="Ej: GYE-SAL"
+                  placeholder="Ej: GYESAL"
+                  maxLength={15}
                   required
                 />
               </div>
@@ -813,13 +961,15 @@ function Peajes() {
                   value={formularioVia.descripcion}
                   onChange={handleViaChange}
                   placeholder="Descripción opcional de la vía concesionada"
+                  maxLength={300}
                 />
               </div>
 
               <div className="form-group">
                 <label>Tiempo de validez en minutos</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   min="1"
                   name="tiempo_validez_minutos"
                   value={formularioVia.tiempo_validez_minutos}
