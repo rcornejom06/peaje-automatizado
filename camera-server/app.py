@@ -3,7 +3,6 @@ import time
 import logging
 import platform
 import atexit
-import copy
 from datetime import datetime
 from threading import Lock, Thread
 import re
@@ -64,7 +63,6 @@ capture_thread = None
 
 ultima_deteccion = None
 historial_detecciones = []
-detecciones_lock = Lock()
 
 ultimo_ocr_lpr = 0
 ultimo_registro_lpr = 0
@@ -75,6 +73,7 @@ ultima_imagen_placa = None
 
 os.makedirs(CARPETA_DEBUG_PLACAS, exist_ok=True)
 lpr_lock = Lock()
+historial_lock = Lock()
 
 # Variables para procesamiento asincrónico de OCR
 frame_a_procesar = None
@@ -667,116 +666,71 @@ def calcular_confianza_placa(texto):
     return 60
 
 
-def actualizar_deteccion_con_django(deteccion, placa, confianza):
+def _enviar_a_django_en_segundo_plano(deteccion, placa, confianza):
     """
-    Envía la detección a Django en segundo plano y actualiza el mismo objeto
-    en memoria cuando llega la respuesta. Así el OCR no se bloquea esperando
-    la petición HTTP.
+    Hace la llamada HTTP a Django en un hilo aparte, para no bloquear el
+    hilo de OCR (ni el endpoint /procesar_frame_navegador) mientras se
+    espera la respuesta, que puede tardar varios segundos e incluso
+    llegar al timeout de la petición.
+
+    'deteccion' es el mismo diccionario que ya quedó guardado en
+    ultima_deteccion e historial_detecciones, así que al mutarlo aquí
+    (en lugar de crear uno nuevo) el frontend lo ve "enriquecido" con
+    los datos de Django (peaje, tarifa, estado_pago, etc.) en el
+    siguiente sondeo, sin que nadie haya tenido que esperar por él.
     """
-    try:
-        resultado_django = enviar_deteccion_a_django(
-            placa=placa,
-            confianza=confianza
-        )
+    resultado_django = enviar_deteccion_a_django(placa=placa, confianza=confianza)
 
-        estado_pago = "pendiente"
-        estado_vehiculo = "sin_novedades"
+    if resultado_django.get("enviado"):
+        data_django = resultado_django.get("data", {})
+        deteccion["estado_pago"] = data_django.get("estado_pago", "pendiente")
+        deteccion["estado_vehiculo"] = data_django.get("estado_seguridad", "normal")
+    else:
+        data_django = resultado_django
 
-        if resultado_django.get("enviado"):
-            data_django = resultado_django.get("data", {}) or {}
+    deteccion["django"] = data_django
 
-            estado_pago = data_django.get("estado_pago", "pendiente")
-            estado_vehiculo = data_django.get("estado_seguridad", "normal")
-            data_django["procesando"] = False
-            data_django["sincronizado"] = True
-        else:
-            data_django = resultado_django or {}
-            data_django["procesando"] = False
-            data_django["sincronizado"] = False
-
-        with detecciones_lock:
-            deteccion["estado_pago"] = estado_pago
-            deteccion["estado_vehiculo"] = estado_vehiculo
-            deteccion["django"] = data_django
-            deteccion["procesando_django"] = False
-            deteccion["fecha_respuesta_django"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        logger.info(
-            f"✅ Detección actualizada con Django: {placa} | "
-            f"Pago: {estado_pago} | Seguridad: {estado_vehiculo}"
-        )
-
-    except Exception as e:
-        logger.error(f"❌ Error actualizando detección con Django: {e}")
-
-        with detecciones_lock:
-            deteccion["estado_pago"] = "pendiente"
-            deteccion["estado_vehiculo"] = "sin_novedades"
-            deteccion["procesando_django"] = False
-            deteccion["fecha_respuesta_django"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            deteccion["django"] = {
-                "enviado": False,
-                "procesando": False,
-                "sincronizado": False,
-                "error": str(e),
-            }
+    logger.info(f"Detección enriquecida con datos de Django: {deteccion['placa']}")
 
 
 def registrar_deteccion(placa, confianza, tipo="ocr_placa"):
-    """
-    Registra placa, hora y confianza inmediatamente en memoria y consulta
-    Django en un hilo aparte para completar peaje, tarifa, pago y seguridad.
-    """
     global ultima_deteccion
     global historial_detecciones
     global ultima_imagen_placa
 
     placa = limpiar_texto_placa(placa)
-    fecha_evento = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    id_evento = f"{fecha_evento}_{placa}_{int(time.time() * 1000)}"
 
+    # Se registra la detección de inmediato, con datos "pendientes" mientras
+    # Django responde. Antes esta función esperaba (de forma síncrona) la
+    # respuesta de Django antes de guardar nada, lo que bloqueaba todo el
+    # pipeline de OCR durante ese tiempo (hasta 12s) y hacía que el
+    # historial se sintiera mucho más lento que la detección en vivo.
     deteccion = {
-        "id_evento": id_evento,
         "placa": placa,
         "confianza": confianza,
         "tipo": tipo,
-        "fecha_hora": fecha_evento,
-
-        # Estado inicial inmediato. Se actualiza cuando Django responda.
-        "estado_pago": "procesando",
-        "estado_vehiculo": "procesando",
-        "procesando_django": True,
-
-        "django": {
-            "procesando": True,
-            "sincronizado": False,
-            "mensaje": "Consultando peaje, tarifa y estado de pago en Django...",
-            "peaje": None,
-            "tarifa_aplicada": None,
-            "estado_pago": "procesando",
-            "estado_seguridad": "procesando",
-        },
+        "fecha_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "estado_pago": "pendiente",
+        "estado_vehiculo": "sin_novedades",
+        "django": {"enviado": None, "mensaje": "Procesando con Django..."},
         "imagen_placa": ultima_imagen_placa if "ultima_imagen_placa" in globals() else None
     }
 
-    with detecciones_lock:
-        ultima_deteccion = deteccion
+    ultima_deteccion = deteccion
+
+    with historial_lock:
         historial_detecciones.append(deteccion)
 
         if len(historial_detecciones) > 50:
             historial_detecciones = historial_detecciones[-50:]
 
-    logger.info(
-        f"⚡ Placa registrada localmente sin esperar a Django: {placa} ({confianza}%)"
-    )
+    logger.info(f"Placa detectada y registrada: {placa} ({confianza}%)")
 
     Thread(
-        target=actualizar_deteccion_con_django,
+        target=_enviar_a_django_en_segundo_plano,
         args=(deteccion, placa, confianza),
-        daemon=True
+        daemon=True,
     ).start()
-
-    return deteccion
 
 
 def detectar_region_placa(frame):
@@ -1174,30 +1128,23 @@ def video_feed():
 
 @app.route("/last_detection")
 def last_detection():
-    with detecciones_lock:
-        if ultima_deteccion is None:
-            return jsonify({
-                "detectado": False,
-                "mensaje": "Esperando detección real de placa"
-            })
-
-        deteccion = copy.deepcopy(ultima_deteccion)
+    if ultima_deteccion is None:
+        return jsonify({
+            "detectado": False,
+            "mensaje": "Esperando detección real de placa"
+        })
 
     return jsonify({
         "detectado": True,
-        "deteccion": deteccion
+        "deteccion": ultima_deteccion
     })
 
 
 @app.route("/detections")
 def detections():
-    with detecciones_lock:
-        total = len(historial_detecciones)
-        detecciones = copy.deepcopy(historial_detecciones[-10:])
-
     return jsonify({
-        "total": total,
-        "detecciones": detecciones
+        "total": len(historial_detecciones),
+        "detecciones": historial_detecciones[-10:]
     })
 
 
@@ -1205,13 +1152,10 @@ def detections():
 def health():
     estado = "ok" if ultimo_frame is not None else "esperando_frame"
 
-    with detecciones_lock:
-        deteccion = copy.deepcopy(ultima_deteccion)
-
     return jsonify({
         "estado": estado,
         "camera_index": CAMERA_INDEX,
-        "ultima_deteccion": deteccion,
+        "ultima_deteccion": ultima_deteccion,
         "capturando": capturando
     })
 
