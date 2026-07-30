@@ -15,6 +15,16 @@ const obtenerFechaHoyLocal = () => {
     return local.toISOString().slice(0, 10);
 };
 
+// Patrón de validación para los campos de texto de búsqueda (módulo y acción)
+const REGEX_TEXTO_FILTRO = /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9\s]*$/;
+
+// Filtra caracteres mientras el usuario escribe (evita espacios repetidos y símbolos)
+const filtrarTextoFiltro = (valor) =>
+    String(valor)
+        .replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9\s]/g, "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/^\s+/, "");
+
 function Auditoria() {
     const [historial, setHistorial] = useState([]);
     const [resumen, setResumen] = useState(null);
@@ -67,10 +77,40 @@ function Auditoria() {
     }, []);
 
     const handleChange = (e) => {
+        const {name, value} = e.target;
+        let valorLimpio = value;
+
+        if (name === "modulo" || name === "accion") {
+            valorLimpio = filtrarTextoFiltro(value);
+        }
+
         setFiltros({
             ...filtros,
-            [e.target.name]: e.target.value,
+            [name]: valorLimpio,
         });
+    };
+
+    const validarFiltros = () => {
+        if (
+            filtros.fecha_inicio &&
+            filtros.fecha_fin &&
+            filtros.fecha_inicio > filtros.fecha_fin
+        ) {
+            return "La fecha 'Desde' no puede ser posterior a la fecha 'Hasta'.";
+        }
+
+        return "";
+    };
+
+    const handleAplicarFiltros = () => {
+        const errorValidacion = validarFiltros();
+
+        if (errorValidacion) {
+            setError(errorValidacion);
+            return;
+        }
+
+        cargarAuditoria();
     };
 
     const limpiarFiltros = async () => {
@@ -175,6 +215,7 @@ function Auditoria() {
                         name="fecha_inicio"
                         value={filtros.fecha_inicio}
                         onChange={handleChange}
+                        max={filtros.fecha_fin || undefined}
                     />
                 </div>
 
@@ -185,6 +226,7 @@ function Auditoria() {
                         name="fecha_fin"
                         value={filtros.fecha_fin}
                         onChange={handleChange}
+                        min={filtros.fecha_inicio || undefined}
                     />
                 </div>
 
@@ -198,6 +240,7 @@ function Auditoria() {
                         placeholder="Peajes, Seguridad..."
                         value={filtros.modulo}
                         onChange={handleChange}
+                        maxLength={50}
                     />
                 </div>
 
@@ -223,11 +266,12 @@ function Auditoria() {
                         placeholder="Registro, alerta, cierre..."
                         value={filtros.accion}
                         onChange={handleChange}
+                        maxLength={50}
                     />
                 </div>
 
                 <div className="auditoria-actions">
-                    <button className="btn-primary" onClick={() => cargarAuditoria()}>
+                    <button className="btn-primary" onClick={handleAplicarFiltros}>
                         Aplicar filtros
                     </button>
 
