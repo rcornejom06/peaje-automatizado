@@ -598,3 +598,85 @@
   width: 18px;
   height: 18px;
 }
+/* ===========================
+   AGREGAR A Camaras.css
+   Botón "Editar" + select de estado inline en la tabla de cámaras
+=========================== */
+
+.btn-editar {
+    min-height: 34px;
+    padding: 7px 14px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background 0.18s ease,
+        color 0.18s ease,
+        border-color 0.18s ease,
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.btn-editar:hover {
+    background: var(--primary-soft, #eff6ff);
+    color: var(--primary, #1d4ed8);
+    border-color: #bfdbfe;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+/* El select reemplaza el <span> de estado que ya tenías: mismas clases
+   estado-activa / estado-inactiva / estado-mantenimiento para que conserve
+   los mismos colores por estado, solo que ahora es interactivo. */
+.select-estado-camara {
+    min-height: 34px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: capitalize;
+    cursor: pointer;
+    outline: none;
+    transition:
+        background 0.18s ease,
+        color 0.18s ease,
+        border-color 0.18s ease,
+        opacity 0.18s ease;
+}
+
+.select-estado-camara:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.select-estado-camara:focus {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+/* Colores por estado — si tu .estado-activa / .estado-inactiva /
+   .estado-mantenimiento ya existían para el <span> anterior, puedes borrar
+   este bloque y dejar que esas mismas clases se apliquen (ya las reutiliza
+   el <select>). Este bloque es solo por si no existían todavía. */
+.select-estado-camara.estado-activa {
+    background: var(--success-soft, #dcfce7);
+    color: var(--success-text, #166534);
+    border-color: #bbf7d0;
+}
+
+.select-estado-camara.estado-inactiva {
+    background: var(--danger-soft, #fee2e2);
+    color: var(--danger-text, #991b1b);
+    border-color: #fecaca;
+}
+
+.select-estado-camara.estado-mantenimiento {
+    background: var(--warning-soft, #fef3c7);
+    color: var(--warning-text, #92400e);
+    border-color: #fde68a;
+}
