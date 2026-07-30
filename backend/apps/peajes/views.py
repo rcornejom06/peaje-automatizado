@@ -7,8 +7,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
 from .models import Peaje, Camara, PasoPeaje, TarifaPeajeCategoria, ViaConcesionada
-from .serializers import PeajeSerializer, CamaraSerializer, PasoPeajeSerializer, TarifaPeajeCategoriaSerializer, \
-    ViaConcesionadaSerializer
+from .serializers import PeajeSerializer, CamaraSerializer, CamaraEstadoSerializer, PasoPeajeSerializer, \
+    TarifaPeajeCategoriaSerializer, ViaConcesionadaSerializer
 from ..notificaciones.models import Notificacion
 from ..notificaciones.services import crear_notificacion
 from ..usuarios.permissions import obtener_rol_usuario
@@ -300,6 +300,49 @@ class CamaraViewSet(viewsets.ModelViewSet):
             generar_frames_camara(captura),
             content_type="multipart/x-mixed-replace; boundary=frame"
         )
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="cambiar-estado",
+        permission_classes=[IsAuthenticated]
+    )
+    def cambiar_estado(self, request, pk=None):
+        """
+        Activa, desactiva o pone en mantenimiento una cámara sin tener
+        que reenviar el resto de sus datos (código, ubicación,
+        stream_url, etc.). Pensado para el botón de "Desactivar" /
+        "Activar" del frontend.
+
+        PATCH /api/peajes/camaras/{id}/cambiar-estado/
+        { "estado": "inactiva" }
+        """
+        if obtener_rol_usuario(request.user) != "administrador":
+            return Response(
+                {"error": "Solo el administrador puede cambiar el estado de una cámara."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        camara = self.get_object()
+        estado_anterior = camara.estado
+
+        serializer = CamaraEstadoSerializer(camara, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        registrar_historial(
+            usuario=request.user,
+            accion="Cambio de estado de cámara",
+            descripcion=(
+                f"Se cambió el estado de la cámara {camara.codigo} "
+                f"de '{estado_anterior}' a '{camara.estado}'."
+            ),
+            modulo="Cámaras",
+            request=request,
+            dispositivo="Web"
+        )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         if obtener_rol_usuario(request.user) != "administrador":
