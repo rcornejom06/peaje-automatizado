@@ -9,6 +9,29 @@ import {
 } from "../../api/usuariosService.js";
 import "../Styles/Usuarios.css";
 
+// Patrones de validación por tipo de dato
+const REGEX_USERNAME = /^[A-Za-z0-9._-]{4,20}$/;
+const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REGEX_NOMBRE = /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+(?: [A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+)*$/;
+const REGEX_TELEFONO = /^\d{7,10}$/;
+const REGEX_CEDULA = /^\d{10}$/;
+
+// Filtra caracteres mientras el usuario escribe (evita espacios y símbolos no permitidos)
+const filtrarUsername = (valor) =>
+  String(valor).replace(/[^A-Za-z0-9._-]/g, "");
+
+const filtrarEmail = (valor) => String(valor).replace(/\s/g, "");
+
+const filtrarPassword = (valor) => String(valor).replace(/\s/g, "");
+
+const filtrarNombre = (valor) =>
+  String(valor)
+    .replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ\s]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^\s+/, "");
+
+const filtrarSoloDigitos = (valor) => String(valor).replace(/[^0-9]/g, "");
+
 function Usuarios() {
   const [perfiles, setPerfiles] = useState([]);
   const [miPerfil, setMiPerfil] = useState(null);
@@ -154,10 +177,33 @@ function Usuarios() {
 
   const handleChangeOperador = (e) => {
     const { name, value } = e.target;
+    let valorLimpio = value;
+
+    switch (name) {
+      case "username":
+        valorLimpio = filtrarUsername(value);
+        break;
+      case "email":
+        valorLimpio = filtrarEmail(value);
+        break;
+      case "password":
+        valorLimpio = filtrarPassword(value);
+        break;
+      case "first_name":
+      case "last_name":
+        valorLimpio = filtrarNombre(value);
+        break;
+      case "telefono":
+      case "cedula":
+        valorLimpio = filtrarSoloDigitos(value);
+        break;
+      default:
+        valorLimpio = value;
+    }
 
     setFormOperador((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: valorLimpio,
     }));
   };
 
@@ -181,8 +227,20 @@ function Usuarios() {
       return;
     }
 
+    if (!REGEX_USERNAME.test(formOperador.username.trim())) {
+      setError(
+        "El usuario debe tener entre 4 y 20 caracteres: letras, números, puntos, guiones o guion bajo, sin espacios."
+      );
+      return;
+    }
+
     if (!formOperador.email.trim()) {
       setError("Ingresa el correo del operador.");
+      return;
+    }
+
+    if (!REGEX_EMAIL.test(formOperador.email.trim())) {
+      setError("Ingresa un correo electrónico válido, sin espacios.");
       return;
     }
 
@@ -193,6 +251,38 @@ function Usuarios() {
 
     if (formOperador.password.length < 8) {
       setError("La contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
+
+    if (
+      formOperador.first_name.trim() &&
+      !REGEX_NOMBRE.test(formOperador.first_name.trim())
+    ) {
+      setError("Los nombres solo pueden contener letras y espacios.");
+      return;
+    }
+
+    if (
+      formOperador.last_name.trim() &&
+      !REGEX_NOMBRE.test(formOperador.last_name.trim())
+    ) {
+      setError("Los apellidos solo pueden contener letras y espacios.");
+      return;
+    }
+
+    if (
+      formOperador.telefono.trim() &&
+      !REGEX_TELEFONO.test(formOperador.telefono.trim())
+    ) {
+      setError("El teléfono debe tener entre 7 y 10 dígitos numéricos, sin espacios.");
+      return;
+    }
+
+    if (
+      formOperador.cedula.trim() &&
+      !REGEX_CEDULA.test(formOperador.cedula.trim())
+    ) {
+      setError("La cédula debe tener 10 dígitos numéricos, sin espacios ni letras.");
       return;
     }
 
@@ -538,6 +628,7 @@ function Usuarios() {
                       value={formOperador.username}
                       onChange={handleChangeOperador}
                       placeholder="operador1"
+                      maxLength={20}
                     />
                   </div>
 
@@ -549,6 +640,7 @@ function Usuarios() {
                       value={formOperador.email}
                       onChange={handleChangeOperador}
                       placeholder="operador@viasmart.com"
+                      maxLength={100}
                     />
                   </div>
 
@@ -560,6 +652,7 @@ function Usuarios() {
                       value={formOperador.password}
                       onChange={handleChangeOperador}
                       placeholder="Mínimo 8 caracteres"
+                      maxLength={50}
                     />
                   </div>
 
@@ -571,6 +664,7 @@ function Usuarios() {
                       value={formOperador.first_name}
                       onChange={handleChangeOperador}
                       placeholder="Nombres"
+                      maxLength={60}
                     />
                   </div>
 
@@ -582,6 +676,7 @@ function Usuarios() {
                       value={formOperador.last_name}
                       onChange={handleChangeOperador}
                       placeholder="Apellidos"
+                      maxLength={60}
                     />
                   </div>
 
@@ -590,6 +685,7 @@ function Usuarios() {
                     <input
                       type="text"
                       name="telefono"
+                      inputMode="numeric"
                       value={formOperador.telefono}
                       onChange={handleChangeOperador}
                       placeholder="0999999999"
@@ -602,6 +698,7 @@ function Usuarios() {
                     <input
                       type="text"
                       name="cedula"
+                      inputMode="numeric"
                       value={formOperador.cedula}
                       onChange={handleChangeOperador}
                       placeholder="0102030405"
