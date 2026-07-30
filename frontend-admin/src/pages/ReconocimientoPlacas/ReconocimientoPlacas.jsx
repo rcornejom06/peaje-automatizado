@@ -22,31 +22,81 @@ function ReconocimientoPlacas() {
     const overlayCanvasRef = useRef(null);
     const streamRef = useRef(null);
     const intervaloEnvioRef = useRef(null);
+    const deteccionesInicialesIgnoradasRef = useRef(false);
+    const clavesDeteccionesInicialesRef = useRef(new Set());
 
     const cameraServerUrl =
         import.meta.env.VITE_CAMERA_SERVER_URL || "http://localhost:5001";
     const cameraFeedUrl = `${cameraServerUrl}/video_feed`;
+    const crearClaveDeteccion = (deteccion) => {
+        if (!deteccion) return "";
+        const pasoId =
+            deteccion?.django?.paso_id ||
+            deteccion?.paso_id ||
+            deteccion?.id_paso ||
+            deteccion?.id ||
+            "";
+        return [
+            pasoId,
+            deteccion?.placa || "",
+            deteccion?.fecha_hora || "",
+            deteccion?.confianza || "",
+            deteccion?.tipo || "",
+        ].join("|");
+    };
 
     const cargarDetecciones = async () => {
         try {
+    
             const respuestaUltima = await fetch(`${cameraServerUrl}/last_detection`);
             const dataUltima = await respuestaUltima.json();
+            const respuestaHistorial = await fetch(`${cameraServerUrl}/detections`);
+            const dataHistorial = await respuestaHistorial.json();
+            const listaHistorial = dataHistorial.detecciones || [];
+            // Al entrar por primera vez al módulo, ignoramos las detecciones
+            // que ya estaban guardadas en Flask.
+            if (!deteccionesInicialesIgnoradasRef.current) {
+                listaHistorial.forEach((deteccion) => {
+                    clavesDeteccionesInicialesRef.current.add(
+                        crearClaveDeteccion(deteccion)
+                    );
+                });
+                if (dataUltima.detectado && dataUltima.deteccion) {
+                    clavesDeteccionesInicialesRef.current.add(
+                        crearClaveDeteccion(dataUltima.deteccion)
+                    );
+                }
+                deteccionesInicialesIgnoradasRef.current = true;
+                setUltimaDeteccion(null);
+                setHistorial([]);
+                setErrorServidor("");
+                return;
+            }
 
-            if (dataUltima.detectado) {
+        const historialNuevo = listaHistorial.filter((deteccion) => {
+            const clave = crearClaveDeteccion(deteccion);
+            return !clavesDeteccionesInicialesRef.current.has(clave);
+        });
+
+        setHistorial(historialNuevo);
+
+        if (dataUltima.detectado && dataUltima.deteccion) {
+            const claveUltima = crearClaveDeteccion(dataUltima.deteccion);
+
+            if (!clavesDeteccionesInicialesRef.current.has(claveUltima)) {
                 setUltimaDeteccion(dataUltima.deteccion);
             } else {
                 setUltimaDeteccion(null);
             }
-
-            const respuestaHistorial = await fetch(`${cameraServerUrl}/detections`);
-            const dataHistorial = await respuestaHistorial.json();
-
-            setHistorial(dataHistorial.detecciones || []);
-            setErrorServidor("");
-        } catch {
-            setErrorServidor("No se pudo conectar con el servidor de cámara.");
+        } else {
+            setUltimaDeteccion(null);
         }
-    };
+
+        setErrorServidor("");
+    } catch {
+        setErrorServidor("No se pudo conectar con el servidor de cámara.");
+    }
+};
 
     useEffect(() => {
         cargarDetecciones();
@@ -479,9 +529,22 @@ function ReconocimientoPlacas() {
                                 type="button"
                                 className={`btn-toggle-webcam${usarWebcamNavegador ? " activo" : ""}`}
                                 onClick={() => setUsarWebcamNavegador((actual) => !actual)}
-                            >
-                                <span className="btn-toggle-webcam__dot" />
-                                {usarWebcamNavegador ? "Cámara USB" : "Cámara del navegador"}
+                                title={usarWebcamNavegador ? "Volver a cámara USB" : "Usar cámara web del navegador"}
+                                >
+                                <span className="btn-toggle-webcam__icon">
+                                    {usarWebcamNavegador ? "🌐" : "📷"}
+                                </span>
+                                <span className="btn-toggle-webcam__content">
+                                    <strong>
+                                        {usarWebcamNavegador ? "Cámara web activa" : "Usar cámara web"}
+                                    </strong>
+                                    <small>
+                                        {usarWebcamNavegador ? "Volver a USB" : "Desde navegador"}
+                                    </small>
+                                </span>
+                                <span className="btn-toggle-webcam__badge">
+                                    {usarWebcamNavegador ? "WEB" : "USB"}
+                                </span>
                             </button>
 
                             {usarWebcamNavegador ? (
