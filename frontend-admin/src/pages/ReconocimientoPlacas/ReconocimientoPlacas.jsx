@@ -19,7 +19,6 @@ function ReconocimientoPlacas() {
     const [errorWebcam, setErrorWebcam] = useState("");
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
-    const overlayCanvasRef = useRef(null);
     const streamRef = useRef(null);
     const intervaloEnvioRef = useRef(null);
     const deteccionesInicialesIgnoradasRef = useRef(false);
@@ -28,14 +27,18 @@ function ReconocimientoPlacas() {
     const cameraServerUrl =
         import.meta.env.VITE_CAMERA_SERVER_URL || "http://localhost:5001";
     const cameraFeedUrl = `${cameraServerUrl}/video_feed`;
+
     const crearClaveDeteccion = (deteccion) => {
         if (!deteccion) return "";
+
         const pasoId =
             deteccion?.django?.paso_id ||
             deteccion?.paso_id ||
             deteccion?.id_paso ||
             deteccion?.id ||
+            deteccion?.id_evento ||
             "";
+
         return [
             pasoId,
             deteccion?.placa || "",
@@ -45,40 +48,31 @@ function ReconocimientoPlacas() {
         ].join("|");
     };
 
-    // Igual que crearClaveDeteccion, pero sin el paso_id: sirve para
-    // identificar "la misma detección" antes y después de que Django la
-    // enriquezca (antes de eso todavía no tiene paso_id asignado).
-    const crearClaveSinPaso = (deteccion) => {
-        if (!deteccion) return "";
-        return [
-            deteccion?.placa || "",
-            deteccion?.fecha_hora || "",
-            deteccion?.confianza || "",
-            deteccion?.tipo || "",
-        ].join("|");
-    };
-
     const cargarDetecciones = async () => {
         try {
-    
             const respuestaUltima = await fetch(`${cameraServerUrl}/last_detection`);
             const dataUltima = await respuestaUltima.json();
+
             const respuestaHistorial = await fetch(`${cameraServerUrl}/detections`);
             const dataHistorial = await respuestaHistorial.json();
+
             const listaHistorial = dataHistorial.detecciones || [];
-            // Al entrar por primera vez al módulo, ignoramos las detecciones
-            // que ya estaban guardadas en Flask.
+
+            // Al abrir el módulo por primera vez, ignoramos lo que Flask ya tenía
+            // en memoria para que la pantalla empiece limpia al volver a iniciar sesión.
             if (!deteccionesInicialesIgnoradasRef.current) {
                 listaHistorial.forEach((deteccion) => {
                     clavesDeteccionesInicialesRef.current.add(
                         crearClaveDeteccion(deteccion)
                     );
                 });
+
                 if (dataUltima.detectado && dataUltima.deteccion) {
                     clavesDeteccionesInicialesRef.current.add(
                         crearClaveDeteccion(dataUltima.deteccion)
                     );
                 }
+
                 deteccionesInicialesIgnoradasRef.current = true;
                 setUltimaDeteccion(null);
                 setHistorial([]);
@@ -86,57 +80,30 @@ function ReconocimientoPlacas() {
                 return;
             }
 
-        const historialNuevo = listaHistorial.filter((deteccion) => {
-            const clave = crearClaveDeteccion(deteccion);
-            return !clavesDeteccionesInicialesRef.current.has(clave);
-        });
+            const historialNuevo = listaHistorial.filter((deteccion) => {
+                const clave = crearClaveDeteccion(deteccion);
+                return !clavesDeteccionesInicialesRef.current.has(clave);
+            });
 
-        // La última detección (dataUltima) llega de inmediato desde
-        // /last_detection, pero /detections (historialNuevo) solo la
-        // incluye una vez que Django terminó de procesarla (peaje,
-        // tarifa, etc.), lo cual demora un poco más. Para que el
-        // historial no se quede "atrás" respecto a la última captura,
-        // la agregamos aquí mismo apenas llega, y se reemplaza sola en
-        // cuanto /detections trae la versión completa (misma placa,
-        // fecha_hora, confianza y tipo).
-        let historialConUltima = historialNuevo;
+            setHistorial(historialNuevo);
 
-        if (
-            dataUltima.detectado &&
-            dataUltima.deteccion &&
-            !clavesDeteccionesInicialesRef.current.has(
-                crearClaveDeteccion(dataUltima.deteccion)
-            )
-        ) {
-            const claveUltimaSinPaso = crearClaveSinPaso(dataUltima.deteccion);
-            const yaEstaEnHistorial = historialNuevo.some(
-                (item) => crearClaveSinPaso(item) === claveUltimaSinPaso
-            );
+            if (dataUltima.detectado && dataUltima.deteccion) {
+                const claveUltima = crearClaveDeteccion(dataUltima.deteccion);
 
-            if (!yaEstaEnHistorial) {
-                historialConUltima = [...historialNuevo, dataUltima.deteccion];
-            }
-        }
-
-        setHistorial(historialConUltima);
-
-        if (dataUltima.detectado && dataUltima.deteccion) {
-            const claveUltima = crearClaveDeteccion(dataUltima.deteccion);
-
-            if (!clavesDeteccionesInicialesRef.current.has(claveUltima)) {
-                setUltimaDeteccion(dataUltima.deteccion);
+                if (!clavesDeteccionesInicialesRef.current.has(claveUltima)) {
+                    setUltimaDeteccion(dataUltima.deteccion);
+                } else {
+                    setUltimaDeteccion(null);
+                }
             } else {
                 setUltimaDeteccion(null);
             }
-        } else {
-            setUltimaDeteccion(null);
-        }
 
-        setErrorServidor("");
-    } catch {
-        setErrorServidor("No se pudo conectar con el servidor de cámara.");
-    }
-};
+            setErrorServidor("");
+        } catch {
+            setErrorServidor("No se pudo conectar con el servidor de cámara.");
+        }
+    };
 
     useEffect(() => {
         cargarDetecciones();
@@ -174,9 +141,11 @@ function ReconocimientoPlacas() {
 
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
+                await videoRef.current.play().catch(() => {});
             }
 
-            intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 900);
+            setEstadoCamara("activa");
+            intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 2000);
         } catch {
             setErrorWebcam(
                 "No se pudo acceder a la cámara del navegador. Verifica los permisos del sitio."
@@ -196,45 +165,9 @@ function ReconocimientoPlacas() {
             streamRef.current = null;
         }
 
-        const overlay = overlayCanvasRef.current;
-        if (overlay) {
-            const ctx = overlay.getContext("2d");
-            ctx.clearRect(0, 0, overlay.width, overlay.height);
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
         }
-    };
-
-    // Dibuja el rectangulo de deteccion sobre el video de la webcam, igual
-    // que ya se ve en el stream MJPEG de la camara USB. El canvas de overlay
-    // se dibuja en la resolucion NATIVA del video (no la resolucion en
-    // pantalla) y luego se estira con CSS (object-fit: cover, igual que
-    // .live-camera) para que el rectangulo quede exactamente sobre la placa
-    // que se ve en pantalla, sin importar el tamano real de la ventana.
-    const dibujarRegionEnOverlay = (data) => {
-        const video = videoRef.current;
-        const overlay = overlayCanvasRef.current;
-
-        if (!video || !overlay || video.videoWidth === 0) return;
-
-        overlay.width = video.videoWidth;
-        overlay.height = video.videoHeight;
-
-        const ctx = overlay.getContext("2d");
-        ctx.clearRect(0, 0, overlay.width, overlay.height);
-
-        if (!data?.region) return;
-
-        const {x, y, w, h} = data.region;
-
-        ctx.strokeStyle = "#22c55e";
-        ctx.lineWidth = 4;
-        ctx.strokeRect(x, y, w, h);
-
-        const texto = data.detectado && data.placa ? data.placa : "ESCANEANDO...";
-
-        ctx.font = "bold 28px sans-serif";
-        ctx.fillStyle = "#22c55e";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(texto, x, Math.max(y - 10, 30));
     };
 
     const enviarFrameAlServidor = () => {
@@ -257,18 +190,13 @@ function ReconocimientoPlacas() {
                 formData.append("frame", blob, "frame.jpg");
 
                 try {
-                    const respuesta = await fetch(
-                        `${cameraServerUrl}/procesar_frame_navegador`,
-                        {method: "POST", body: formData}
-                    );
-
-                    const data = await respuesta.json();
-                    dibujarRegionEnOverlay(data);
-                    // No hace falta hacer nada mas con la placa/confianza
-                    // aqui: cargarDetecciones() (polling cada 1.5s) ya
-                    // recoge la detección desde /last_detection en cuanto
-                    // el backend la registre. Aqui solo usamos la respuesta
-                    // para dibujar el rectangulo en vivo.
+                    await fetch(`${cameraServerUrl}/procesar_frame_navegador`, {
+                        method: "POST",
+                        body: formData,
+                    });
+                    // No hace falta leer la respuesta aquí: cargarDetecciones()
+                    // (polling cada 1.5s) ya recoge la detección desde
+                    // /last_detection en cuanto el backend la registre.
                 } catch {
                     // Silencioso: el próximo intervalo lo intenta de nuevo.
                 }
@@ -367,6 +295,7 @@ function ReconocimientoPlacas() {
         if (estado === "pendiente") return "Pendiente";
         if (estado === "fallido") return "Fallido";
         if (estado === "exonerado") return "Exonerado";
+        if (estado === "procesando") return "Procesando...";
         return estado || "Sin estado";
     };
 
@@ -395,13 +324,31 @@ function ReconocimientoPlacas() {
     };
 
     const obtenerPeajeDeteccion = (deteccion) => {
-        return deteccion?.django?.peaje || "Cargando peaje...";
+        if (!deteccion) return "--";
+
+        if (deteccion?.django?.peaje) {
+            return deteccion.django.peaje;
+        }
+
+        if (deteccion?.procesando_django || deteccion?.django?.procesando) {
+            return "Consultando peaje...";
+        }
+
+        return "--";
     };
 
     const obtenerTarifaDeteccion = (deteccion) => {
-        return deteccion?.django?.tarifa_aplicada
-            ? `$${deteccion.django.tarifa_aplicada}`
-            : "--";
+        if (!deteccion) return "--";
+
+        if (deteccion?.django?.tarifa_aplicada) {
+            return `$${deteccion.django.tarifa_aplicada}`;
+        }
+
+        if (deteccion?.procesando_django || deteccion?.django?.procesando) {
+            return "Consultando...";
+        }
+
+        return "--";
     };
 
 
@@ -463,6 +410,10 @@ function ReconocimientoPlacas() {
 
         if (estado === "normal" || estado === "sin_novedades") {
             return "Normal";
+        }
+
+        if (estado === "procesando") {
+            return "Procesando...";
         }
 
         return estado;
@@ -569,22 +520,9 @@ function ReconocimientoPlacas() {
                                 type="button"
                                 className={`btn-toggle-webcam${usarWebcamNavegador ? " activo" : ""}`}
                                 onClick={() => setUsarWebcamNavegador((actual) => !actual)}
-                                title={usarWebcamNavegador ? "Volver a cámara USB" : "Usar cámara web del navegador"}
-                                >
-                                <span className="btn-toggle-webcam__icon">
-                                    {usarWebcamNavegador ? "🌐" : "📷"}
-                                </span>
-                                <span className="btn-toggle-webcam__content">
-                                    <strong>
-                                        {usarWebcamNavegador ? "Cámara web activa" : "Usar cámara web"}
-                                    </strong>
-                                    <small>
-                                        {usarWebcamNavegador ? "Volver a USB" : "Desde navegador"}
-                                    </small>
-                                </span>
-                                <span className="btn-toggle-webcam__badge">
-                                    {usarWebcamNavegador ? "WEB" : "USB"}
-                                </span>
+                            >
+                                <span className="btn-toggle-webcam__dot" />
+                                {usarWebcamNavegador ? "Cámara USB" : "Cámara del navegador"}
                             </button>
 
                             {usarWebcamNavegador ? (
@@ -602,16 +540,6 @@ function ReconocimientoPlacas() {
                                     className="live-camera"
                                     onLoad={() => setEstadoCamara("activa")}
                                     onError={() => setEstadoCamara("error")}
-                                />
-                            )}
-
-                            {/* Rectangulo de deteccion sobre la webcam del
-                                navegador, igual que ya se ve en el stream de
-                                la camara USB. Solo se muestra en modo webcam. */}
-                            {usarWebcamNavegador && (
-                                <canvas
-                                    ref={overlayCanvasRef}
-                                    className="webcam-overlay-canvas"
                                 />
                             )}
 
