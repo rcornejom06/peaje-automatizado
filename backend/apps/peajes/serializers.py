@@ -226,6 +226,22 @@ class CamaraSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class CamaraEstadoSerializer(serializers.ModelSerializer):
+    """
+    Serializer liviano para activar/desactivar (o poner en mantenimiento)
+    una cámara sin reenviar el resto de sus datos (código, ubicación,
+    stream_url, etc.). Pensado para un endpoint puntual, por ejemplo:
+
+        PATCH /api/peajes/camaras/{id}/cambiar-estado/
+        { "estado": "inactiva" }
+    """
+
+    class Meta:
+        model = Camara
+        fields = ["id", "estado"]
+        read_only_fields = ["id"]
+
+
 class PasoPeajeSerializer(serializers.ModelSerializer):
     peaje_nombre = serializers.CharField(source="peaje.nombre", read_only=True)
     vehiculo_placa = serializers.CharField(source="vehiculo.placa", read_only=True)
