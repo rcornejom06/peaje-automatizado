@@ -19,6 +19,7 @@ function ReconocimientoPlacas() {
     const [errorWebcam, setErrorWebcam] = useState("");
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
+    const overlayCanvasRef = useRef(null);
     const streamRef = useRef(null);
     const intervaloEnvioRef = useRef(null);
 
@@ -85,7 +86,7 @@ function ReconocimientoPlacas() {
                 videoRef.current.srcObject = stream;
             }
 
-            intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 2000);
+            intervaloEnvioRef.current = setInterval(enviarFrameAlServidor, 900);
         } catch {
             setErrorWebcam(
                 "No se pudo acceder a la cámara del navegador. Verifica los permisos del sitio."
@@ -104,6 +105,46 @@ function ReconocimientoPlacas() {
             streamRef.current.getTracks().forEach((track) => track.stop());
             streamRef.current = null;
         }
+
+        const overlay = overlayCanvasRef.current;
+        if (overlay) {
+            const ctx = overlay.getContext("2d");
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
+    };
+
+    // Dibuja el rectangulo de deteccion sobre el video de la webcam, igual
+    // que ya se ve en el stream MJPEG de la camara USB. El canvas de overlay
+    // se dibuja en la resolucion NATIVA del video (no la resolucion en
+    // pantalla) y luego se estira con CSS (object-fit: cover, igual que
+    // .live-camera) para que el rectangulo quede exactamente sobre la placa
+    // que se ve en pantalla, sin importar el tamano real de la ventana.
+    const dibujarRegionEnOverlay = (data) => {
+        const video = videoRef.current;
+        const overlay = overlayCanvasRef.current;
+
+        if (!video || !overlay || video.videoWidth === 0) return;
+
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+
+        const ctx = overlay.getContext("2d");
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+        if (!data?.region) return;
+
+        const {x, y, w, h} = data.region;
+
+        ctx.strokeStyle = "#22c55e";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x, y, w, h);
+
+        const texto = data.detectado && data.placa ? data.placa : "ESCANEANDO...";
+
+        ctx.font = "bold 28px sans-serif";
+        ctx.fillStyle = "#22c55e";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(texto, x, Math.max(y - 10, 30));
     };
 
     const enviarFrameAlServidor = () => {
@@ -126,13 +167,18 @@ function ReconocimientoPlacas() {
                 formData.append("frame", blob, "frame.jpg");
 
                 try {
-                    await fetch(`${cameraServerUrl}/procesar_frame_navegador`, {
-                        method: "POST",
-                        body: formData,
-                    });
-                    // No hace falta leer la respuesta aquí: cargarDetecciones()
-                    // (polling cada 1.5s) ya recoge la detección desde
-                    // /last_detection en cuanto el backend la registre.
+                    const respuesta = await fetch(
+                        `${cameraServerUrl}/procesar_frame_navegador`,
+                        {method: "POST", body: formData}
+                    );
+
+                    const data = await respuesta.json();
+                    dibujarRegionEnOverlay(data);
+                    // No hace falta hacer nada mas con la placa/confianza
+                    // aqui: cargarDetecciones() (polling cada 1.5s) ya
+                    // recoge la detección desde /last_detection en cuanto
+                    // el backend la registre. Aqui solo usamos la respuesta
+                    // para dibujar el rectangulo en vivo.
                 } catch {
                     // Silencioso: el próximo intervalo lo intenta de nuevo.
                 }
@@ -453,6 +499,16 @@ function ReconocimientoPlacas() {
                                     className="live-camera"
                                     onLoad={() => setEstadoCamara("activa")}
                                     onError={() => setEstadoCamara("error")}
+                                />
+                            )}
+
+                            {/* Rectangulo de deteccion sobre la webcam del
+                                navegador, igual que ya se ve en el stream de
+                                la camara USB. Solo se muestra en modo webcam. */}
+                            {usarWebcamNavegador && (
+                                <canvas
+                                    ref={overlayCanvasRef}
+                                    className="webcam-overlay-canvas"
                                 />
                             )}
 
