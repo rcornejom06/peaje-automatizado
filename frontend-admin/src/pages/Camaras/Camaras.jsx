@@ -1,5 +1,10 @@
 import {useEffect, useState} from "react";
-import {obtenerCamaras, crearCamara} from "../../api/camarasService";
+import {
+    obtenerCamaras,
+    crearCamara,
+    editarCamara,
+    cambiarEstadoCamara,
+} from "../../api/camarasService";
 import {obtenerPeajes} from "../../api/peajeService";
 import "../Styles/Camaras.css";
 import ModuleHeader from "../../components/ModuleHeader/ModuleHeader";
@@ -50,6 +55,8 @@ function Camaras() {
     const [error, setError] = useState("");
     const [mensaje, setMensaje] = useState("");
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
+    const [camaraEditando, setCamaraEditando] = useState(null); // null = creando, id = editando
+    const [cambiandoEstadoId, setCambiandoEstadoId] = useState(null); // id de la fila cuyo estado se esta guardando
 
     const [formulario, setFormulario] = useState({
         codigo: "",
@@ -154,6 +161,59 @@ function Camaras() {
             estado: "activa",
             fecha_instalacion: fechaActual(),
         });
+        setCamaraEditando(null);
+    };
+
+    const iniciarEdicion = (camara) => {
+        setFormulario({
+            codigo: camara.codigo || "",
+            peaje: camara.peaje || "",
+            ubicacion: camara.ubicacion || "",
+            tipo_camara: camara.tipo_camara || "ANPR",
+            tipo_fuente: camara.tipo_fuente || "usb",
+            stream_url: (camara.stream_url ?? "0").toString(),
+            procesar_anpr: Boolean(camara.procesar_anpr),
+            estado: camara.estado || "activa",
+            fecha_instalacion: camara.fecha_instalacion || fechaActual(),
+        });
+        setCamaraEditando(camara.id);
+        setMostrarFormulario(true);
+        setError("");
+        setMensaje("");
+    };
+
+    const cancelarFormulario = () => {
+        limpiarFormulario();
+        setMostrarFormulario(false);
+    };
+
+    // Cambio rapido de estado desde la tabla, sin pasar por el formulario
+    // completo (para eso existe el endpoint /cambiar-estado/ aparte).
+    const handleCambiarEstado = async (camara, nuevoEstado) => {
+        if (nuevoEstado === camara.estado) return;
+
+        try {
+            setCambiandoEstadoId(camara.id);
+            setError("");
+            setMensaje("");
+
+            await cambiarEstadoCamara(camara.id, nuevoEstado);
+
+            setMensaje(`Estado de "${camara.codigo}" actualizado correctamente.`);
+            await cargarDatos();
+        } catch (err) {
+            if (err.response?.status === 403) {
+                setError("No tiene permisos para cambiar el estado de la cámara.");
+            } else {
+                setError(
+                    err.response?.data?.error ||
+                    err.response?.data?.detail ||
+                    "No se pudo cambiar el estado de la cámara."
+                );
+            }
+        } finally {
+            setCambiandoEstadoId(null);
+        }
     };
 
     const construirPayload = () => {
@@ -227,14 +287,21 @@ function Camaras() {
             }
         }
 
+        const editando = camaraEditando !== null;
+
         try {
             setGuardando(true);
             setError("");
             setMensaje("");
 
-            await crearCamara(construirPayload());
+            if (editando) {
+                await editarCamara(camaraEditando, construirPayload());
+                setMensaje("Cámara actualizada correctamente.");
+            } else {
+                await crearCamara(construirPayload());
+                setMensaje("Cámara creada correctamente.");
+            }
 
-            setMensaje("Cámara creada correctamente.");
             limpiarFormulario();
             setMostrarFormulario(false);
             await cargarDatos();
@@ -242,12 +309,16 @@ function Camaras() {
             const data = error.response?.data;
 
             if (error.response?.status === 403) {
-                setError("No tiene permisos para crear cámaras. Use una cuenta administradora.");
+                setError(
+                    editando
+                        ? "No tiene permisos para editar cámaras. Use una cuenta administradora."
+                        : "No tiene permisos para crear cámaras. Use una cuenta administradora."
+                );
             } else if (typeof data === "object" && data !== null) {
                 const mensajes = Object.values(data).flat().join(" ");
-                setError(mensajes || "No se pudo crear la cámara. Verifique los datos ingresados.");
+                setError(mensajes || "No se pudo guardar la cámara. Verifique los datos ingresados.");
             } else {
-                setError("No se pudo crear la cámara. Verifique los datos ingresados.");
+                setError("No se pudo guardar la cámara. Verifique los datos ingresados.");
             }
         } finally {
             setGuardando(false);
@@ -286,8 +357,11 @@ function Camaras() {
                 status="Cámaras activas"
                 actions={
                     <>
-                        <button className="module-header-primary" onClick={() => setMostrarFormulario(!mostrarFormulario)}>
-                            + Nueva cámara
+                        <button
+                            className="module-header-primary"
+                            onClick={mostrarFormulario ? cancelarFormulario : () => setMostrarFormulario(true)}
+                        >
+                            {mostrarFormulario ? "Cancelar" : "+ Nueva cámara"}
                         </button>
 
                         <button className="module-header-secondary" onClick={cargarDatos}>
@@ -302,7 +376,7 @@ function Camaras() {
 
             {mostrarFormulario && (
                 <div className="form-card">
-                    <h3>Registrar nueva cámara</h3>
+                    <h3>{camaraEditando !== null ? "Editar cámara" : "Registrar nueva cámara"}</h3>
 
                     <form onSubmit={handleSubmit} className="camara-form">
                         <div className="form-group">
@@ -430,7 +504,11 @@ function Camaras() {
 
                         <div className="form-buttons">
                             <button type="submit" className="btn-primary" disabled={guardando}>
-                                {guardando ? "Guardando..." : "Guardar cámara"}
+                                {guardando
+                                    ? "Guardando..."
+                                    : camaraEditando !== null
+                                        ? "Guardar cambios"
+                                        : "Guardar cámara"}
                             </button>
                         </div>
                     </form>
@@ -450,6 +528,7 @@ function Camaras() {
                         <th>ANPR</th>
                         <th>Estado</th>
                         <th>Instalación</th>
+                        <th>Acciones</th>
                     </tr>
                     </thead>
 
@@ -465,16 +544,32 @@ function Camaras() {
                                 <td>{camara.stream_url || "Sin dato"}</td>
                                 <td>{camara.procesar_anpr ? "Sí" : "No"}</td>
                                 <td>
-                                    <span className={`estado estado-${camara.estado}`}>
-                                        {camara.estado}
-                                    </span>
+                                    <select
+                                        className={`select-estado-camara estado-${camara.estado}`}
+                                        value={camara.estado}
+                                        disabled={cambiandoEstadoId === camara.id}
+                                        onChange={(e) => handleCambiarEstado(camara, e.target.value)}
+                                    >
+                                        <option value="activa">Activa</option>
+                                        <option value="inactiva">Inactiva</option>
+                                        <option value="mantenimiento">Mantenimiento</option>
+                                    </select>
                                 </td>
                                 <td>{camara.fecha_instalacion || "Sin fecha"}</td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        className="btn-editar"
+                                        onClick={() => iniciarEdicion(camara)}
+                                    >
+                                        Editar
+                                    </button>
+                                </td>
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="9">No existen cámaras registradas.</td>
+                            <td colSpan="10">No existen cámaras registradas.</td>
                         </tr>
                     )}
                     </tbody>
